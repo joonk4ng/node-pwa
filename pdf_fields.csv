@@ -1,0 +1,48 @@
+15 GOVT SIG,PDFSignature
+1 AGREEMENT NUMBER,PDFTextField
+RESOURCE ORDER #,PDFTextField
+2 CONTRACTOR name,PDFTextField
+3 INCIDENT OR PROJECT NAME,PDFTextField
+4 INCIDENT NUMBER,PDFTextField
+5 OPERATOR name,PDFTextField
+6 EQUIPMENT MAKE,PDFTextField
+7 EQUIPMENT MODEL,PDFTextField
+9 SERIAL NUMBER,PDFTextField
+10 LICENSE NUMBER,PDFTextField
+Dropdown9,PDFDropdown
+12 DATE MODAYRRow1,PDFTextField
+STARTRow1,PDFTextField
+STOPRow1,PDFTextField
+WORKRow1,PDFTextField
+SPECIALRow1,PDFTextField
+12 DATE MODAYRRow2,PDFTextField
+STARTRow2,PDFTextField
+STOPRow2,PDFTextField
+WORKRow2,PDFTextField
+SPECIALRow2,PDFTextField
+12 DATE MODAYRRow3,PDFTextField
+STARTRow3,PDFTextField
+STOPRow3,PDFTextField
+WORKRow3,PDFTextField
+SPECIALRow3,PDFTextField
+12 DATE MODAYRRow4,PDFTextField
+STARTRow4,PDFTextField
+STOPRow4,PDFTextField
+WORKRow4,PDFTextField
+SPECIALRow4,PDFTextField
+b Released by Government c Withdrawn by Contractor 15 EQUIPMENT STATUS a Inspected and under agreement,PDFTextField
+a Inspected and under agreement,PDFCheckBox
+b Released by Government,PDFCheckBox
+c Withdrawn by Contractor,PDFCheckBox
+16 INVOICE POSTED BY Recorders Initials,PDFTextField
+17 CONTRACTORS OR AUTHORIZED AGENTS SIGNATURE,PDFTextField
+19 DATE SIGNED,PDFTextField
+14 REMARKS released down time and cause problems etc,PDFTextField
+Text2,PDFTextField
+Text4,PDFTextField
+Text3,PDFTextField
+Text5,PDFTextField
+Check Box1,PDFCheckBox
+Check Box2,PDFCheckBox
+Check Box3,PDFCheckBox
+Check Box4,PDFCheckBox

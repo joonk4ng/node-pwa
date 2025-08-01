@@ -1,0 +1,95 @@
+/**
+ * TEMPLATE FILE - Time Calculations
+ * 
+ * This file contains utility functions for calculating time-related values.
+ * To use these calculations:
+ * 1. Remove the .template extension from this file
+ * 2. Import calculateTotalHours in pdfFieldMapper.ts
+ * 3. Replace the manual totalHours field with the calculated value
+ * 
+ * Example integration in pdfFieldMapper.ts:
+ * ```typescript
+ * import { calculateTotalHours } from './timeCalculations';
+ * 
+ * // Inside mapToPDFFields function:
+ * const totalHours = calculateTotalHours(data);
+ * const formattedTotalHours = totalHours.toFixed(2);
+ * // Use formattedTotalHours in remarks
+ * ```
+ */
+
+import type { TimeEntry } from './pdfFieldMapper';
+
+/**
+ * Calculates the total hours from an array of time entries
+ * @param entries Array of time entries
+ * @returns Total hours as a number
+ */
+export function calculateTotalHours(entries: TimeEntry[]): number {
+  return entries.reduce((total, entry) => {
+    // Skip if not using hours or missing begin/end times
+    if (
+      entry.equipmentUse !== 'HOURS' || 
+      !entry.timeBegin || 
+      !entry.timeEnd
+    ) {
+      return total;
+    }
+
+    // Convert time strings to hours
+    const beginHours = convertTimeToHours(entry.timeBegin);
+    const endHours = convertTimeToHours(entry.timeEnd);
+    
+    if (beginHours === null || endHours === null) {
+      return total;
+    }
+
+    // Calculate hours difference
+    let hours = endHours - beginHours;
+    
+    // Handle crossing midnight
+    if (hours < 0) {
+      hours += 24;
+    }
+
+    return total + hours;
+  }, 0);
+}
+
+/**
+ * Converts a time string (HH:MM or HHMM format) to hours
+ * @param timeStr Time string in HH:MM or HHMM format
+ * @returns Hours as a number, or null if invalid format
+ */
+export function convertTimeToHours(timeStr: string): number | null {
+  // Remove any non-numeric characters except colon
+  const cleanTime = timeStr.replace(/[^\d:]/g, '');
+  
+  let hours: number;
+  let minutes: number;
+
+  if (cleanTime.includes(':')) {
+    // HH:MM format
+    [hours, minutes] = cleanTime.split(':').map(Number);
+  } else if (cleanTime.length === 4) {
+    // HHMM format
+    hours = parseInt(cleanTime.slice(0, 2));
+    minutes = parseInt(cleanTime.slice(2));
+  } else {
+    return null;
+  }
+
+  // Validate hours and minutes
+  if (
+    isNaN(hours) || 
+    isNaN(minutes) || 
+    hours < 0 || 
+    hours >= 24 || 
+    minutes < 0 || 
+    minutes >= 60
+  ) {
+    return null;
+  }
+
+  return hours + (minutes / 60);
+} 
