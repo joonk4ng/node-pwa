@@ -197,9 +197,7 @@ export const EESTTimeTable: React.FC = () => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleCheckboxChange = (key: keyof typeof checkboxStates) => {
-    setCheckboxStates(prev => ({ ...prev, [key]: !prev[key] }));
-  };
+
 
   const handleRemoveCustomEntry = (entry: string) => {
     setCustomEntries(prev => prev.filter(e => e !== entry));

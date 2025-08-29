@@ -1,23 +1,13 @@
 import React, { useRef, useEffect, useState } from 'react';
 
 interface DrawingCanvasProps {
-  onDrawingChange?: (drawingData: string) => void;
-  onSave?: (drawingData: string) => void;
-  onDrawingModeChange?: (isDrawing: boolean) => void;
   isDrawingMode: boolean;
   drawingColor: string;
-  setDrawingColor: (color: string) => void;
-  onClear: () => void;
 }
 
 const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ 
-  onDrawingChange, 
-  onSave, 
-  onDrawingModeChange,
   isDrawingMode,
-  drawingColor,
-  setDrawingColor,
-  onClear
+  drawingColor
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -102,25 +92,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     setIsDrawing(false);
   };
 
-  const clearCanvas = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    onClear();
-  };
-
-  const saveDrawing = () => {
-    const canvas = canvasRef.current;
-    if (!canvas || !onSave) return;
-
-    // Convert canvas to data URL
-    const drawingData = canvas.toDataURL('image/png');
-    onSave(drawingData);
-  };
 
     return (
     <div style={{

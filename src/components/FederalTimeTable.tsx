@@ -1,12 +1,11 @@
 // Federal Time Table
 import React, { useState, useEffect } from 'react';
 // 
-import type { EngineTimeRow } from '../utils/engineTimeDB';
+
 // 
 import type { FederalEquipmentEntry, FederalPersonnelEntry, FederalFormData } from '../utils/engineTimeDB';
 // 
 import {
-  saveEngineTimeRow,
   saveFederalEquipmentEntry,
   loadAllFederalEquipmentEntries,
   saveFederalPersonnelEntry,
@@ -18,28 +17,7 @@ import SignaturePage from './SignaturePage';
 import { storePDF } from '../utils/pdfStorage';
 import PDFViewer from './PDFViewer';
 
-// 
-const EMPTY_ROW: EngineTimeRow = {
-  //
-  date: '',
-  //
-  equipmentUse: 'HOURS',
-  //
-  equipBegin: '',
-  //
-  equipEnd: '',
-  //
-  name: '',
-  //
-  job: '',
-  //
-  timeBegin: '',
-  //
-  timeEnd: '',
-};
 
-//
-const NUM_ROWS = 6;
 
 // 
 export const FederalTimeTable: React.FC = () => {

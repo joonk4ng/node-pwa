@@ -74,9 +74,7 @@ export async function generateEESTPDFWithJsPDF(
 
     // Page setup
     const pageWidth = 210; // A4 width in mm
-    const pageHeight = 297; // A4 height in mm
     const margin = 20;
-    const contentWidth = pageWidth - 2 * margin;
     
     let yPosition = 30; // Start position
 

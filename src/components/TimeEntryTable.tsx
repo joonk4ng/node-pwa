@@ -189,7 +189,7 @@ const TimeEntryTable: React.FC<TimeEntryTableProps> = ({ tableType = 'equipment'
     setIsSignatureModalOpen(true);
   };
 
-  const handleSignatureSave = (signature: string) => {
+  const handleSignatureSave = () => {
     setIsSignatureModalOpen(false);
   };
 
