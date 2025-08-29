@@ -8,6 +8,7 @@ import {
   loadAllEESTTimeEntries
 } from '../utils/engineTimeDB';
 import { generateEESTPDF } from '../utils/pdfGenerator';
+import PDFDebugger from './PDFDebugger';
 
 
 //
@@ -1503,6 +1504,34 @@ export const EESTTimeTable: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* PDF Debugger - Only show in development or when debugging */}
+      {import.meta.env.DEV && (
+        <PDFDebugger 
+          onTestPDF={async () => {
+            try {
+              const testFormData = {
+                ...formData,
+                equipmentUse: equipmentUse,
+                remarks: customEntries.join('\n'),
+              };
+              const testTimeEntries = timeEntries.map((entry, index) => ({
+                ...entry,
+                special: (specialSelections[index] || []).join('\n') || entry.special
+              }));
+              
+              await generateEESTPDF(testFormData, testTimeEntries, {
+                debugMode: true,
+                returnBlob: true,
+                fontSize: 6
+              });
+            } catch (error) {
+              console.error('PDF generation test failed:', error);
+              throw error;
+            }
+          }}
+        />
       )}
 
     </div>

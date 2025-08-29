@@ -9,7 +9,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}']
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,pdf}']
       },
       manifest: {
         name: 'Engine Time Report',
@@ -45,6 +45,7 @@ export default defineConfig({
       }
     }
   },
+  publicDir: 'public',
   server: {
     port: 3000,
     host: true
