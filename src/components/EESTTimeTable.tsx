@@ -802,6 +802,66 @@ export const EESTTimeTable: React.FC = () => {
                 </label>
               </div>
             </div>
+            
+            {/* Invoice Posted By */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px'
+            }}>
+              <label style={{
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#2c3e50'
+              }}>
+                16. INVOICE POSTED BY (Recorder's Initials)
+              </label>
+              <input
+                type="text"
+                value={formData.invoicePostedBy}
+                onChange={(e) => handleFormChange('invoicePostedBy', e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  fontSize: '16px',
+                  backgroundColor: '#fff',
+                  color: '#333'
+                }}
+                placeholder="Enter recorder's initials"
+              />
+            </div>
+            
+            {/* Date Signed */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px'
+            }}>
+              <label style={{
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#2c3e50'
+              }}>
+                19. DATE SIGNED
+              </label>
+              <input
+                type="text"
+                value={formData.dateSigned}
+                onChange={(e) => handleFormChange('dateSigned', e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  fontSize: '16px',
+                  backgroundColor: '#fff',
+                  color: '#333'
+                }}
+                placeholder="Enter date signed"
+              />
+            </div>
           </div>
           
           {/* Time Entries Table Section */}
