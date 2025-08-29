@@ -115,32 +115,24 @@ export function mapEESTToPDFFields(
     console.log('EEST Field Mapper: No equipment use found in form data');
   }
   
-  // Contractor checkbox logic - always check these boxes by default
+  // Contractor checkbox logic - auto-check the specific PDF fields
   console.log('EEST Field Mapper: Raw equipment status:', JSON.stringify(formData.equipmentStatus));
   const isContractor = formData.equipmentStatus === 'Contractor';
   console.log('EEST Field Mapper: Equipment status:', formData.equipmentStatus, 'isContractor:', isContractor);
   
-  // Check Box1 = "Operator Furnished By" (Contractor) - always checked by default
-  fields[getEESTPDFFieldName('contractorCheckbox1')] = 'Yes';
+  // Auto-check Check Box1 = "Operator Furnished By" (Contractor)
+  fields['Check Box1'] = 'Yes';
   
-  // Check Box3 = "Operating Supplies Furnished By" (Contractor) - always checked by default
-  fields[getEESTPDFFieldName('contractorCheckbox3')] = 'Yes';
+  // Auto-check Check Box3 = "Operating Supplies Furnished By" (Contractor)
+  fields['Check Box3'] = 'Yes';
   
-  // Equipment Status checkbox - "a Inspected and under agreement" - always checked by default
-  fields[getEESTPDFFieldName('inspectedUnderAgreementCheckbox')] = 'Yes';
-  
-  // Equipment Status checkboxes - map equipment status to appropriate checkboxes
-  // These should be mapped to GOVERNMENT, CONTRACT, PRIVATE checkboxes from the CSV
-  if (formData.equipmentStatus) {
-    // TODO: Add proper equipment status checkbox mappings
-    // fields['GOVERNMENT'] = formData.equipmentStatus === 'Government' ? 'Yes' : 'Off';
-    // fields['CONTRACT'] = formData.equipmentStatus === 'Contractor' ? 'Yes' : 'Off';
-    // fields['PRIVATE'] = formData.equipmentStatus === 'Private' ? 'Yes' : 'Off';
-  }
+  // Auto-check "a Inspected and under agreement" checkbox
+  fields['a Inspected and under agreement'] = 'Yes';
   
   console.log('EEST Field Mapper: Checkbox values:', {
-    operatorFurnishedBy: fields[getEESTPDFFieldName('contractorCheckbox1')],
-    suppliesFurnishedBy: fields[getEESTPDFFieldName('contractorCheckbox3')]
+    operatorFurnishedBy: fields['Check Box1'],
+    suppliesFurnishedBy: fields['Check Box3'],
+    inspectedUnderAgreement: fields['a Inspected and under agreement']
   });
   
   // Map remarks data to PDF fields
@@ -231,10 +223,10 @@ export function getEESTPDFFieldName(field: keyof EESTPDFFields): string {
     licenseNumber: '10 LICENSE NUMBER',
     equipmentUse: 'Dropdown9',
     
-    // Checkbox fields
+    // Checkbox fields - using exact PDF field names
     contractorCheckbox1: 'Check Box1', // Operator Furnished By
     contractorCheckbox3: 'Check Box3', // Operating Supplies Furnished By
-    inspectedUnderAgreementCheckbox: 'a Inspected and under agreement',
+    inspectedUnderAgreementCheckbox: 'a Inspected and under agreement', // Equipment status
     
     // Remarks checkbox fields - using actual PDF field names
     hotlineCheckbox: 'Check Box2',

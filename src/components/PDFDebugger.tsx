@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
+import { generateEESTPDF } from '../utils/pdfGenerator';
 
 interface PDFDebuggerProps {
   onTestPDF: () => Promise<void>;
 }
 
-const PDFDebugger: React.FC<PDFDebuggerProps> = ({ onTestPDF }) => {
+const PDFDebugger: React.FC<PDFDebuggerProps> = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [debugInfo, setDebugInfo] = useState<string>('');
 
@@ -65,10 +66,74 @@ const PDFDebugger: React.FC<PDFDebuggerProps> = ({ onTestPDF }) => {
 
       setDebugInfo(prev => prev + '\n' + results);
       
-      // Also test the actual PDF generation
-      setDebugInfo(prev => prev + '\nTesting PDF generation...\n');
-      await onTestPDF();
-      setDebugInfo(prev => prev + '✓ PDF generation test completed\n');
+      // Test the actual PDF generation with detailed logging
+      setDebugInfo(prev => prev + '\nTesting PDF generation with field mapping...\n');
+      
+      // Create test data
+      const testFormData = {
+        agreementNumber: 'TEST-AGREEMENT-123',
+        resourceOrderNumber: 'RO-456',
+        contractorAgencyName: 'Test Contractor',
+        incidentName: 'Test Incident',
+        incidentNumber: 'INC-789',
+        operatorName: 'John Doe',
+        equipmentMake: 'Test Make',
+        equipmentModel: 'Test Model',
+        serialNumber: 'SN-123456',
+        licenseNumber: 'LIC-789',
+        equipmentStatus: 'Contractor',
+        invoicePostedBy: 'Test User',
+        dateSigned: '01/01/2024',
+        remarks: 'Test remarks',
+        remarksOptions: ['HOTLINE'],
+        customRemarks: [],
+        equipmentUse: 'HOURS'
+      };
+      
+      const testTimeEntries = [
+        {
+          date: '01/01/2024',
+          start: '0800',
+          stop: '1700',
+          work: 'Fire suppression',
+          special: 'Test special'
+        }
+      ];
+      
+      const result = await generateEESTPDF(testFormData, testTimeEntries, {
+        debugMode: true,
+        returnBlob: true,
+        fontSize: 6
+      });
+      
+      if (result.debugInfo) {
+        setDebugInfo(prev => prev + `\n✓ PDF generation completed\n`);
+        setDebugInfo(prev => prev + `Available fields: ${result.debugInfo?.availableFields?.length || 0}\n`);
+        setDebugInfo(prev => prev + `Mapped fields: ${Object.keys(result.debugInfo?.mappedFields || {}).length}\n`);
+        setDebugInfo(prev => prev + `Filled fields: ${result.debugInfo?.filledFields?.length || 0}\n`);
+        
+        // Show successful vs failed fields
+        const successful = result.debugInfo?.filledFields?.filter(f => f.success) || [];
+        const failed = result.debugInfo?.filledFields?.filter(f => !f.success) || [];
+        
+        setDebugInfo(prev => prev + `\nSuccessful fills: ${successful.length}\n`);
+        setDebugInfo(prev => prev + `Failed fills: ${failed.length}\n`);
+        
+        if (failed.length > 0) {
+          setDebugInfo(prev => prev + `\nFailed fields:\n`);
+          failed.forEach(field => {
+            const errorMessage = 'error' in field ? field.error : 'Unknown error';
+            setDebugInfo(prev => prev + `  ${field.name}: ${errorMessage}\n`);
+          });
+        }
+        
+        if (successful.length > 0) {
+          setDebugInfo(prev => prev + `\nSuccessful fields (first 5):\n`);
+          successful.slice(0, 5).forEach(field => {
+            setDebugInfo(prev => prev + `  ${field.name}: "${field.value}"\n`);
+          });
+        }
+      }
       
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -87,7 +152,7 @@ const PDFDebugger: React.FC<PDFDebuggerProps> = ({ onTestPDF }) => {
       padding: '10px', 
       border: '1px solid #ccc',
       borderRadius: '4px',
-      maxWidth: '400px',
+      maxWidth: '500px',
       zIndex: 1000,
       fontSize: '12px'
     }}>
@@ -97,19 +162,19 @@ const PDFDebugger: React.FC<PDFDebuggerProps> = ({ onTestPDF }) => {
         disabled={isLoading}
         style={{ marginBottom: '10px' }}
       >
-        {isLoading ? 'Testing...' : 'Test PDF Loading'}
+        {isLoading ? 'Testing...' : 'Test PDF Loading & Field Mapping'}
       </button>
       <div style={{ 
         background: '#fff', 
         padding: '8px', 
         border: '1px solid #ddd',
         borderRadius: '2px',
-        maxHeight: '200px',
+        maxHeight: '300px',
         overflow: 'auto',
         whiteSpace: 'pre-wrap',
         fontFamily: 'monospace'
       }}>
-        {debugInfo || 'Click "Test PDF Loading" to debug PDF issues...'}
+        {debugInfo || 'Click "Test PDF Loading & Field Mapping" to debug PDF issues...'}
       </div>
     </div>
   );
