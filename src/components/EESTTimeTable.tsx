@@ -8,10 +8,7 @@ import {
   loadAllEESTTimeEntries
 } from '../utils/engineTimeDB';
 import { generateEESTPDF } from '../utils/pdfGenerator';
-import { storePDF, getPDF } from '../utils/pdfStorage';
-import PDFViewer from './PDFViewer';
-import EnhancedPDFViewer from './EnhancedPDFViewer';
-import SignatureModal from './SignatureModal';
+
 
 //
 const EMPTY_TIME_ENTRY: EESTTimeEntry = {
@@ -40,8 +37,7 @@ const EMPTY_FORM_DATA: EESTFormData = {
   remarks: '',
   remarksOptions: [],
   customRemarks: [],
-  contractorSignature: undefined,
-  governmentSignature: undefined,
+
 };
 
 export const EESTTimeTable: React.FC = () => {
@@ -79,15 +75,9 @@ export const EESTTimeTable: React.FC = () => {
   const [specialSelections, setSpecialSelections] = useState<{ [key: number]: string[] }>({});
   const [customSpecialInput, setCustomSpecialInput] = useState('');
 
-  // PDF preview state
-  const [pdfId, setPdfId] = useState<string | null>(null);
-  const [showLegacyViewer, setShowLegacyViewer] = useState(false);
 
-  // New signature state
-  const [showSignatureModal, setShowSignatureModal] = useState(false);
-  const [signatureType, setSignatureType] = useState<'contractor' | 'government' | null>(null);
-  const [contractorSignature, setContractorSignature] = useState<string | undefined>(undefined);
-  const [governmentSignature, setGovernmentSignature] = useState<string | undefined>(undefined);
+
+
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -269,49 +259,19 @@ export const EESTTimeTable: React.FC = () => {
 
 
 
-  const handleContractorSignature = () => {
-    setSignatureType('contractor');
-    setShowSignatureModal(true);
-  };
-
-  const handleGovernmentSignature = () => {
-    setSignatureType('government');
-    setShowSignatureModal(true);
-  };
-
-  const handleSignatureSave = (signatureData: string) => {
-    if (signatureType === 'contractor') {
-      setContractorSignature(signatureData);
-      console.log('Contractor signature saved');
-    } else if (signatureType === 'government') {
-      setGovernmentSignature(signatureData);
-      console.log('Government signature saved');
-    }
-    setShowSignatureModal(false);
-    setSignatureType(null);
-  };
-
-  const handleSignatureCancel = () => {
-    setShowSignatureModal(false);
-    setSignatureType(null);
-  };
-
-  const handleGeneratePDF = async () => {
+  const handleGenerateAndDownloadPDF = async () => {
     try {
-      console.log('Starting PDF generation...');
+      console.log('Starting PDF generation and download...');
       console.log('Form data:', formData);
       console.log('Time entries:', timeEntries);
       console.log('Equipment use:', equipmentUse);
       console.log('Special selections:', specialSelections);
-      console.log('Signatures:', { contractorSignature, governmentSignature });
       
       // Create enhanced form data that includes equipment use and crew members
       const enhancedFormData = {
         ...formData,
         equipmentUse: equipmentUse,
         remarks: customEntries.join('\n'), // Add crew members to remarks
-        contractorSignature,
-        governmentSignature
       };
       
       // Create enhanced time entries with special selections
@@ -332,13 +292,40 @@ export const EESTTimeTable: React.FC = () => {
       console.log('PDF generation result:', pdfResult);
       
       if (pdfResult.blob) {
-        const pdfId = `eest_${Date.now()}`;
-        console.log('Storing PDF with ID:', pdfId);
-        await storePDF(pdfId, pdfResult.blob);
-        setPdfId(pdfId);
-        console.log('PDF stored successfully');
+        // Generate filename based on form data
+        const incidentName = formData.incidentName || 'Incident';
+        const resourceNumber = formData.resourceOrderNumber || 'Resource';
+        const operatorName = formData.operatorName || 'Operator';
+        
+        // Get the first date from time entries
+        let firstDate = '';
+        for (const entry of timeEntries) {
+          if (entry.date && entry.date.trim()) {
+            firstDate = entry.date.trim();
+            break;
+          }
+        }
+        
+        // Clean up the date format if needed
+        const cleanDate = firstDate.replace(/[^0-9\/]/g, ''); // Keep only numbers and slashes
+        
+        // Create filename
+        const filename = `${incidentName}_${resourceNumber}_${cleanDate}_${operatorName}.pdf`;
+        
+        // Create download link
+        const url = window.URL.createObjectURL(pdfResult.blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        console.log('PDF downloaded successfully:', filename);
       } else {
         console.error('No blob returned from PDF generation');
+        alert('Failed to generate PDF. Please check the console for details.');
       }
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -346,27 +333,7 @@ export const EESTTimeTable: React.FC = () => {
     }
   };
 
-  const handleDownloadPDF = async () => {
-    if (pdfId) {
-      try {
-        const pdfData = await getPDF(pdfId);
-        if (pdfData && pdfData.pdf) {
-          const url = window.URL.createObjectURL(pdfData.pdf);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = 'EEST_Time_Report.pdf';
-          document.body.appendChild(a);
-          a.click();
-          window.URL.revokeObjectURL(url);
-          document.body.removeChild(a);
-        } else {
-          console.error('PDF data not found or invalid');
-        }
-      } catch (error) {
-        console.error('Error downloading PDF:', error);
-      }
-    }
-  };
+
 
   return (
     <div style={{ 
@@ -1416,11 +1383,13 @@ export const EESTTimeTable: React.FC = () => {
             flexDirection: 'column',
             gap: '12px'
           }}>
+
+            
             <button 
-              onClick={handleGeneratePDF}
+              onClick={handleGenerateAndDownloadPDF}
               style={{
                 padding: '14px 20px',
-                backgroundColor: '#007bff',
+                backgroundColor: '#28a745',
                 color: '#ffffff',
                 border: 'none',
                 borderRadius: '8px',
@@ -1430,178 +1399,16 @@ export const EESTTimeTable: React.FC = () => {
                 width: '100%'
               }}
             >
-              Generate PDF
+              Generate & Download PDF
             </button>
             
-            <div style={{
-              display: 'flex',
-              gap: '8px',
-              width: '100%'
-            }}>
-              <button 
-                onClick={handleContractorSignature}
-                style={{
-                  padding: '14px 20px',
-                  backgroundColor: '#007bff',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  flex: 1,
-                  position: 'relative'
-                }}
-              >
-                Contractor Signature
-                {contractorSignature && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '4px',
-                    right: '4px',
-                    width: '8px',
-                    height: '8px',
-                    backgroundColor: '#28a745',
-                    borderRadius: '50%'
-                  }} />
-                )}
-              </button>
-              
-              <button 
-                onClick={handleGovernmentSignature}
-                style={{
-                  padding: '14px 20px',
-                  backgroundColor: '#6c757d',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  flex: 1,
-                  position: 'relative'
-                }}
-              >
-                Government Signature
-                {governmentSignature && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '4px',
-                    right: '4px',
-                    width: '8px',
-                    height: '8px',
-                    backgroundColor: '#28a745',
-                    borderRadius: '50%'
-                  }} />
-                )}
-              </button>
-            </div>
-            
-            {pdfId && (
-              <button 
-                onClick={handleDownloadPDF}
-                style={{
-                  padding: '14px 20px',
-                  backgroundColor: '#28a745',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '16px',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  width: '100%'
-                }}
-              >
-                Download PDF
-              </button>
-            )}
+
           </div>
         </div>
       </div>
 
       {/* PDF Preview Container */}
-      {pdfId && (
-        <div style={{
-          maxWidth: '600px',
-          margin: '20px auto 0 auto',
-          backgroundColor: '#ffffff',
-          borderRadius: '12px',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-          overflow: 'hidden',
-          width: '100%',
-          boxSizing: 'border-box'
-        }}>
-          <div style={{
-            backgroundColor: '#f8f9fa',
-            padding: '16px 20px',
-            borderBottom: '1px solid #e9ecef',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
-          }}>
-            <h3 style={{
-              margin: 0,
-              fontSize: '18px',
-              fontWeight: '600',
-              color: '#2c3e50'
-            }}>
-              PDF Preview
-            </h3>
-          </div>
-          <div style={{
-            padding: '20px',
-            height: '600px',
-            position: 'relative'
-          }}>
-            <EnhancedPDFViewer 
-              pdfId={pdfId} 
-              contractorSignature={contractorSignature}
-              governmentSignature={governmentSignature}
-            />
-          </div>
-        </div>
-      )}
 
-
-
-      {/* Legacy Browser PDF Viewer - Collapsible */}
-      <div style={{
-        maxWidth: '600px',
-        margin: '20px auto 0 auto',
-        backgroundColor: '#ffffff',
-        borderRadius: '12px',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-        overflow: 'hidden'
-      }}>
-        <button
-          onClick={() => setShowLegacyViewer(!showLegacyViewer)}
-          style={{
-            width: '100%',
-            padding: '12px 20px',
-            backgroundColor: '#f8f9fa',
-            border: 'none',
-            borderBottom: showLegacyViewer ? '1px solid #e9ecef' : 'none',
-            cursor: 'pointer',
-            fontSize: '14px',
-            color: '#6c757d',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
-          }}
-        >
-          <span>Legacy Browser PDF Viewer (Fallback)</span>
-          <span>{showLegacyViewer ? '▼' : '▶'}</span>
-        </button>
-        
-        {showLegacyViewer && pdfId && (
-          <div style={{
-            height: '400px',
-            position: 'relative'
-          }}>
-            <PDFViewer pdfId={pdfId} />
-          </div>
-        )}
-      </div>
 
       {/* Custom Remark Modal */}
       {showCustomRemarkModal && (
@@ -1699,15 +1506,6 @@ export const EESTTimeTable: React.FC = () => {
           </div>
         </div>
       )}
-
-      {/* Signature Modal */}
-      <SignatureModal
-        isOpen={showSignatureModal}
-        onClose={handleSignatureCancel}
-        onSave={handleSignatureSave}
-        title={signatureType === 'contractor' ? 'Contractor Signature' : 'Government Signature'}
-      />
-
 
     </div>
   );

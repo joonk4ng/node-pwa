@@ -33,4 +33,20 @@ export default defineConfig({
       }
     })
   ],
+  build: {
+    outDir: 'dist',
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          pdf: ['pdf-lib', 'pdfjs-dist']
+        }
+      }
+    }
+  },
+  server: {
+    port: 3000,
+    host: true
+  }
 })
