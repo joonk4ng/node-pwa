@@ -10,6 +10,7 @@ import {
 import { generateEESTPDF } from '../utils/pdfGenerator';
 import { storePDF, getPDF } from '../utils/pdfStorage';
 import PDFViewer from './PDFViewer';
+import EnhancedPDFViewer from './EnhancedPDFViewer';
 import SignatureModal from './SignatureModal';
 
 //
@@ -1552,7 +1553,11 @@ export const EESTTimeTable: React.FC = () => {
             height: '600px',
             position: 'relative'
           }}>
-            <PDFViewer pdfId={pdfId} />
+            <EnhancedPDFViewer 
+              pdfId={pdfId} 
+              contractorSignature={contractorSignature}
+              governmentSignature={governmentSignature}
+            />
           </div>
         </div>
       )}
