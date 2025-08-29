@@ -44,48 +44,71 @@ interface EnhancedPDFViewerProps {
   date?: string;
 }
 
+// 
 const EnhancedPDFViewer: React.FC<EnhancedPDFViewerProps> = ({
+  //
   pdfBlob,
+  //
   onSave,
+  //
   onBeforeSign,
+  //
   className,
   style,
   readOnly = false,
   crewInfo,
   date
 }) => {
+  //
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  //
   const drawCanvasRef = useRef<HTMLCanvasElement>(null);
+  //
   const containerRef = useRef<HTMLDivElement>(null);
+  //
   const pdfDocRef = useRef<pdfjsLib.PDFDocumentProxy | null>(null);
+  //
   const [isLoading, setIsLoading] = useState(true);
+  //
   const [error, setError] = useState<string | null>(null);
+  //
   const [isDrawing, setIsDrawing] = useState(false);
-  const [isSigned, setIsSigned] = useState(false);
-  const [signedPdfBlob, setSignedPdfBlob] = useState<Blob | null>(null);
+  //
   const lastPosRef = useRef<{ x: number; y: number } | null>(null);
-  const renderTimeoutRef = useRef<number | null>(null);
+  //
   const [isDrawingMode, setIsDrawingMode] = useState(false);
 
+  //
   const renderPDF = useCallback(async (pdfDoc: pdfjsLib.PDFDocumentProxy) => {
+    //
     if (!canvasRef.current || !drawCanvasRef.current) return;
 
+    //
     try {
       setIsLoading(true);
+      //
       const page = await pdfDoc.getPage(1); // Always render first page
       
+      //
       const canvas = canvasRef.current;
+      //
       const context = canvas.getContext('2d', {
+        //
         alpha: false,  // Optimize for non-transparent content
+        //
         willReadFrequently: false  // Optimize for write-only operations
       });
       
+      //
       const drawCanvas = drawCanvasRef.current;
+      //
       const drawContext = drawCanvas.getContext('2d', {
+        //
         alpha: true,
         willReadFrequently: true  // Drawing needs read operations
       });
 
+      //
       if (!context || !drawContext) return;
 
       // Get the PDF's original dimensions
@@ -94,10 +117,15 @@ const EnhancedPDFViewer: React.FC<EnhancedPDFViewerProps> = ({
       // Calculate optimal scale based on container size
       const container = containerRef.current;
       if (container) {
+        //
         const containerWidth = container.clientWidth;
+        //
         const containerHeight = container.clientHeight;
+        //
         const scale = Math.min(
+          //
           containerWidth / viewport.width,
+          //
           containerHeight / viewport.height
         );
         viewport.scale = scale;
@@ -105,8 +133,11 @@ const EnhancedPDFViewer: React.FC<EnhancedPDFViewerProps> = ({
       
       // Set canvas sizes to match viewport
       canvas.height = viewport.height;
+      //
       canvas.width = viewport.width;
+      //
       drawCanvas.height = viewport.height;
+      //
       drawCanvas.width = viewport.width;
 
       // Clear both canvases
@@ -299,9 +330,7 @@ const EnhancedPDFViewer: React.FC<EnhancedPDFViewerProps> = ({
       const modifiedPdfBytes = await pdfDoc.save();
       const modifiedPdfBlob = new Blob([modifiedPdfBytes], { type: 'application/pdf' });
       
-      // Set the signed state and store the signed PDF blob
-      setIsSigned(true);
-      setSignedPdfBlob(modifiedPdfBlob);
+      // Store the signed PDF blob
       
       // Save the PDF
       onSave(modifiedPdfBlob, previewImage);
@@ -332,136 +361,9 @@ const EnhancedPDFViewer: React.FC<EnhancedPDFViewerProps> = ({
     }
   };
 
-  const handleDownload = async () => {
-    setIsDrawingMode(false);
-    if (!pdfDocRef.current) return;
 
-    try {
-      // Get the current PDF data
-      const pdfBytes = await pdfDocRef.current.getData();
-      const pdfBlob = new Blob([pdfBytes], { type: 'application/pdf' });
-      
-      // Create a URL for the PDF blob
-      const url = URL.createObjectURL(pdfBlob);
-      
-      // Create a temporary link element
-      const link = document.createElement('a');
-      link.href = url;
-      
-      // Generate filename using crew info if available
-      if (crewInfo && date) {
-        link.download = `federal_equipment_shift_ticket_${date}_${crewInfo.crewNumber}.pdf`;
-      } else {
-        link.download = 'federal_document.pdf';
-      }
-      
-      // Trigger the download
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      // Clean up the URL
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Error downloading PDF:', err);
-      setError('Failed to download PDF.');
-    }
-  };
 
-  const handlePrint = async () => {
-    setIsDrawingMode(false);
-    if (!pdfDocRef.current) {
-      throw new Error('PDF document not loaded');
-    }
 
-    if (!canvasRef.current || !containerRef.current) {
-      throw new Error('PDF viewer not properly initialized');
-    }
-
-    // Create and append print-specific styles
-    const style = document.createElement('style');
-    style.id = 'pdf-print-style';
-    style.textContent = `
-      @media print {
-        body * {
-          visibility: hidden !important;
-        }
-        .enhanced-pdf-viewer {
-          position: fixed !important;
-          left: 0 !important;
-          top: 0 !important;
-          width: 100% !important;
-          height: auto !important;
-          overflow: visible !important;
-        }
-        .enhanced-pdf-viewer .toolbar,
-        .enhanced-pdf-viewer .draw-canvas {
-          display: none !important;
-        }
-        .enhanced-pdf-viewer .pdf-canvas {
-          visibility: visible !important;
-          width: 100% !important;
-          height: auto !important;
-          display: block !important;
-          page-break-after: avoid !important;
-        }
-        @page {
-          size: auto;
-          margin: 0mm;
-        }
-      }
-    `;
-    document.head.appendChild(style);
-
-    // Store current scroll position and zoom
-    const container = containerRef.current;
-    const originalScroll = {
-      top: container.scrollTop,
-      left: container.scrollLeft
-    };
-
-    try {
-      // Ensure the PDF is rendered at optimal print quality
-      const page = await pdfDocRef.current.getPage(1);
-      const viewport = page.getViewport({ scale: 2.0 }); // Higher scale for print quality
-      
-      const canvas = canvasRef.current;
-      const context = canvas.getContext('2d');
-      
-      if (!context) {
-        throw new Error('Could not get canvas context');
-      }
-
-      // Update canvas dimensions for print
-      canvas.height = viewport.height;
-      canvas.width = viewport.width;
-
-      // Render at high quality
-      await page.render({
-        canvasContext: context,
-        viewport: viewport
-      }).promise;
-
-      // Print
-      window.print();
-
-    } finally {
-      // Clean up print styles
-      const printStyle = document.getElementById('pdf-print-style');
-      if (printStyle) {
-        printStyle.remove();
-      }
-
-      // Restore original scroll position
-      if (container) {
-        container.scrollTop = originalScroll.top;
-        container.scrollLeft = originalScroll.left;
-      }
-
-      // Re-render at normal quality if needed
-      renderPDF(pdfDocRef.current);
-    }
-  };
 
   const toggleDrawingMode = async () => {
     // If we're about to enable drawing mode and there's a sneaky save callback, call it

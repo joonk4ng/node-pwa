@@ -1,5 +1,5 @@
 import './App.css';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import EESTTimeTable from './components/EESTTimeTable';
 import { FederalTimeTable } from './components/FederalTimeTable';
 import TimeEntryTable from './components/TimeEntryTable';

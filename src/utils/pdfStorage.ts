@@ -1,8 +1,19 @@
+// PDF Storage for the Emergency Equipment Shift Ticket
+// This file is used to store the PDF in IndexedDB
+// It is used to store the PDF in IndexedDB
+// It is used to retrieve the PDF from IndexedDB
+// It is used to delete the PDF from IndexedDB
+// It is used to list all the PDFs in IndexedDB
+// It is used to clear all the PDFs in IndexedDB
 import Dexie from 'dexie';
 
+// PDF Data
 interface PDFData {
+  // ID
   id: string;
+  // PDF Blob
   pdf: Blob;
+  // Timestamp
   timestamp: number;
 }
 
@@ -14,9 +25,13 @@ pdfDB.version(1).stores({
 
 // Store a PDF in IndexedDB
 export const storePDF = async (id: string, pdfBlob: Blob): Promise<void> => {
+  // Store the PDF in IndexedDB
   await pdfDB.table('pdfs').put({
+    // ID
     id,
+    // PDF Blob
     pdf: pdfBlob,
+    // Timestamp
     timestamp: Date.now(),
   });
 };

@@ -1,6 +1,6 @@
 # Engine Time Report PWA
 
-A Progressive Web App (PWA) for filling out Oregon Emergency Equipment Shift Tickets. This mobile-friendly application allows users to enter equipment and personnel time tracking data and generate filled PDF forms.
+A Progressive Web App (PWA) for filling out Emergency Equipment Shift Tickets. This mobile-friendly application allows users to enter equipment and personnel time tracking data and generate filled PDF forms.
 
 ## Features
 

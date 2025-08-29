@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+// 
+import React, { useState, useEffect } from 'react';
 import { getPDF } from '../utils/pdfStorage';
 
 interface PDFViewerProps {
@@ -108,7 +109,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ pdfId, onLoad, className, style }
       
       {pdfUrl && (
         <iframe
-          src={pdfUrl}
+          src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&statusbar=0&messages=0&scrollbar=0&view=FitH`}
           style={{
             width: '100%',
             height: '100%',

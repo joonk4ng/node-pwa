@@ -1,56 +1,106 @@
-// Types for the data structures we're working with
+// PDF Field Mapper for the Emergency Equipment Shift Ticket
+// This file is used to map the data to the PDF fields
+// It is used to map the time entries to the PDF fields
+// It is used to map the crew info to the PDF fields
+// It is used to map the remarks to the PDF fields
+// It is used to map the custom entries to the PDF fields
+// It is used to map the total hours to the PDF fields
+
+// Time Entry
 export interface TimeEntry {
+  // Date
   date?: string;
+  // Equipment Use
   equipmentUse?: 'HOURS' | 'MILES' | 'DAYS';
+  // Equipment Begin
   equipBegin?: string;
+  // Equipment End
   equipEnd?: string;
+  // Name
   name?: string;
+  // Job
   job?: string;
+  // Time Begin
   timeBegin?: string;
+  // Time End
   timeEnd?: string;
 }
 
+// Crew Info
 export interface CrewInfo {
+  // DIV/UNIT
   divUnit?: string;
+  // SHIFT
   shift?: string;
+  // OWNER/CONTRACTOR NAME
   ownerContractor?: string;
+  // CONTRACT/AGREEMENT NUMBER
   contractNumber?: string;
+  // RESOURCE REQ NO
   resourceReqNo?: string;
+  // RESOURCE TYPE
   resourceType?: 'GOVERNMENT' | 'CONTRACT' | 'PRIVATE';
+  // DOUBLE SHIFTED
   doubleShifted?: 'YES' | 'NO';
+  // INCIDENT NAME
   incidentName?: string;
+  // INCIDENT NUMBER
   incidentNumber?: string;
+  // EQUIPMENT TYPE
   equipmentType?: string;
+  // EQUIPMENT MAKE/MODEL
   equipmentMakeModel?: string;
+  // REMARKS
   remarks?: string;
+  // LICENSE VIN OR SERIAL
   licenseVinSerial?: string;
-  ownerIdNumber?: string; // Added for the new field
+  // OWNER ID NUMBER
+  ownerIdNumber?: string; 
+  // CHECKBOX STATES
   checkboxStates?: {
+    // HOTLINE
     hotline?: boolean;
+    // TRAVEL
     travel?: boolean;
+    // NO MEALS & LODGING
     noMealsLodging?: boolean;
+    // NO MEALS
     noMeals?: boolean;
+    // NO LUNCH
     noLunch?: boolean;
   };
+  // CUSTOM ENTRIES
   customEntries?: string[];
+  // TOTAL HOURS
   totalHours?: string;
 }
 
+// Map the data to the PDF fields
 export function mapToPDFFields(
+  // Time Entries
   timeEntries: TimeEntry[], 
+  // Crew Info
   crewInfo: CrewInfo
 ): Record<string, string> {
   const fields: Record<string, string> = {};
 
   // Crew info fields
   if (crewInfo) {
+    // DIV/UNIT
     fields['1 DIVUNIT'] = crewInfo.divUnit || '';
+    // SHIFT
     fields['2 SHIFT'] = crewInfo.shift || '';
+    // OWNER/CONTRACTOR NAME
     fields['3 OWNERCONTRACTOR name'] = crewInfo.ownerContractor || '';
+    // CONTRACT/AGREEMENT NUMBER
     fields['4 CONTRACTAGREEMENT NUMBER'] = crewInfo.contractNumber || '';
+    // RESOURCE REQ NO
     fields['5 RESOURCE REQ NO'] = crewInfo.resourceReqNo || '';
+    // RESOURCE TYPE
     fields['8 INCIDENT NAME'] = crewInfo.incidentName || '';
+    // INCIDENT NUMBER
     fields['9 INCIDENT NUMBER'] = crewInfo.incidentNumber || '';
+    // EQUIPMENT TYPE
     fields['10 EQUIPMENT TYPE'] = crewInfo.equipmentType || '';
     // Equipment Make/Model goes in the full remarks field name
     fields['12 REMARKS released down time and cause problems etc'] = crewInfo.equipmentMakeModel || '';
@@ -149,10 +199,12 @@ export function mapToPDFFields(
         remarks.push('Self Sufficient - No Lodging Provided');
       }
 
+      // Travel
       if (crewInfo.checkboxStates.travel && crewInfo.checkboxStates.hotline) {
         remarks.push('Travel');
       }
 
+      // No Lunch
       if (crewInfo.checkboxStates.noLunch) {
         remarks.push('No Lunch Taken due to Uncontrolled Fire Line');
       }

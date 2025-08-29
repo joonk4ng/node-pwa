@@ -1,12 +1,12 @@
 // Federal Time Table
 import React, { useState, useEffect } from 'react';
-import type { EngineTimeRow, EngineTimeForm } from '../utils/engineTimeDB';
+// 
+import type { EngineTimeRow } from '../utils/engineTimeDB';
+// 
 import type { FederalEquipmentEntry, FederalPersonnelEntry, FederalFormData } from '../utils/engineTimeDB';
+// 
 import {
   saveEngineTimeRow,
-  loadAllEngineTimeRows,
-  saveEngineTimeForm,
-  loadEngineTimeForm,
   saveFederalEquipmentEntry,
   loadAllFederalEquipmentEntries,
   saveFederalPersonnelEntry,
@@ -15,63 +15,66 @@ import {
   loadFederalFormData
 } from '../utils/engineTimeDB';
 import SignaturePage from './SignaturePage';
-import { generateEquipmentPDF } from '../utils/pdfGenerator';
-import type { TimeEntry, CrewInfo } from '../utils/pdfFieldMapper';
 import { storePDF } from '../utils/pdfStorage';
 import PDFViewer from './PDFViewer';
 
+// 
 const EMPTY_ROW: EngineTimeRow = {
+  //
   date: '',
+  //
   equipmentUse: 'HOURS',
+  //
   equipBegin: '',
+  //
   equipEnd: '',
+  //
   name: '',
+  //
   job: '',
+  //
   timeBegin: '',
+  //
   timeEnd: '',
 };
 
+//
 const NUM_ROWS = 6;
 
+// 
 export const FederalTimeTable: React.FC = () => {
-  // Main form state
-  const [formData, setFormData] = useState({
-    divUnit: '',
-    shift: '',
-    ownerContractor: '',
-    contractNumber: '',
-    resourceReqNo: '',
-    resourceType: 'GOVERNMENT',
-    doubleShifted: 'NO',
-    incidentName: '',
-    incidentNumber: '',
-    equipmentType: '',
-    equipmentMakeModel: '',
-    remarks: '',
-    ownerIdNumber: '',
-    licenseVinSerial: '',
-    equipmentUse: 'HOURS',
-    transportRetained: '', // NEW FIELD
-    isFirstLastTicket: '', // now a string for dropdown
-    rateType: '',
-    // specialRates: '', // removed
-  });
+
 
   // Federal form data state
   const [federalFormData, setFederalFormData] = useState<FederalFormData>({
+    //
     agreementNumber: '',
+    //
     contractorAgencyName: '',
+    //
     resourceOrderNumber: '',
+    //
     incidentName: '',
+    //
     incidentNumber: '',
+    //
     financialCode: '',
+    //
     equipmentMakeModel: '',
+    //
     equipmentType: '',
+    //
     serialVinNumber: '',
+    //
     licenseIdNumber: '',
+    //
     transportRetained: '',
+    //
     isFirstLastTicket: '',
+    //
     rateType: '',
+    //
+    remarks: '',
   });
 
   // Equipment entries state
@@ -80,16 +83,11 @@ export const FederalTimeTable: React.FC = () => {
   // Personnel entries state
   const [personnelEntries, setPersonnelEntries] = useState<FederalPersonnelEntry[]>([]);
 
-  // Equipment Use selector (global for all rows)
-  const [equipmentUse, setEquipmentUse] = useState<'HOURS' | 'MILES' | 'DAYS'>('HOURS');
 
-  // Engine Time Table State
-  const [rows, setRows] = useState<EngineTimeRow[]>(Array(NUM_ROWS).fill(null).map(() => ({ ...EMPTY_ROW })));
 
   // PDF preview state
   const [pdfId, setPdfId] = useState<string | null>(null);
   const [showSignaturePage, setShowSignaturePage] = useState(false);
-  const [signatureData, setSignatureData] = useState<string | null>(null);
 
   // Load Federal data from IndexedDB on mount
   useEffect(() => {
@@ -139,20 +137,11 @@ export const FederalTimeTable: React.FC = () => {
   // Handle personnel entry changes and autosave
   const handlePersonnelEntryChange = (index: number, field: keyof FederalPersonnelEntry, value: string) => {
     setPersonnelEntries(prev => {
+      // get the updated personnel entry
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
       saveFederalPersonnelEntry(updated[index]);
       return updated;
-    });
-  };
-
-  // Handle cell change and autosave
-  const handleCellChange = (rowIdx: number, field: keyof EngineTimeRow, value: string) => {
-    setRows(prevRows => {
-      const updatedRows = [...prevRows];
-      updatedRows[rowIdx] = { ...updatedRows[rowIdx], [field]: value };
-      saveEngineTimeRow(updatedRows[rowIdx]);
-      return updatedRows;
     });
   };
 
@@ -161,7 +150,6 @@ export const FederalTimeTable: React.FC = () => {
   };
   
   const handleSignatureSave = (signature: string) => {
-    setSignatureData(signature);
     setShowSignaturePage(false);
     console.log('Signature saved:', signature);
     // You can add additional logic here like saving to IndexedDB or showing a success message

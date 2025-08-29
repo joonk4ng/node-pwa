@@ -12,11 +12,12 @@ import {
 import PDFViewer from './PDFViewer';
 import { generateEquipmentPDF } from '../utils/pdfGenerator';
 import type { TimeEntry, CrewInfo } from '../utils/pdfFieldMapper';
-import { SignatureModal } from './SignatureModal';
-import { TableSelector } from './TableSelector';
+import SignatureModal from './SignatureModal';
+
 import { FederalTimeTable } from './FederalTimeTable';
 import { storePDF } from '../utils/pdfStorage';
 
+// initial empty row
 const EMPTY_ROW: EngineTimeRow = {
   date: '',
   equipmentUse: 'HOURS',
@@ -28,16 +29,18 @@ const EMPTY_ROW: EngineTimeRow = {
   timeEnd: '',
 };
 
+// number of rows
 const NUM_ROWS = 6;
 
+// interface for the time entry table
 interface TimeEntryTableProps {
   tableType?: 'equipment' | 'personnel';
 }
 
+// time entry table component
 const TimeEntryTable: React.FC<TimeEntryTableProps> = ({ tableType = 'equipment' }) => {
   // Use the prop to determine which table to show
-  const [activeTable, setActiveTable] = useState<'equipment' | 'personnel'>(tableType);
-  const [showSettings, setShowSettings] = useState(false);
+  const [activeTable] = useState<'equipment' | 'personnel'>(tableType);
 
   // Main form state
   const [formData, setFormData] = useState({
@@ -144,15 +147,17 @@ const TimeEntryTable: React.FC<TimeEntryTableProps> = ({ tableType = 'equipment'
       return updatedRows;
     });
   };
-
+  // handle checkbox change
   const handleCheckboxChange = (key: keyof typeof checkboxStates) => {
     setCheckboxStates(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
+  // handle remove custom entry
   const handleRemoveCustomEntry = (entry: string) => {
     setCustomEntries(prev => prev.filter(e => e !== entry));
   };
 
+  // handle add custom entry
   const handleAddCustomEntry = () => {
     if (customEntryInput.trim() && !customEntries.includes(customEntryInput.trim())) {
       setCustomEntries(prev => [...prev, customEntryInput.trim()]);
@@ -178,14 +183,13 @@ const TimeEntryTable: React.FC<TimeEntryTableProps> = ({ tableType = 'equipment'
 
   // Add state for signature modal and data
   const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
-  const [signatureData, setSignatureData] = useState<string | null>(null);
+
 
   const handleSignatureCapture = () => {
     setIsSignatureModalOpen(true);
   };
 
   const handleSignatureSave = (signature: string) => {
-    setSignatureData(signature);
     setIsSignatureModalOpen(false);
   };
 
@@ -759,6 +763,7 @@ const TimeEntryTable: React.FC<TimeEntryTableProps> = ({ tableType = 'equipment'
           isOpen={isSignatureModalOpen}
           onClose={() => setIsSignatureModalOpen(false)}
           onSave={handleSignatureSave}
+          title="Signature"
         />
       )}
     </>
