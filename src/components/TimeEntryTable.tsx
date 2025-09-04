@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import '../App.css';
+import '../styles/components/TimeEntryTable.css';
 import type { EngineTimeRow, EngineTimeForm } from '../utils/engineTimeDB';
 import {
   saveEngineTimeRow,
@@ -9,10 +9,12 @@ import {
 } from '../utils/engineTimeDB';
 
 // DEMO USAGE: PDFViewer
-import PDFViewer from './PDFViewer';
+import PDFDrawingViewer from './PDFDrawingViewer';
 import { generateEquipmentPDF } from '../utils/pdfGenerator';
 import type { TimeEntry, CrewInfo } from '../utils/pdfFieldMapper';
 import SignatureModal from './SignatureModal';
+import { storeDrawing, getDrawing } from '../utils/drawingStorage';
+import { type DrawingData } from './DrawingOverlay';
 
 import { FederalTimeTable } from './FederalTimeTable';
 import { storePDF } from '../utils/pdfStorage';
@@ -184,6 +186,21 @@ const TimeEntryTable: React.FC<TimeEntryTableProps> = ({ tableType = 'equipment'
   // Add state for signature modal and data
   const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
 
+  // Add state for drawing data
+  const [drawingData, setDrawingData] = useState<DrawingData | null>(null);
+
+  // Handle drawing data changes and save to storage
+  const handleDrawingChange = async (newDrawingData: DrawingData) => {
+    setDrawingData(newDrawingData);
+    if (pdfId) {
+      try {
+        await storeDrawing(pdfId, newDrawingData);
+      } catch (error) {
+        console.error('Failed to save drawing data:', error);
+      }
+    }
+  };
+
 
   const handleSignatureCapture = () => {
     setIsSignatureModalOpen(true);
@@ -193,7 +210,7 @@ const TimeEntryTable: React.FC<TimeEntryTableProps> = ({ tableType = 'equipment'
     setIsSignatureModalOpen(false);
   };
 
-  const handleGeneratePDF = async () => {
+    const handleGeneratePDF = async () => {
     try {
       // Clear previous PDF
       setPdfId(null);
@@ -251,8 +268,18 @@ const TimeEntryTable: React.FC<TimeEntryTableProps> = ({ tableType = 'equipment'
         // Store the PDF in IndexedDB
         await storePDF(newPdfId, result.blob);
         
-        // Set the PDF ID for viewing
+        // Set the PDF ID for viewing (opens for drawing)
         setPdfId(newPdfId);
+        
+        // Load existing drawing data for this PDF
+        try {
+          const existingDrawing = await getDrawing(newPdfId);
+          if (existingDrawing) {
+            setDrawingData(existingDrawing);
+          }
+        } catch (error) {
+          console.warn('Could not load existing drawing data:', error);
+        }
       }
 
       console.log('PDF Generation Results:', {
@@ -318,385 +345,359 @@ const TimeEntryTable: React.FC<TimeEntryTableProps> = ({ tableType = 'equipment'
   };
 
   return (
-    <>
-      <div style={{ marginBottom: '20px' }}>
-        <h2 style={{ margin: 0, color: '#333', textAlign: 'center' }}>
-          {activeTable === 'personnel' ? 'Federal Emergency Equipment Shift Ticket' : 'ODF Emergency Equipment Shift Ticket'}
-        </h2>
-      </div>
-
+    <div className="time-entry-container">
       {activeTable === 'equipment' ? (
         // Equipment Time Table
         <>
-          <table className="form-table">
-            <tbody>
-              <tr>
-                <td className="form-title" rowSpan={2} colSpan={2}>
-                  EMERGENCY EQUIPMENT SHIFT TICKET
-                </td>
-                <td className="field-label" colSpan={2}>
-                  1. DIV/UNIT
-                </td>
-                <td className="field-label" colSpan={2}>
-                  2. SHIFT
-                </td>
-              </tr>
-              <tr>
-                <td className="field-input" colSpan={2}>
-                  <input
-                    type="text"
-                    value={formData.divUnit}
-                    onChange={e => setFormData(prev => ({ ...prev, divUnit: e.target.value }))}
-                    placeholder=""
-                  />
-                </td>
-                <td className="field-input" colSpan={2}>
-                  <input
-                    type="text"
-                    value={formData.shift}
-                    onChange={e => setFormData(prev => ({ ...prev, shift: e.target.value }))}
-                    placeholder=""
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td className="field-label" colSpan={2}>
-                  Owner/Contractor
-                </td>
-                <td className="field-label" colSpan={3}>
-                  Contract/Agreement Number
-                </td>
-                <td className="field-label">
-                  Resource Req. No.
-                </td>
-              </tr>
-              <tr>
-                <td className="field-input" colSpan={2}>
-                  <input
-                    type="text"
-                    value={formData.ownerContractor}
-                    onChange={e => setFormData(prev => ({ ...prev, ownerContractor: e.target.value }))}
-                    placeholder=""
-                  />
-                </td>
-                <td className="field-input" colSpan={3}>
-                  <input
-                    type="text"
-                    value={formData.contractNumber}
-                    onChange={e => setFormData(prev => ({ ...prev, contractNumber: e.target.value }))}
-                    placeholder=""
-                  />
-                </td>
-                <td className="field-input">
-                  <input
-                    type="text"
-                    value={formData.resourceReqNo}
-                    onChange={e => setFormData(prev => ({ ...prev, resourceReqNo: e.target.value }))}
-                    placeholder=""
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td className="field-label">
-                  Resource Type
-                </td>
-                <td className="field-label">
-                  Double Shifted
-                </td>
-                <td className="field-label" colSpan={2}>
-                  Incident Name
-                </td>
-                <td className="field-label" colSpan={2}>
-                  Incident Number
-                </td>
-              </tr>
-              <tr>
-                <td className="field-input">
-                  <select
-                    value={formData.resourceType}
-                    onChange={e => setFormData(prev => ({ ...prev, resourceType: e.target.value as 'GOVERNMENT' | 'CONTRACT' | 'PRIVATE' }))}
-                  >
-                    <option value="GOVERNMENT">GOVERNMENT</option>
-                    <option value="CONTRACT">CONTRACT</option>
-                    <option value="PRIVATE">PRIVATE</option>
-                  </select>
-                </td>
-                <td className="field-input">
-                  <select
-                    value={formData.doubleShifted}
-                    onChange={e => setFormData(prev => ({ ...prev, doubleShifted: e.target.value as 'YES' | 'NO' }))}
-                  >
-                    <option value="YES">YES</option>
-                    <option value="NO">NO</option>
-                  </select>
-                </td>
-                <td className="field-input" colSpan={2}>
-                  <input
-                    type="text"
-                    value={formData.incidentName}
-                    onChange={e => setFormData(prev => ({ ...prev, incidentName: e.target.value }))}
-                    placeholder=""
-                  />
-                </td>
-                <td className="field-input" colSpan={2}>
-                  <input
-                    type="text"
-                    value={formData.incidentNumber}
-                    onChange={e => setFormData(prev => ({ ...prev, incidentNumber: e.target.value }))}
-                    placeholder=""
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td className="field-label"> Equip Type</td>
-                <td className="field-label">Make/Model</td>
-                <td className="field-label" colSpan={4} rowSpan={4}>
-                  <div className="remarks-header-row">
-                    <span>Remarks</span>
-                    <button
-                      type="button"
-                      className="remarks-dropdown-toggle"
-                      onClick={() => setRemarksOpen((open) => !open)}
-                      aria-expanded={remarksOpen}
-                    >
-                      {remarksOpen ? '▲' : '▼'}
-                    </button>
-                  </div>
-                  {remarksOpen ? (
-                    <div className="remarks-dropdown-content">
-                      <div className="checkbox-options scrollable">
-                        <div className="checkbox-option">
-                          <input
-                            type="checkbox"
-                            checked={checkboxStates.hotline}
-                            onChange={() => handleCheckboxChange('hotline')}
-                            id="hotline-checkbox"
-                          />
-                          <label htmlFor="hotline-checkbox">HOTLINE</label>
-                        </div>
-                        <div className="checkbox-option">
-                          <input
-                            type="checkbox"
-                            checked={checkboxStates.noMealsLodging}
-                            onChange={() => handleCheckboxChange('noMealsLodging')}
-                            id="no-meals-lodging-checkbox"
-                          />
-                          <label htmlFor="no-meals-lodging-checkbox">Self Sufficient - No Meals Provided</label>
-                        </div>
-                        <div className="checkbox-option">
-                          <input
-                            type="checkbox"
-                            checked={checkboxStates.noMeals}
-                            onChange={() => handleCheckboxChange('noMeals')}
-                            id="no-meals-checkbox"
-                          />
-                          <label htmlFor="no-meals-checkbox">Self Sufficient - No Lodging Provided</label>
-                        </div>
-                        <div className="checkbox-option">
-                          <input
-                            type="checkbox"
-                            checked={checkboxStates.travel}
-                            onChange={() => handleCheckboxChange('travel')}
-                            id="travel-checkbox"
-                          />
-                          <label htmlFor="travel-checkbox">Travel</label>
-                        </div>
-                        <div className="checkbox-option">
-                          <input
-                            type="checkbox"
-                            checked={checkboxStates.noLunch}
-                            onChange={() => handleCheckboxChange('noLunch')}
-                            id="no-lunch-checkbox"
-                          />
-                          <label htmlFor="no-lunch-checkbox">No Lunch Taken due to Uncontrolled Fire</label>
-                        </div>
-                        {customEntries.map((entry, index) => (
-                          <div key={index} className="checkbox-option">
-                            <input
-                              type="checkbox"
-                              checked={true}
-                              readOnly
-                              id={`custom-entry-${index}`}
-                            />
-                            <label htmlFor={`custom-entry-${index}`}>{entry}</label>
-                            <button
-                              className="remove-entry"
-                              onClick={() => handleRemoveCustomEntry(entry)}
-                              aria-label="Remove entry"
-                              type="button"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="custom-entry-row">
+          <div className="form-card">
+            <div className="form-card-header">
+              <h3> ODF EMERGENCY EQUIPMENT SHIFT TICKET</h3>
+            </div>
+            
+            <div className="form-content">
+            {/* Individual form fields stacked vertically */}
+            <div className="form-group">
+              <label>1. DIV/UNIT</label>
+              <input
+                type="text"
+                value={formData.divUnit}
+                onChange={e => setFormData(prev => ({ ...prev, divUnit: e.target.value }))}
+                placeholder="Enter division/unit"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label>2. SHIFT</label>
+              <input
+                type="text"
+                value={formData.shift}
+                onChange={e => setFormData(prev => ({ ...prev, shift: e.target.value }))}
+                placeholder="Enter shift"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label>Owner/Contractor</label>
+              <input
+                type="text"
+                value={formData.ownerContractor}
+                onChange={e => setFormData(prev => ({ ...prev, ownerContractor: e.target.value }))}
+                placeholder="Enter owner/contractor"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label>Contract/Agreement Number</label>
+              <input
+                type="text"
+                value={formData.contractNumber}
+                onChange={e => setFormData(prev => ({ ...prev, contractNumber: e.target.value }))}
+                placeholder="Enter contract number"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label>Resource Req. No.</label>
+              <input
+                type="text"
+                value={formData.resourceReqNo}
+                onChange={e => setFormData(prev => ({ ...prev, resourceReqNo: e.target.value }))}
+                placeholder="Enter resource request number"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label>Resource Type</label>
+              <select
+                value={formData.resourceType}
+                onChange={e => setFormData(prev => ({ ...prev, resourceType: e.target.value as 'GOVERNMENT' | 'CONTRACT' | 'PRIVATE' }))}
+              >
+                <option value="GOVERNMENT">GOVERNMENT</option>
+                <option value="CONTRACT">CONTRACT</option>
+                <option value="PRIVATE">PRIVATE</option>
+              </select>
+            </div>
+            
+            <div className="form-group">
+              <label>Double Shifted</label>
+              <select
+                value={formData.doubleShifted}
+                onChange={e => setFormData(prev => ({ ...prev, doubleShifted: e.target.value as 'YES' | 'NO' }))}
+              >
+                <option value="YES">YES</option>
+                <option value="NO">NO</option>
+              </select>
+            </div>
+            
+            <div className="form-group">
+              <label>Incident Name</label>
+              <input
+                type="text"
+                value={formData.incidentName}
+                onChange={e => setFormData(prev => ({ ...prev, incidentName: e.target.value }))}
+                placeholder="Enter incident name"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label>Incident Number</label>
+              <input
+                type="text"
+                value={formData.incidentNumber}
+                onChange={e => setFormData(prev => ({ ...prev, incidentNumber: e.target.value }))}
+                placeholder="Enter incident number"
+              />
+            </div>
+            <div className="form-group">
+              <label>Equipment Type</label>
+              <input
+                type="text"
+                value={formData.equipmentType}
+                onChange={e => setFormData(prev => ({ ...prev, equipmentType: e.target.value }))}
+                placeholder="Enter equipment type"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label>Make/Model</label>
+              <input
+                type="text"
+                value={formData.equipmentMakeModel}
+                onChange={e => setFormData(prev => ({ ...prev, equipmentMakeModel: e.target.value }))}
+                placeholder="Enter make/model"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label>Owner ID Number</label>
+              <input
+                type="text"
+                value={formData.ownerIdNumber}
+                onChange={e => setFormData(prev => ({ ...prev, ownerIdNumber: e.target.value }))}
+                placeholder="Enter owner ID number"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label>LIC/VIN/SERIAL</label>
+              <input
+                type="text"
+                value={formData.licenseVinSerial}
+                onChange={e => setFormData(prev => ({ ...prev, licenseVinSerial: e.target.value }))}
+                placeholder="Enter license/VIN/serial"
+              />
+            </div>
+            
+            {/* Remarks Section */}
+            <div className="form-group full-width">
+              <div className="remarks-header-row">
+                <label>Remarks</label>
+                <button
+                  type="button"
+                  className="remarks-dropdown-toggle"
+                  onClick={() => setRemarksOpen((open) => !open)}
+                  aria-expanded={remarksOpen}
+                >
+                  {remarksOpen ? '▲' : '▼'}
+                </button>
+              </div>
+              {remarksOpen ? (
+                <div className="remarks-dropdown-content">
+                  <div className="checkbox-options scrollable">
+                    <div className="checkbox-option">
+                      <input
+                        type="checkbox"
+                        checked={checkboxStates.hotline}
+                        onChange={() => handleCheckboxChange('hotline')}
+                        id="hotline-checkbox"
+                      />
+                      <label htmlFor="hotline-checkbox">HOTLINE</label>
+                    </div>
+                    <div className="checkbox-option">
+                      <input
+                        type="checkbox"
+                        checked={checkboxStates.noMealsLodging}
+                        onChange={() => handleCheckboxChange('noMealsLodging')}
+                        id="no-meals-lodging-checkbox"
+                      />
+                      <label htmlFor="no-meals-lodging-checkbox">Self Sufficient - No Meals Provided</label>
+                    </div>
+                    <div className="checkbox-option">
+                      <input
+                        type="checkbox"
+                        checked={checkboxStates.noMeals}
+                        onChange={() => handleCheckboxChange('noMeals')}
+                        id="no-meals-checkbox"
+                      />
+                      <label htmlFor="no-meals-checkbox">Self Sufficient - No Lodging Provided</label>
+                    </div>
+                    <div className="checkbox-option">
+                      <input
+                        type="checkbox"
+                        checked={checkboxStates.travel}
+                        onChange={() => handleCheckboxChange('travel')}
+                        id="travel-checkbox"
+                      />
+                      <label htmlFor="travel-checkbox">Travel</label>
+                    </div>
+                    <div className="checkbox-option">
+                      <input
+                        type="checkbox"
+                        checked={checkboxStates.noLunch}
+                        onChange={() => handleCheckboxChange('noLunch')}
+                        id="no-lunch-checkbox"
+                      />
+                      <label htmlFor="no-lunch-checkbox">No Lunch Taken due to Uncontrolled Fire</label>
+                    </div>
+                    {customEntries.map((entry, index) => (
+                      <div key={index} className="checkbox-option">
                         <input
-                          type="text"
-                          value={customEntryInput}
-                          onChange={e => setCustomEntryInput(e.target.value)}
-                          placeholder="Add custom remark"
-                          className="custom-entry-input"
-                          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddCustomEntry(); } }}
+                          type="checkbox"
+                          checked={true}
+                          readOnly
+                          id={`custom-entry-${index}`}
                         />
+                        <label htmlFor={`custom-entry-${index}`}>{entry}</label>
                         <button
+                          className="remove-entry"
+                          onClick={() => handleRemoveCustomEntry(entry)}
+                          aria-label="Remove entry"
                           type="button"
-                          className="add-entry-btn"
-                          onClick={handleAddCustomEntry}
                         >
-                          Add
+                          ×
                         </button>
                       </div>
-                    </div>
+                    ))}
+                  </div>
+                  <div className="custom-entry-row">
+                    <input
+                      type="text"
+                      value={customEntryInput}
+                      onChange={e => setCustomEntryInput(e.target.value)}
+                      placeholder="Add custom remark"
+                      className="custom-entry-input"
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddCustomEntry(); } }}
+                    />
+                    <button
+                      type="button"
+                      className="add-entry-btn"
+                      onClick={handleAddCustomEntry}
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="remarks-summary">
+                  {checkedRemarks.length === 0 ? (
+                    <span className="remarks-placeholder">No remarks selected</span>
                   ) : (
-                    <div className="remarks-summary">
-                      {checkedRemarks.length === 0 ? (
-                        <span className="remarks-placeholder">No remarks selected</span>
-                      ) : (
-                        <ul className="remarks-list">
-                          {checkedRemarks.map((remark, idx) => (
-                            <li key={idx}>{remark}</li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
+                    <ul className="remarks-list">
+                      {checkedRemarks.map((remark, idx) => (
+                        <li key={idx}>{remark}</li>
+                      ))}
+                    </ul>
                   )}
-                </td>
-              </tr>
-              <tr>
-                <td className="field-input">
-                  <input
-                    type="text"
-                    value={formData.equipmentType}
-                    onChange={e => setFormData(prev => ({ ...prev, equipmentType: e.target.value }))}
-                    placeholder=""
-                  />
-                </td>
-                <td className="field-input">
-                  <input
-                    type="text"
-                    value={formData.equipmentMakeModel}
-                    onChange={e => setFormData(prev => ({ ...prev, equipmentMakeModel: e.target.value }))}
-                    placeholder=""
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td className="field-label">Owner ID Number</td>
-                <td className="field-label">LIC/VIN/SERIAL</td>
-              </tr>
-              <tr>
-                <td className="field-input">
-                  <input
-                    type="text"
-                    value={formData.ownerIdNumber}
-                    onChange={e => setFormData(prev => ({ ...prev, ownerIdNumber: e.target.value }))}
-                    placeholder=""
-                  />
-                </td>
-                <td className="field-input">
-                  <input
-                    type="text"
-                    value={formData.licenseVinSerial}
-                    onChange={e => setFormData(prev => ({ ...prev, licenseVinSerial: e.target.value }))}
-                    placeholder=""
-                  />
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
 
-          <table className="form-table time-table">
-            <thead>
-              <tr>
-                <th rowSpan={2} className="field-label">DATE<br/>MO/DAY/YR</th>
-                <th className="field-label" colSpan={2}>
-                  EQUIPMENT USE
-                  <select
-                    className="equipment-use-select"
-                    value={equipmentUse}
-                    onChange={e => setEquipmentUse(e.target.value as 'HOURS' | 'MILES' | 'DAYS')}
-                  >
-                    <option value="HOURS">HOURS</option>
-                    <option value="MILES">MILES</option>
-                    <option value="DAYS">DAYS</option>
-                  </select>
-                </th>
-                <th rowSpan={2} className="field-label name-col">NAME(S)</th>
-                <th rowSpan={2} className="field-label job-col">JOB</th>
-                <th colSpan={2} className="field-label">TIME</th>
-              </tr>
-              <tr>
-                <th className="field-label">BEGINNING</th>
-                <th className="field-label">ENDING</th>
-                <th className="field-label">BEGIN</th>
-                <th className="field-label">END</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, rowIdx) => (
-                <tr key={rowIdx}>
-                  <td className="field-input">
-                    <input
-                      type="text"
-                      value={row.date}
-                      onChange={e => handleCellChange(rowIdx, 'date', e.target.value)}
-                      placeholder="Date"
-                    />
-                  </td>
-                  {/* BEGINNING and ENDING as time entry inputs */}
-                  <td className="field-input">
-                    <input
-                      type="text"
-                      value={row.equipBegin}
-                      onChange={e => handleCellChange(rowIdx, 'equipBegin', e.target.value)}
-                      placeholder="Begin Time"
-                    />
-                  </td>
-                  <td className="field-input">
-                    <input
-                      type="text"
-                      value={row.equipEnd}
-                      onChange={e => handleCellChange(rowIdx, 'equipEnd', e.target.value)}
-                      placeholder="End Time"
-                    />
-                  </td>
-                  <td className="field-input name-col">
-                    <input
-                      type="text"
-                      value={row.name}
-                      onChange={e => handleCellChange(rowIdx, 'name', e.target.value)}
-                      placeholder="Name(s)"
-                    />
-                  </td>
-                  <td className="field-input job-col">
-                    <input
-                      type="text"
-                      value={row.job}
-                      onChange={e => handleCellChange(rowIdx, 'job', e.target.value)}
-                      placeholder="Job"
-                    />
-                  </td>
-                  <td className="field-input">
-                    <input
-                      type="text"
-                      value={row.timeBegin}
-                      onChange={e => handleCellChange(rowIdx, 'timeBegin', e.target.value)}
-                      placeholder="Time Begin"
-                    />
-                  </td>
-                  <td className="field-input">
-                    <input
-                      type="text"
-                      value={row.timeEnd}
-                      onChange={e => handleCellChange(rowIdx, 'timeEnd', e.target.value)}
-                      placeholder="Time End"
-                    />
-                  </td>
+                <div className="time-entries-section">
+          <div className="time-entries-header">
+            <h3>Time Entries</h3>
+            <div className="equipment-use-selector">
+              <label>Equipment Use:</label>
+              <select
+                value={equipmentUse}
+                onChange={e => setEquipmentUse(e.target.value as 'HOURS' | 'MILES' | 'DAYS')}
+              >
+                <option value="HOURS">HOURS</option>
+                <option value="MILES">MILES</option>
+                <option value="DAYS">DAYS</option>
+              </select>
+            </div>
+          </div>
+          
+          <div className="time-entries-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date<br/>MO/DAY/YR</th>
+                  <th>Eq Start</th>
+                  <th>Eq End</th>
+                  <th>Name(s)</th>
+                  <th>Job</th>
+                  <th>Time<br/>Start</th>
+                  <th>Time<br/>End</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rows.map((row, rowIdx) => (
+                  <tr key={rowIdx}>
+                    <td>
+                      <input
+                        type="text"
+                        value={row.date}
+                        onChange={e => handleCellChange(rowIdx, 'date', e.target.value)}
+                        placeholder="Date"
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="text"
+                        value={row.equipBegin}
+                        onChange={e => handleCellChange(rowIdx, 'equipBegin', e.target.value)}
+                        placeholder="Begin"
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="text"
+                        value={row.equipEnd}
+                        onChange={e => handleCellChange(rowIdx, 'equipEnd', e.target.value)}
+                        placeholder="End"
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="text"
+                        value={row.name}
+                        onChange={e => handleCellChange(rowIdx, 'name', e.target.value)}
+                        placeholder="Name(s)"
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="text"
+                        value={row.job}
+                        onChange={e => handleCellChange(rowIdx, 'job', e.target.value)}
+                        placeholder="Job"
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="text"
+                        value={row.timeBegin}
+                        onChange={e => handleCellChange(rowIdx, 'timeBegin', e.target.value)}
+                        placeholder="Begin"
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="text"
+                        value={row.timeEnd}
+                        onChange={e => handleCellChange(rowIdx, 'timeEnd', e.target.value)}
+                        placeholder="End"
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
         </>
       ) : (
         // Federal Equipment Time Table
@@ -704,57 +705,59 @@ const TimeEntryTable: React.FC<TimeEntryTableProps> = ({ tableType = 'equipment'
       )}
 
       {activeTable === 'equipment' && (
-        <div className="pdf-controls" style={{ marginTop: '20px', textAlign: 'right' }}>
-          <button 
-            onClick={handleSignatureCapture}
-            style={{
-              padding: '10px 20px',
-              fontSize: '16px',
-              backgroundColor: '#4CAF50',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              marginRight: '10px'
-            }}
-          >
-            Add Signature
+        <div className="pdf-controls">
+          <button onClick={handleSignatureCapture}>
+            ✍️ Add Signature
           </button>
-          <button 
-            onClick={handleGeneratePDF}
-            style={{
-              padding: '10px 20px',
-              fontSize: '16px',
-              backgroundColor: '#2196F3',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              marginRight: '10px'
-            }}
-          >
-            Preview PDF
+          <button onClick={handleGeneratePDF}>
+            📝 Generate & Draw PDF
           </button>
-          <button 
-            onClick={handleDownloadPDF}
-            style={{
-              padding: '10px 20px',
-              fontSize: '16px',
-              backgroundColor: '#673AB7',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            Download PDF
+          <button onClick={handleDownloadPDF}>
+            📥 Download PDF
           </button>
         </div>
       )}
 
       {activeTable === 'equipment' && pdfId && (
-        <div style={{ marginTop: '20px', height: '800px', border: '1px solid #ccc' }}>
-          <PDFViewer pdfId={pdfId} />
+        <div className="pdf-preview-container">
+          <div className="pdf-drawing-header">
+            <h3>PDF Drawing Mode</h3>
+            <div className="pdf-drawing-actions">
+              <button 
+                onClick={handleDownloadPDF}
+                className="download-pdf-btn"
+              >
+                📄 Download Original PDF
+              </button>
+              <button 
+                onClick={() => {
+                  // This will trigger the export from PDFDrawingViewer
+                  const exportEvent = new CustomEvent('export-pdf-with-drawings');
+                  window.dispatchEvent(exportEvent);
+                }}
+                className="download-with-drawings-btn"
+              >
+                ✏️ Download PDF with Drawings
+              </button>
+            </div>
+          </div>
+          <PDFDrawingViewer 
+            pdfId={pdfId} 
+            className="no-export-button"
+            onDrawingChange={handleDrawingChange}
+            initialDrawingData={drawingData || undefined}
+            onExport={(pdfBlob) => {
+              // Create download link
+              const url = URL.createObjectURL(pdfBlob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `equipment-time-report-with-drawings.pdf`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+            }}
+          />
         </div>
       )}
 
@@ -766,15 +769,15 @@ const TimeEntryTable: React.FC<TimeEntryTableProps> = ({ tableType = 'equipment'
           title="Signature"
         />
       )}
-    </>
+    </div>
   );
 };
 
 // Example usage at the bottom of the file (for demonstration)
 // Note: This demo would need a PDF stored in IndexedDB with the given ID
-export const PDFViewerDemo = () => (
+export const PDFDrawingViewerDemo = () => (
   <div style={{ width: '100%', height: 600 }}>
-    <PDFViewer pdfId={'demo-pdf'} />
+    <PDFDrawingViewer pdfId={'demo-pdf'} />
   </div>
 );
 

@@ -1,0 +1,250 @@
+.pdf-drawing-viewer {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  background-color: #f5f5f5;
+  overflow: hidden;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.pdf-drawing-viewer .zoom-controls {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  gap: 8px;
+  z-index: 1000;
+  background-color: rgba(255, 255, 255, 0.95);
+  padding: 8px;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(10px);
+}
+
+.pdf-drawing-viewer .zoom-controls button {
+  padding: 6px 10px;
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.pdf-drawing-viewer .zoom-controls button:hover {
+  background-color: #5a6268;
+}
+
+.pdf-drawing-viewer .zoom-controls button:active {
+  background-color: #495057;
+}
+
+.pdf-drawing-viewer .export-controls {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+}
+
+.pdf-drawing-viewer .export-controls button {
+  padding: 8px 16px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.pdf-drawing-viewer .export-controls button:hover:not(:disabled) {
+  background-color: #218838;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.pdf-drawing-viewer .export-controls button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.pdf-drawing-viewer .pdf-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-origin: top left;
+}
+
+.pdf-drawing-viewer .drawing-info {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  background-color: rgba(255, 255, 255, 0.95);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #495057;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.pdf-drawing-viewer .drawing-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: auto;
+}
+
+.pdf-drawing-viewer .drawing-overlay canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: crosshair;
+  transform-origin: top left;
+}
+
+.pdf-drawing-viewer .drawing-controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 8px;
+  z-index: 1000;
+}
+
+.pdf-drawing-viewer .drawing-controls button {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.pdf-drawing-viewer .drawing-controls .draw-btn {
+  background-color: #6c757d;
+  color: white;
+  border: 2px solid transparent;
+}
+
+.pdf-drawing-viewer .drawing-controls .draw-btn:hover {
+  background-color: #5a6268;
+}
+
+.pdf-drawing-viewer .drawing-controls .draw-btn.active {
+  background-color: #28a745;
+  border-color: #fff;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+}
+
+.pdf-drawing-viewer .drawing-controls .draw-btn.active:hover {
+  background-color: #218838;
+}
+
+.pdf-drawing-viewer .drawing-controls .undo-btn {
+  background-color: #007bff;
+  color: white;
+}
+
+.pdf-drawing-viewer .drawing-controls .undo-btn:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+.pdf-drawing-viewer .drawing-controls .clear-btn {
+  background-color: #dc3545;
+  color: white;
+}
+
+.pdf-drawing-viewer .drawing-controls .clear-btn:hover:not(:disabled) {
+  background-color: #c82333;
+}
+
+.pdf-drawing-viewer .drawing-controls button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+}
+
+/* Loading state */
+.pdf-drawing-viewer .loading-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(255, 255, 255, 0.95);
+  padding: 20px 40px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #495057;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1001;
+  backdrop-filter: blur(10px);
+}
+
+/* Error state */
+.pdf-drawing-viewer .error-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #f8f9fa;
+  color: #dc3545;
+}
+
+.pdf-drawing-viewer .error-container .error-content {
+  text-align: center;
+  padding: 20px;
+}
+
+.pdf-drawing-viewer .error-container .error-title {
+  font-size: 18px;
+  margin-bottom: 10px;
+  font-weight: 500;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .pdf-drawing-viewer .zoom-controls {
+    top: 5px;
+    left: 5px;
+    padding: 6px;
+    gap: 4px;
+  }
+  
+  .pdf-drawing-viewer .zoom-controls button {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+  
+  .pdf-drawing-viewer .export-controls {
+    top: 5px;
+  }
+  
+  .pdf-drawing-viewer .export-controls button {
+    padding: 6px 12px;
+    font-size: 11px;
+  }
+  
+  .pdf-drawing-viewer .drawing-controls {
+    top: 5px;
+    right: 5px;
+    gap: 4px;
+  }
+  
+  .pdf-drawing-viewer .drawing-controls button {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+}
