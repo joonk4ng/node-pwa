@@ -7,8 +7,8 @@ import { TableSelector } from './components/TableSelector';
 import type { TableType } from './components/TableSelector';
 
 function App() {
-  const [activeTable, setActiveTable] = useState<TableType>('eest');
-  const [showSettings, setShowSettings] = useState(false);
+  const [activeTable, setActiveTable] = useState<TableType>('federal');
+  const [showSettings, setShowSettings] = useState(true);
 
   return (
     <div className="app">
