@@ -8,16 +8,7 @@ import {
   loadEngineTimeForm
 } from '../utils/engineTimeDB';
 
-// DEMO USAGE: PDFViewer
-import PDFDrawingViewer from './PDFDrawingViewer';
-import { generateEquipmentPDF } from '../utils/pdfGenerator';
-import type { TimeEntry, CrewInfo } from '../utils/pdfFieldMapper';
-import SignatureModal from './SignatureModal';
-import { storeDrawing, getDrawing } from '../utils/drawingStorage';
-import { type DrawingData } from './DrawingOverlay';
-
 import { FederalTimeTable } from './FederalTimeTable';
-import { storePDF } from '../utils/pdfStorage';
 
 // initial empty row
 const EMPTY_ROW: EngineTimeRow = {
@@ -180,169 +171,9 @@ const TimeEntryTable: React.FC<TimeEntryTableProps> = ({ tableType = 'equipment'
     .map(opt => opt.label)
     .concat(customEntries);
 
-  // Add state for PDF preview
-  const [pdfId, setPdfId] = useState<string | null>(null);
-
-  // Add state for signature modal and data
-  const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
-
-  // Add state for drawing data
-  const [drawingData, setDrawingData] = useState<DrawingData | null>(null);
-
-  // Handle drawing data changes and save to storage
-  const handleDrawingChange = async (newDrawingData: DrawingData) => {
-    setDrawingData(newDrawingData);
-    if (pdfId) {
-      try {
-        await storeDrawing(pdfId, newDrawingData);
-      } catch (error) {
-        console.error('Failed to save drawing data:', error);
-      }
-    }
-  };
 
 
-  const handleSignatureCapture = () => {
-    setIsSignatureModalOpen(true);
-  };
 
-  const handleSignatureSave = () => {
-    setIsSignatureModalOpen(false);
-  };
-
-    const handleGeneratePDF = async () => {
-    try {
-      // Clear previous PDF
-      setPdfId(null);
-
-      // Transform the rows into TimeEntry format
-      const timeEntries: TimeEntry[] = rows
-        .filter(row => row.date || row.name || row.job) // Only include rows with data
-        .map(row => ({
-          date: row.date,
-          equipmentUse: equipmentUse,
-          equipBegin: row.equipBegin,
-          equipEnd: row.equipEnd,
-          name: row.name,
-          job: row.job,
-          timeBegin: row.timeBegin,
-          timeEnd: row.timeEnd
-        }));
-
-      // Transform form data into CrewInfo format
-      const crewInfo: CrewInfo = {
-        divUnit: formData.divUnit,
-        shift: formData.shift,
-        ownerContractor: formData.ownerContractor,
-        contractNumber: formData.contractNumber,
-        resourceReqNo: formData.resourceReqNo,
-        resourceType: formData.resourceType as 'GOVERNMENT' | 'CONTRACT' | 'PRIVATE',
-        doubleShifted: formData.doubleShifted as 'YES' | 'NO',
-        incidentName: formData.incidentName,
-        incidentNumber: formData.incidentNumber,
-        equipmentType: formData.equipmentType,
-        equipmentMakeModel: formData.equipmentMakeModel,
-        licenseVinSerial: formData.licenseVinSerial,
-        ownerIdNumber: formData.ownerIdNumber,
-        checkboxStates: {
-          hotline: checkboxStates.hotline,
-          travel: checkboxStates.travel,
-          noMealsLodging: checkboxStates.noMealsLodging,
-          noMeals: checkboxStates.noMeals,
-          noLunch: checkboxStates.noLunch
-        },
-        customEntries: customEntries
-      };
-
-      // Generate PDF and store in IndexedDB
-      const result = await generateEquipmentPDF(timeEntries, crewInfo, {
-        debugMode: true,
-        returnBlob: true,
-        downloadImmediately: false
-      });
-      
-      if (result.blob) {
-        // Generate a unique ID for this PDF
-        const newPdfId = `odf_${Date.now()}`;
-        
-        // Store the PDF in IndexedDB
-        await storePDF(newPdfId, result.blob);
-        
-        // Set the PDF ID for viewing (opens for drawing)
-        setPdfId(newPdfId);
-        
-        // Load existing drawing data for this PDF
-        try {
-          const existingDrawing = await getDrawing(newPdfId);
-          if (existingDrawing) {
-            setDrawingData(existingDrawing);
-          }
-        } catch (error) {
-          console.warn('Could not load existing drawing data:', error);
-        }
-      }
-
-      console.log('PDF Generation Results:', {
-        availableFields: result.debugInfo?.availableFields.length,
-        mappedFields: Object.keys(result.debugInfo?.mappedFields || {}).length,
-        successfulFields: result.debugInfo?.filledFields.filter(f => f.success).length,
-        failedFields: result.debugInfo?.filledFields.filter(f => !f.success).length
-      });
-      
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      alert('Failed to generate PDF. Please check the console for details.');
-    }
-  };
-
-  const handleDownloadPDF = async () => {
-    try {
-      const timeEntries: TimeEntry[] = rows
-        .filter(row => row.date || row.name || row.job)
-        .map(row => ({
-          date: row.date,
-          equipmentUse: equipmentUse,
-          equipBegin: row.equipBegin,
-          equipEnd: row.equipEnd,
-          name: row.name,
-          job: row.job,
-          timeBegin: row.timeBegin,
-          timeEnd: row.timeEnd
-        }));
-
-      const crewInfo: CrewInfo = {
-        divUnit: formData.divUnit,
-        shift: formData.shift,
-        ownerContractor: formData.ownerContractor,
-        contractNumber: formData.contractNumber,
-        resourceReqNo: formData.resourceReqNo,
-        resourceType: formData.resourceType as 'GOVERNMENT' | 'CONTRACT' | 'PRIVATE',
-        doubleShifted: formData.doubleShifted as 'YES' | 'NO',
-        incidentName: formData.incidentName,
-        incidentNumber: formData.incidentNumber,
-        equipmentType: formData.equipmentType,
-        equipmentMakeModel: formData.equipmentMakeModel,
-        licenseVinSerial: formData.licenseVinSerial,
-        ownerIdNumber: formData.ownerIdNumber,
-        checkboxStates: {
-          hotline: checkboxStates.hotline,
-          travel: checkboxStates.travel,
-          noMealsLodging: checkboxStates.noMealsLodging,
-          noMeals: checkboxStates.noMeals,
-          noLunch: checkboxStates.noLunch
-        },
-        customEntries: customEntries
-      };
-
-      await generateEquipmentPDF(timeEntries, crewInfo, {
-        debugMode: true,
-        downloadImmediately: true
-      });
-    } catch (error) {
-      console.error('Error downloading PDF:', error);
-      alert('Failed to download PDF. Please check the console for details.');
-    }
-  };
 
   return (
     <div className="time-entry-container">
@@ -704,81 +535,10 @@ const TimeEntryTable: React.FC<TimeEntryTableProps> = ({ tableType = 'equipment'
         <FederalTimeTable />
       )}
 
-      {activeTable === 'equipment' && (
-        <div className="pdf-controls">
-          <button onClick={handleSignatureCapture}>
-            ✍️ Add Signature
-          </button>
-          <button onClick={handleGeneratePDF}>
-            📝 Generate & Draw PDF
-          </button>
-          <button onClick={handleDownloadPDF}>
-            📥 Download PDF
-          </button>
-        </div>
-      )}
 
-      {activeTable === 'equipment' && pdfId && (
-        <div className="pdf-preview-container">
-          <div className="pdf-drawing-header">
-            <h3>PDF Drawing Mode</h3>
-            <div className="pdf-drawing-actions">
-              <button 
-                onClick={handleDownloadPDF}
-                className="download-pdf-btn"
-              >
-                📄 Download Original PDF
-              </button>
-              <button 
-                onClick={() => {
-                  // This will trigger the export from PDFDrawingViewer
-                  const exportEvent = new CustomEvent('export-pdf-with-drawings');
-                  window.dispatchEvent(exportEvent);
-                }}
-                className="download-with-drawings-btn"
-              >
-                ✏️ Download PDF with Drawings
-              </button>
-            </div>
-          </div>
-          <PDFDrawingViewer 
-            pdfId={pdfId} 
-            className="no-export-button"
-            onDrawingChange={handleDrawingChange}
-            initialDrawingData={drawingData || undefined}
-            onExport={(pdfBlob) => {
-              // Create download link
-              const url = URL.createObjectURL(pdfBlob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = `equipment-time-report-with-drawings.pdf`;
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              URL.revokeObjectURL(url);
-            }}
-          />
-        </div>
-      )}
-
-      {activeTable === 'equipment' && (
-        <SignatureModal
-          isOpen={isSignatureModalOpen}
-          onClose={() => setIsSignatureModalOpen(false)}
-          onSave={handleSignatureSave}
-          title="Signature"
-        />
-      )}
     </div>
   );
 };
 
-// Example usage at the bottom of the file (for demonstration)
-// Note: This demo would need a PDF stored in IndexedDB with the given ID
-export const PDFDrawingViewerDemo = () => (
-  <div style={{ width: '100%', height: 600 }}>
-    <PDFDrawingViewer pdfId={'demo-pdf'} />
-  </div>
-);
 
 export default TimeEntryTable; 

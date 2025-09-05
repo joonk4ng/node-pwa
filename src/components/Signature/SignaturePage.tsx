@@ -1,9 +1,8 @@
-// Signature page component to sign the document
+// file for the signature page
 import React from 'react';
-import { SignatureCanvas } from './SignatureCanvas';
-import '../styles/components/SignaturePage.css';
+import { SignatureCanvas } from './SignatureCanvas.tsx';
+import '../../styles/components/SignaturePage.css';
 
-// interface for the signature page props
 interface SignaturePageProps {
   onSave: (signatureData: string) => void;
   onCancel: () => void;

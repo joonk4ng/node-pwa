@@ -8,7 +8,7 @@ import type { TableType } from './components/TableSelector';
 
 function App() {
   const [activeTable, setActiveTable] = useState<TableType>('federal');
-  const [showSettings, setShowSettings] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
 
   return (
     <div className="app">
@@ -19,11 +19,11 @@ function App() {
         onToggleSettings={() => setShowSettings(!showSettings)}
       />
       
-      {activeTable === 'eest' && <EESTTimeTable />}
-      {activeTable === 'federal' && showSettings && <FederalTimeTable />}
+      {activeTable === 'federal' && <FederalTimeTable />}
+      {activeTable === 'eest' && showSettings && <EESTTimeTable />}
       {activeTable === 'odf' && showSettings && <TimeEntryTable tableType="equipment" />}
       
-      {((activeTable === 'federal' || activeTable === 'odf') && !showSettings) && (
+      {((activeTable === 'eest' || activeTable === 'odf') && !showSettings) && (
         <div className="settings-message">
           <p>Additional time sheets are available in Settings.</p>
           <button onClick={() => setShowSettings(true)}>

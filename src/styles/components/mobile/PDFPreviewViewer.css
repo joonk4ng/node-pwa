@@ -1,0 +1,32 @@
+/* PDF Preview Viewer - Mobile Styles */
+@media (max-width: 768px) {
+  .pdf-preview-viewer {
+    padding: 10px;
+  }
+  
+  .pdf-preview-viewer img {
+    max-height: 60vh;
+  }
+  
+  .pdf-preview-actions {
+    margin-top: 15px;
+    gap: 10px;
+  }
+  
+  .action-select {
+    min-width: 150px;
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+  
+  .button-bar {
+    flex-direction: column;
+    width: 100%;
+    max-width: 300px;
+  }
+  
+  .button-bar button {
+    width: 100%;
+    padding: 12px 20px;
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+}

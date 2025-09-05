@@ -1,7 +1,8 @@
 // EEST Field Mapper
 // Maps EEST form data to PDF field names for the Emergency Equipment Shift Ticket
 
-import type { EESTFormData, EESTTimeEntry } from './engineTimeDB';
+import type { EESTFormData, EESTTimeEntry } from '../engineTimeDB';
+import { autoCalculateEESTTimeTotals } from '../timeCalculations';
 
 // EEST Time Entry for PDF
 export interface EESTTimeEntryForPDF {
@@ -82,6 +83,9 @@ export function mapEESTToPDFFields(
   timeEntries: EESTTimeEntry[]
 ): Record<string, string> {
   const fields: Record<string, string> = {};
+  
+  // Auto-calculate totals for time entries before mapping
+  const calculatedTimeEntries = autoCalculateEESTTimeTotals(timeEntries);
   
   // Map form data to PDF fields using the field mapper
   // Truncate text to fit better in the PDF fields
@@ -187,8 +191,8 @@ export function mapEESTToPDFFields(
     }
   }
   
-  // Map time entries to PDF fields
-  timeEntries.forEach((entry, index) => {
+  // Map time entries to PDF fields - using calculated entries
+  calculatedTimeEntries.forEach((entry, index) => {
     if (index < 4) { // PDF has 4 rows for time entries
       const rowNum = index + 1;
       fields[`12 DATE MODAYRRow${rowNum}`] = (entry.date || '').substring(0, 8);

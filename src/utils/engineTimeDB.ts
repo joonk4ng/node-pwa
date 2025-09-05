@@ -140,6 +140,10 @@ export interface FederalFormData {
   isFirstLastTicket: string;
   // RATE TYPE
   rateType: string;
+  // AGENCY REPRESENTATIVE
+  agencyRepresentative: string;
+  // INCIDENT SUPERVISOR
+  incidentSupervisor: string;
   // REMARKS
   remarks: string;
 }

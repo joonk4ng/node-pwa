@@ -34,18 +34,18 @@ export const TableSelector: React.FC<TableSelectorProps> = ({
     <div className="table-selector">
       <div className="selector-tabs">
         <button
-          className={`tab ${activeTable === 'eest' ? 'active' : ''}`}
-          onClick={() => onTableChange('eest')}
+          className={`tab ${activeTable === 'federal' ? 'active' : ''}`}
+          onClick={() => onTableChange('federal')}
         >
-          Emergency Equipment Shift Ticket
+          Federal Equipment
         </button>
         {showSettings && (
           <div className="settings-tabs">
             <button
-              className={`tab ${activeTable === 'federal' ? 'active' : ''}`}
-              onClick={() => onTableChange('federal')}
+              className={`tab ${activeTable === 'eest' ? 'active' : ''}`}
+              onClick={() => onTableChange('eest')}
             >
-              Federal Equipment
+              Emergency Equipment Shift Ticket
             </button>
             <button
               className={`tab ${activeTable === 'odf' ? 'active' : ''}`}

@@ -9,9 +9,11 @@ import {
   saveFederalFormData,
   loadFederalFormData
 } from '../utils/engineTimeDB';
-import SignaturePage from './SignaturePage';
-import { storePDF } from '../utils/pdfStorage';
-import PDFViewer from './PDFViewer';
+import { EnhancedPDFViewer, PDFPreviewViewer } from './PDF';
+import { getPDF, storePDFWithId } from '../utils/pdfStorage';
+import { mapFederalToPDFFields, validateFederalFormData, debugFederalPDFFieldNames } from '../utils/fieldmapper/federalFieldMapper';
+import { handleFederalEquipmentEntryChange, handleFederalPersonnelEntryChange, DEFAULT_PROPAGATION_CONFIG } from '../utils/entryPropagation';
+import * as PDFLib from 'pdf-lib';
 
 // Simple Calendar Component
 const CalendarPicker: React.FC<{
@@ -237,6 +239,8 @@ export const FederalTimeTable: React.FC = () => {
     transportRetained: '',
     isFirstLastTicket: '',
     rateType: '',
+    agencyRepresentative: '',
+    incidentSupervisor: '',
     remarks: '',
   });
 
@@ -246,15 +250,18 @@ export const FederalTimeTable: React.FC = () => {
   // Personnel entries state
   const [personnelEntries, setPersonnelEntries] = useState<FederalPersonnelEntry[]>([]);
 
-  // PDF preview state
-  const [pdfId, setPdfId] = useState<string | null>(null);
-  const [showSignaturePage, setShowSignaturePage] = useState(false);
 
   // Calendar state
   const [calendarOpen, setCalendarOpen] = useState<{
     type: 'equipment' | 'personnel';
     index: number;
   } | null>(null);
+
+  // PDF state
+  const [showPDFPreview, setShowPDFPreview] = useState(false);
+  const [showPDFViewer, setShowPDFViewer] = useState(false);
+  const [pdfId] = useState<string>('federal-form');
+  const [pdfVersion, setPdfVersion] = useState(0); // Force PDF viewer refresh
 
   // Load Federal data from IndexedDB on mount
   useEffect(() => {
@@ -273,14 +280,35 @@ export const FederalTimeTable: React.FC = () => {
     });
   }, []);
 
-  // Clean up preview URL when component unmounts
+  // Initialize federal PDF in storage
   useEffect(() => {
-    return () => {
-      if (pdfId) {
-        // No need to revokeObjectURL for IndexedDB blobs
+    const initializeFederalPDF = async () => {
+      try {
+        // Check if federal PDF already exists
+        const existingPDF = await getPDF('federal-form');
+        if (!existingPDF) {
+          // Load the federal PDF from public folder
+          const response = await fetch('/OF297-24.pdf');
+          if (response.ok) {
+            const pdfBlob = await response.blob();
+            // Store with a fixed ID for the federal form
+            await storePDFWithId('federal-form', pdfBlob, null, {
+              filename: 'OF297-24.pdf',
+              date: new Date().toISOString(),
+              crewNumber: 'N/A',
+              fireName: 'N/A',
+              fireNumber: 'N/A'
+            });
+            console.log('Federal PDF initialized in storage');
+          }
+        }
+      } catch (error) {
+        console.error('Error initializing federal PDF:', error);
       }
     };
-  }, [pdfId]);
+
+    initializeFederalPDF();
+  }, []);
 
   // Handle Federal form data changes and autosave
   const handleFederalFormChange = (field: keyof FederalFormData, value: string) => {
@@ -291,21 +319,39 @@ export const FederalTimeTable: React.FC = () => {
     });
   };
 
-  // Handle equipment entry changes and autosave
+  // Handle equipment entry changes and autosave with propagation
   const handleEquipmentEntryChange = (index: number, field: keyof FederalEquipmentEntry, value: string) => {
     setEquipmentEntries(prev => {
-      const updated = [...prev];
-      updated[index] = { ...updated[index], [field]: value };
+      const updated = handleFederalEquipmentEntryChange(prev, index, field, value, DEFAULT_PROPAGATION_CONFIG);
       saveFederalEquipmentEntry(updated[index]);
       return updated;
     });
   };
 
-  // Handle personnel entry changes and autosave
+  // Handle personnel entry changes and autosave with propagation
   const handlePersonnelEntryChange = (index: number, field: keyof FederalPersonnelEntry, value: string) => {
     setPersonnelEntries(prev => {
+      const updated = handleFederalPersonnelEntryChange(prev, index, field, value, DEFAULT_PROPAGATION_CONFIG);
+      saveFederalPersonnelEntry(updated[index]);
+      return updated;
+    });
+  };
+
+  // Clear equipment entry
+  const handleClearEquipmentEntry = (index: number) => {
+    setEquipmentEntries(prev => {
       const updated = [...prev];
-      updated[index] = { ...updated[index], [field]: value };
+      updated[index] = { date: '', start: '', stop: '', total: '', quantity: '', type: '', remarks: '' };
+      saveFederalEquipmentEntry(updated[index]);
+      return updated;
+    });
+  };
+
+  // Clear personnel entry
+  const handleClearPersonnelEntry = (index: number) => {
+    setPersonnelEntries(prev => {
+      const updated = [...prev];
+      updated[index] = { date: '', name: '', start1: '', stop1: '', start2: '', stop2: '', total: '', remarks: '' };
       saveFederalPersonnelEntry(updated[index]);
       return updated;
     });
@@ -313,7 +359,10 @@ export const FederalTimeTable: React.FC = () => {
 
   // Calendar handlers
   const handleCalendarOpen = (type: 'equipment' | 'personnel', index: number) => {
-    setCalendarOpen({ type, index });
+    // Only allow calendar for equipment entries or first personnel entry
+    if (type === 'equipment' || (type === 'personnel' && index === 0)) {
+      setCalendarOpen({ type, index });
+    }
   };
 
   const handleCalendarClose = () => {
@@ -335,43 +384,166 @@ export const FederalTimeTable: React.FC = () => {
     
     if (calendarOpen.type === 'equipment') {
       return equipmentEntries[calendarOpen.index]?.date || '';
-    } else {
+    } else if (calendarOpen.type === 'personnel' && calendarOpen.index === 0) {
+      // Only first personnel entry can have calendar
       return personnelEntries[calendarOpen.index]?.date || '';
     }
+    return '';
   };
 
-  const handleSignatureCapture = () => {
-    setShowSignaturePage(true);
-  };
-  
-  const handleSignatureSave = (signature: string) => {
-    setShowSignaturePage(false);
-    console.log('Signature saved:', signature);
-  };
-  
-  const handleSignatureCancel = () => {
-    setShowSignaturePage(false);
+  // PDF handlers
+  const handlePreviewPDF = () => {
+    setShowPDFPreview(true);
+    setShowPDFViewer(false);
   };
 
-  const handleGeneratePDF = async () => {
+  const handleViewPDF = async () => {
     try {
-      setPdfId(null);
-      const response = await fetch('/OF297-24.pdf');
-      if (!response.ok) {
-        throw new Error(`Failed to fetch PDF: ${response.statusText}`);
-      }
+      console.log('Federal: Starting PDF fill and sign process...');
       
-      const pdfBlob = await response.blob();
-      const newPdfId = `federal_${Date.now()}`;
-      await storePDF(newPdfId, pdfBlob);
-      setPdfId(newPdfId);
-      console.log('PDF loaded and stored successfully:', newPdfId);
+      // Validate form data
+      const validation = validateFederalFormData(federalFormData, equipmentEntries, personnelEntries);
+      if (!validation.isValid) {
+        console.error('Federal: Form validation failed:', validation.errors);
+        alert('Please fill in required fields before signing: ' + validation.errors.join(', '));
+        return;
+      }
+
+      // Map form data to PDF fields
+      const pdfFields = mapFederalToPDFFields(federalFormData, equipmentEntries, personnelEntries);
+      console.log('Federal: Mapped PDF fields:', pdfFields);
+
+      // Get the stored PDF
+      const storedPDF = await getPDF('federal-form');
+      if (!storedPDF) {
+        console.error('Federal: No PDF found in storage');
+        alert('PDF not found. Please try again.');
+        return;
+      }
+
+      // Create a new PDF with filled fields
+      const pdfDoc = await PDFLib.PDFDocument.load(await storedPDF.pdf.arrayBuffer());
+      
+      // Get the form
+      const form = pdfDoc.getForm();
+      
+      // Fill the form fields
+      let filledFieldsCount = 0;
+      let attemptedFieldsCount = 0;
+      Object.entries(pdfFields).forEach(([fieldName, value]) => {
+        attemptedFieldsCount++;
+        
+        // Special debugging for Agency Representative and Incident Supervisor fields
+        if (fieldName.includes('Agency_Representative') || fieldName.includes('Incident_Supervisor')) {
+          console.log(`Federal: DEBUG - Attempting to fill ${fieldName} with value: "${value}"`);
+        }
+        
+        // Special debugging for Hours field
+        if (fieldName.includes('_14_Hours')) {
+          console.log(`Federal: DEBUG - Attempting to fill Hours field ${fieldName} with value: "${value}"`);
+        }
+        
+        try {
+          const field = form.getField(fieldName);
+          if (field) {
+            const fieldType = field.constructor.name;
+            if (fieldType === 'PDFTextField' || fieldType === 'PDFTextField2') {
+              (field as any).setText(value);
+              filledFieldsCount++;
+              console.log(`Federal: Filled text field ${fieldName} with value: ${value}`);
+            } else if (fieldType === 'PDFCheckBox' || fieldType === 'PDFCheckBox2') {
+              if (value === 'Yes' || value === 'On' || value === 'YES' || value === 'HOURS') {
+                (field as any).check();
+              } else {
+                (field as any).uncheck();
+              }
+              filledFieldsCount++;
+              console.log(`Federal: Filled checkbox ${fieldName} with value: ${value}`);
+            } else if (fieldType === 'PDFDropdown' || fieldType === 'PDFDropdown2') {
+              (field as any).select(value);
+              filledFieldsCount++;
+              console.log(`Federal: Filled dropdown ${fieldName} with value: ${value}`);
+            } else {
+              console.log(`Federal: Field ${fieldName} found but type ${fieldType} not handled`);
+            }
+          } else {
+            console.warn(`Federal: Field ${fieldName} not found in PDF`);
+            // Special debugging for missing fields
+            if (fieldName.includes('Agency_Representative') || fieldName.includes('Incident_Supervisor')) {
+              console.error(`Federal: DEBUG - Field ${fieldName} NOT FOUND in PDF! This field may not exist.`);
+            }
+          }
+        } catch (error) {
+          console.error(`Federal: Error filling field ${fieldName}:`, error);
+        }
+      });
+      
+      console.log(`Federal: Successfully filled ${filledFieldsCount} fields out of ${attemptedFieldsCount} attempted`);
+
+      // Note: Removed form.flatten() due to PDF-lib compatibility issues
+      // The form will remain editable, which is fine for our use case
+
+      // Save the filled PDF
+      const pdfBytes = await pdfDoc.save();
+      const filledPdfBlob = new Blob([pdfBytes], { type: 'application/pdf' });
+      
+      // Store the filled PDF
+      await storePDFWithId('federal-form', filledPdfBlob, null, {
+        filename: 'OF297-24-filled.pdf',
+        date: new Date().toISOString(),
+        crewNumber: federalFormData.agreementNumber || 'N/A',
+        fireName: federalFormData.incidentName || 'N/A',
+        fireNumber: federalFormData.incidentNumber || 'N/A'
+      });
+
+      console.log('Federal: PDF filled successfully, opening for signing...');
+      
+      // Increment PDF version to force refresh
+      setPdfVersion(prev => prev + 1);
+      
+      // Force a refresh of the PDF viewer by closing and reopening
+      setShowPDFViewer(false);
+      setShowPDFPreview(false);
+      
+      // Small delay to ensure the PDF is saved before reopening
+      setTimeout(() => {
+        setShowPDFViewer(true);
+      }, 500);
       
     } catch (error) {
-      console.error('Error generating PDF:', error);
-      alert('Failed to generate PDF. Please check the console for details.');
+      console.error('Federal: Error filling PDF:', error);
+      alert('Error filling PDF. Please check the console for details.');
     }
   };
+
+  const handleClosePDF = () => {
+    setShowPDFPreview(false);
+    setShowPDFViewer(false);
+  };
+
+
+  const handleSavePDF = (pdfData: Blob, _previewImage: Blob) => {
+    console.log('Federal PDF saved:', pdfData.size, 'bytes');
+    // You can add additional save logic here
+  };
+
+  // Debug function to see all PDF field names
+  const handleDebugPDFFields = async () => {
+    try {
+      const storedPDF = await getPDF('federal-form');
+      if (!storedPDF) {
+        alert('PDF not found in storage');
+        return;
+      }
+      
+      await debugFederalPDFFieldNames(storedPDF.pdf);
+      alert('Check the browser console for the list of all PDF field names!');
+    } catch (error) {
+      console.error('Error debugging PDF fields:', error);
+      alert('Error debugging PDF fields. Check console for details.');
+    }
+  };
+
 
   return (
     <div style={{ 
@@ -825,6 +997,64 @@ export const FederalTimeTable: React.FC = () => {
                 <option value="HOURS">Hours</option>
               </select>
             </div>
+            
+            {/* Agency Representative */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px'
+            }}>
+              <label style={{
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#2c3e50'
+              }}>
+                Agency Representative
+              </label>
+              <input
+                type="text"
+                value={federalFormData.agencyRepresentative}
+                onChange={e => handleFederalFormChange('agencyRepresentative', e.target.value)}
+                style={{
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  fontSize: '16px',
+                  backgroundColor: '#fff',
+                  color: '#333'
+                }}
+                placeholder="Enter agency representative name"
+              />
+            </div>
+            
+            {/* Incident Supervisor */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px'
+            }}>
+              <label style={{
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#2c3e50'
+              }}>
+                Incident Supervisor
+              </label>
+              <input
+                type="text"
+                value={federalFormData.incidentSupervisor}
+                onChange={e => handleFederalFormChange('incidentSupervisor', e.target.value)}
+                style={{
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  fontSize: '16px',
+                  backgroundColor: '#fff',
+                  color: '#333'
+                }}
+                placeholder="Enter incident supervisor name"
+              />
+            </div>
           </div>
 
           {/* Equipment Time Entries Section */}
@@ -935,6 +1165,28 @@ export const FederalTimeTable: React.FC = () => {
                            )}
                          </div>
                       </div>
+                      
+                      {/* Clear Button */}
+                      <button
+                        onClick={() => handleClearEquipmentEntry(idx)}
+                        style={{
+                          backgroundColor: '#dc3545',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          padding: '6px 12px',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          transition: 'background-color 0.2s ease',
+                          minWidth: '60px'
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#c82333'}
+                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#dc3545'}
+                        title="Clear this equipment entry"
+                      >
+                        Clear
+                      </button>
                     </div>
                     
                     {/* Time Fields */}
@@ -1195,40 +1447,92 @@ export const FederalTimeTable: React.FC = () => {
                         }}>
                           Personnel Entry #{idx + 1}
                         </label>
-                                                 <div style={{
-                           position: 'relative'
-                         }}>
-                           <div style={{
-                             display: 'flex',
-                             alignItems: 'center',
-                             gap: '8px',
-                             padding: '8px 12px',
-                             border: '1px solid #ddd',
-                             borderRadius: '6px',
-                             backgroundColor: '#fff',
-                             cursor: 'pointer'
-                           }} onClick={() => handleCalendarOpen('personnel', idx)}>
-                             <span style={{ fontSize: '14px', color: '#333' }}>
-                               {entry.date || 'MM/DD/YY'}
-                             </span>
-                             <span style={{ 
-                               fontSize: '16px', 
-                               color: '#6c757d',
-                               marginLeft: 'auto'
-                             }}>
-                               📅
-                             </span>
-                           </div>
-                           {calendarOpen?.type === 'personnel' && calendarOpen?.index === idx && (
-                             <CalendarPicker
-                               isOpen={true}
-                               onClose={handleCalendarClose}
-                               onSelectDate={handleDateSelect}
-                               currentDate={entry.date}
-                             />
-                           )}
-                         </div>
+                        {idx === 0 ? (
+                          // First entry - show date picker
+                          <div style={{
+                            position: 'relative'
+                          }}>
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              padding: '8px 12px',
+                              border: '1px solid #ddd',
+                              borderRadius: '6px',
+                              backgroundColor: '#fff',
+                              cursor: 'pointer'
+                            }} onClick={() => handleCalendarOpen('personnel', idx)}>
+                              <span style={{ fontSize: '14px', color: '#333' }}>
+                                {entry.date || 'MM/DD/YY'}
+                              </span>
+                              <span style={{ 
+                                fontSize: '16px', 
+                                color: '#6c757d',
+                                marginLeft: 'auto'
+                              }}>
+                                📅
+                              </span>
+                            </div>
+                            {calendarOpen?.type === 'personnel' && calendarOpen?.index === idx && (
+                              <CalendarPicker
+                                isOpen={true}
+                                onClose={handleCalendarClose}
+                                onSelectDate={handleDateSelect}
+                                currentDate={entry.date}
+                              />
+                            )}
+                          </div>
+                        ) : (
+                          // Other entries - show read-only date (will be propagated)
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: '8px 12px',
+                            border: '1px solid #e9ecef',
+                            borderRadius: '6px',
+                            backgroundColor: '#f8f9fa',
+                            cursor: 'default'
+                          }}>
+                            <span style={{ 
+                              fontSize: '14px', 
+                              color: entry.date ? '#333' : '#6c757d',
+                              fontStyle: entry.date ? 'normal' : 'italic'
+                            }}>
+                              {entry.date || (entry.name && entry.name.trim() !== '' ? 'Auto-filled from first entry' : 'Enter name to auto-fill date')}
+                            </span>
+                            <span style={{ 
+                              fontSize: '16px', 
+                              color: entry.date ? '#28a745' : '#6c757d',
+                              marginLeft: 'auto'
+                            }}>
+                              {entry.date ? '🔗' : '⏳'}
+                            </span>
+                          </div>
+                        )}
                       </div>
+                      
+                      {/* Clear Button */}
+                      <button
+                        onClick={() => handleClearPersonnelEntry(idx)}
+                        style={{
+                          backgroundColor: '#dc3545',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          padding: '6px 12px',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          transition: 'background-color 0.2s ease',
+                          minWidth: '60px'
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#c82333'}
+                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#dc3545'}
+                        title="Clear this personnel entry"
+                      >
+                        Clear
+                      </button>
                     </div>
                     
                     {/* Name */}
@@ -1471,6 +1775,55 @@ export const FederalTimeTable: React.FC = () => {
               })}
             </div>
           </div>
+          
+          {/* Remarks Section */}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+            marginBottom: '24px'
+          }}>
+            <h3 style={{
+              margin: '0 0 16px 0',
+              fontSize: '16px',
+              fontWeight: '600',
+              color: '#2c3e50',
+              borderBottom: '2px solid #e9ecef',
+              paddingBottom: '8px'
+            }}>
+              Remarks
+            </h3>
+            
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px'
+            }}>
+              <label style={{
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#2c3e50'
+              }}>
+                General Remarks
+              </label>
+              <textarea
+                value={federalFormData.remarks}
+                onChange={e => handleFederalFormChange('remarks', e.target.value)}
+                style={{
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  fontSize: '16px',
+                  backgroundColor: '#fff',
+                  color: '#333',
+                  minHeight: '100px',
+                  resize: 'vertical',
+                  fontFamily: 'inherit'
+                }}
+                placeholder="Enter any general remarks, equipment breakdown details, or other information as necessary..."
+              />
+            </div>
+          </div>
         </div>
 
         {/* Action Buttons Container */}
@@ -1484,84 +1837,69 @@ export const FederalTimeTable: React.FC = () => {
           <div style={{
             display: 'flex',
             gap: '12px',
-            justifyContent: 'flex-end'
+            justifyContent: 'center',
+            flexWrap: 'wrap'
           }}>
-            <button 
-              onClick={handleSignatureCapture}
+            <button
+              onClick={handlePreviewPDF}
               style={{
-                padding: '12px 20px',
-                backgroundColor: '#6c757d',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '16px',
-                fontWeight: '500',
-                cursor: 'pointer',
-                transition: 'background-color 0.2s'
-              }}
-              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#5a6268'}
-              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#6c757d'}
-            >
-              Add Signature
-            </button>
-            <button 
-              onClick={handleGeneratePDF}
-              style={{
-                padding: '12px 20px',
+                padding: '12px 24px',
                 backgroundColor: '#007bff',
-                color: '#ffffff',
+                color: 'white',
                 border: 'none',
-                borderRadius: '8px',
-                fontSize: '16px',
-                fontWeight: '500',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: '600',
                 cursor: 'pointer',
-                transition: 'background-color 0.2s'
+                transition: 'background-color 0.2s ease'
               }}
               onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#0056b3'}
               onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#007bff'}
             >
-              Preview PDF
+              📄 Preview PDF
+            </button>
+            
+            <button
+              onClick={handleViewPDF}
+              style={{
+                padding: '12px 24px',
+                backgroundColor: '#28a745',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s ease'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#218838'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#28a745'}
+            >
+              ✏️ Fill & Sign PDF
+            </button>
+            
+            <button
+              onClick={handleDebugPDFFields}
+              style={{
+                padding: '12px 24px',
+                backgroundColor: '#6c757d',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s ease'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#545b62'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#6c757d'}
+            >
+              🔍 Debug PDF Fields
             </button>
           </div>
         </div>
       </div>
 
-      {/* PDF Preview */}
-      {pdfId && (
-        <div style={{ 
-          marginTop: '20px',
-          maxWidth: '800px',
-          margin: '20px auto 0',
-          backgroundColor: '#ffffff',
-          borderRadius: '12px',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-          overflow: 'hidden'
-        }}>
-          <div style={{
-            padding: '16px',
-            backgroundColor: '#f8f9fa',
-            borderBottom: '1px solid #e9ecef',
-            fontWeight: '600',
-            color: '#2c3e50'
-          }}>
-            PDF Preview
-          </div>
-          <div style={{ height: '600px', border: '1px solid #e9ecef' }}>
-            <PDFViewer
-              pdfId={pdfId}
-              style={{ width: '100%', height: '100%' }}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Signature Modal */}
-      {showSignaturePage && (
-        <SignaturePage
-          onSave={handleSignatureSave}
-          onCancel={handleSignatureCancel}
-        />
-      )}
 
              {/* Calendar Modal */}
        {calendarOpen && (
@@ -1571,6 +1909,115 @@ export const FederalTimeTable: React.FC = () => {
            onSelectDate={handleDateSelect}
            currentDate={getCurrentDate()}
          />
+       )}
+
+       {/* PDF Preview Modal */}
+       {showPDFPreview && (
+         <div style={{
+           position: 'fixed',
+           top: 0,
+           left: 0,
+           right: 0,
+           bottom: 0,
+           backgroundColor: 'rgba(0, 0, 0, 0.8)',
+           zIndex: 1000,
+           display: 'flex',
+           alignItems: 'center',
+           justifyContent: 'center',
+           padding: '20px'
+         }}>
+           <div style={{
+             backgroundColor: 'white',
+             borderRadius: '12px',
+             padding: '20px',
+             maxWidth: '90vw',
+             maxHeight: '90vh',
+             overflow: 'auto',
+             position: 'relative'
+           }}>
+             <button
+               onClick={handleClosePDF}
+               style={{
+                 position: 'absolute',
+                 top: '10px',
+                 right: '10px',
+                 background: '#dc3545',
+                 color: 'white',
+                 border: 'none',
+                 borderRadius: '50%',
+                 width: '30px',
+                 height: '30px',
+                 cursor: 'pointer',
+                 fontSize: '16px'
+               }}
+             >
+               ×
+             </button>
+             <PDFPreviewViewer
+               key={`preview-${pdfVersion}`}
+               pdfId={pdfId}
+               onLoad={() => console.log('PDF Preview loaded')}
+             />
+           </div>
+         </div>
+       )}
+
+       {/* PDF Viewer Modal */}
+       {showPDFViewer && (
+         <div style={{
+           position: 'fixed',
+           top: 0,
+           left: 0,
+           right: 0,
+           bottom: 0,
+           backgroundColor: 'rgba(0, 0, 0, 0.8)',
+           zIndex: 1000,
+           display: 'flex',
+           alignItems: 'center',
+           justifyContent: 'center',
+           padding: '20px'
+         }}>
+           <div style={{
+             backgroundColor: 'white',
+             borderRadius: '12px',
+             padding: '20px',
+             maxWidth: '95vw',
+             maxHeight: '95vh',
+             overflow: 'auto',
+             position: 'relative'
+           }}>
+             <button
+               onClick={handleClosePDF}
+               style={{
+                 position: 'absolute',
+                 top: '10px',
+                 right: '10px',
+                 background: '#dc3545',
+                 color: 'white',
+                 border: 'none',
+                 borderRadius: '50%',
+                 width: '30px',
+                 height: '30px',
+                 cursor: 'pointer',
+                 fontSize: '16px',
+                 zIndex: 1001
+               }}
+             >
+               ×
+             </button>
+             <EnhancedPDFViewer
+               key={`viewer-${pdfVersion}`}
+               pdfId={pdfId}
+               onSave={handleSavePDF}
+               crewInfo={{
+                 crewNumber: federalFormData.agreementNumber || 'N/A',
+                 fireName: federalFormData.incidentName || 'N/A',
+                 fireNumber: federalFormData.incidentNumber || 'N/A'
+               }}
+               date={new Date().toLocaleDateString()}
+             />
+           </div>
+         </div>
        )}
     </div>
   );

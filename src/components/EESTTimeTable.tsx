@@ -7,12 +7,7 @@ import {
   saveEESTTimeEntry,
   loadAllEESTTimeEntries
 } from '../utils/engineTimeDB';
-import { generateEESTPDF } from '../utils/pdfGenerator';
-import PDFDebugger from './PDFDebugger';
-import PDFDrawingViewer from './PDFDrawingViewer';
-import { storePDF } from '../utils/pdfStorage';
-import { storeDrawing, getDrawing } from '../utils/drawingStorage';
-import { type DrawingData } from './DrawingOverlay';
+import { handleEESTTimeEntryChange, DEFAULT_PROPAGATION_CONFIG } from '../utils/entryPropagation';
 
 
 //
@@ -80,9 +75,6 @@ export const EESTTimeTable: React.FC = () => {
   const [specialSelections, setSpecialSelections] = useState<{ [key: number]: string[] }>({});
   const [customSpecialInput, setCustomSpecialInput] = useState('');
 
-  // PDF and drawing state
-  const [pdfId, setPdfId] = useState<string | null>(null);
-  const [drawingData, setDrawingData] = useState<DrawingData | null>(null);
 
 
 
@@ -212,17 +204,6 @@ export const EESTTimeTable: React.FC = () => {
     setCustomEntries(prev => prev.filter(e => e !== entry));
   };
 
-  // Handle drawing data changes and save to storage
-  const handleDrawingChange = async (newDrawingData: DrawingData) => {
-    setDrawingData(newDrawingData);
-    if (pdfId) {
-      try {
-        await storeDrawing(pdfId, newDrawingData);
-      } catch (error) {
-        console.error('Failed to save drawing data:', error);
-      }
-    }
-  };
 
   // Special dropdown options
   const specialOptions = [
@@ -271,152 +252,15 @@ export const EESTTimeTable: React.FC = () => {
 
 
   const handleTimeEntryChange = (index: number, field: keyof EESTTimeEntry, value: string) => {
-    setTimeEntries(prev => prev.map((entry, i) => 
-      i === index ? { ...entry, [field]: value } : entry
-    ));
+    setTimeEntries(prev => {
+      const updated = handleEESTTimeEntryChange(prev, index, field, value, DEFAULT_PROPAGATION_CONFIG);
+      return updated;
+    });
   };
 
 
 
-  const handleGeneratePDF = async () => {
-    try {
-      console.log('Starting PDF generation for drawing...');
-      console.log('Form data:', formData);
-      console.log('Time entries:', timeEntries);
-      console.log('Equipment use:', equipmentUse);
-      console.log('Special selections:', specialSelections);
-      
-      // Clear previous PDF
-      setPdfId(null);
 
-      // Create enhanced form data that includes equipment use and crew members
-      const enhancedFormData = {
-        ...formData,
-        equipmentUse: equipmentUse,
-        remarks: customEntries.join('\n'), // Add crew members to remarks
-      };
-      
-      // Create enhanced time entries with special selections
-      const enhancedTimeEntries = timeEntries.map((entry, index) => ({
-        ...entry,
-        special: (specialSelections[index] || []).join('\n') || entry.special
-      }));
-      
-      console.log('Enhanced form data:', enhancedFormData);
-      console.log('Enhanced time entries:', enhancedTimeEntries);
-      
-      // Use the original EEST-specific PDF generator with actual form data
-      const pdfResult = await generateEESTPDF(enhancedFormData, enhancedTimeEntries, {
-        debugMode: true,
-        returnBlob: true,
-        fontSize: 6 // Adjust this value to control text size (6 = very small, 8 = small, 10 = medium, 12 = large)
-      });
-      console.log('PDF generation result:', pdfResult);
-      
-      if (pdfResult.blob) {
-        // Generate a unique ID for this PDF
-        const newPdfId = `eest_${Date.now()}`;
-        
-        // Store the PDF in IndexedDB
-        await storePDF(newPdfId, pdfResult.blob);
-        
-        // Set the PDF ID for viewing (opens for drawing)
-        setPdfId(newPdfId);
-        
-        // Load existing drawing data for this PDF
-        try {
-          const existingDrawing = await getDrawing(newPdfId);
-          if (existingDrawing) {
-            setDrawingData(existingDrawing);
-          }
-        } catch (error) {
-          console.warn('Could not load existing drawing data:', error);
-        }
-        
-        console.log('PDF opened for drawing:', newPdfId);
-      } else {
-        console.error('No blob returned from PDF generation');
-        alert('Failed to generate PDF. Please check the console for details.');
-      }
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      alert('Failed to generate PDF. Please check the console for details.');
-    }
-  };
-
-  const handleDownloadPDF = async () => {
-    try {
-      console.log('Starting PDF generation and download...');
-      console.log('Form data:', formData);
-      console.log('Time entries:', timeEntries);
-      console.log('Equipment use:', equipmentUse);
-      console.log('Special selections:', specialSelections);
-      
-      // Create enhanced form data that includes equipment use and crew members
-      const enhancedFormData = {
-        ...formData,
-        equipmentUse: equipmentUse,
-        remarks: customEntries.join('\n'), // Add crew members to remarks
-      };
-      
-      // Create enhanced time entries with special selections
-      const enhancedTimeEntries = timeEntries.map((entry, index) => ({
-        ...entry,
-        special: (specialSelections[index] || []).join('\n') || entry.special
-      }));
-      
-      console.log('Enhanced form data:', enhancedFormData);
-      console.log('Enhanced time entries:', enhancedTimeEntries);
-      
-      // Use the original EEST-specific PDF generator with actual form data
-      const pdfResult = await generateEESTPDF(enhancedFormData, enhancedTimeEntries, {
-        debugMode: true,
-        returnBlob: true,
-        fontSize: 6 // Adjust this value to control text size (6 = very small, 8 = small, 10 = medium, 12 = large)
-      });
-      console.log('PDF generation result:', pdfResult);
-      
-      if (pdfResult.blob) {
-        // Generate filename based on form data
-        const incidentName = formData.incidentName || 'Incident';
-        const resourceNumber = formData.resourceOrderNumber || 'Resource';
-        const operatorName = formData.operatorName || 'Operator';
-        
-        // Get the first date from time entries
-        let firstDate = '';
-        for (const entry of timeEntries) {
-          if (entry.date && entry.date.trim()) {
-            firstDate = entry.date.trim();
-            break;
-          }
-        }
-        
-        // Clean up the date format if needed
-        const cleanDate = firstDate.replace(/[^0-9\/]/g, ''); // Keep only numbers and slashes
-        
-        // Create filename
-        const filename = `${incidentName}_${resourceNumber}_${cleanDate}_${operatorName}.pdf`;
-        
-        // Create download link
-        const url = window.URL.createObjectURL(pdfResult.blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-        
-        console.log('PDF downloaded successfully:', filename);
-      } else {
-        console.error('No blob returned from PDF generation');
-        alert('Failed to generate PDF. Please check the console for details.');
-      }
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      alert('Failed to generate PDF. Please check the console for details.');
-    }
-  };
 
 
 
@@ -1530,163 +1374,12 @@ export const EESTTimeTable: React.FC = () => {
           }}>
 
             
-            <button 
-              onClick={handleGeneratePDF}
-              style={{
-                padding: '14px 20px',
-                backgroundColor: '#28a745',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '16px',
-                fontWeight: '500',
-                cursor: 'pointer',
-                width: '100%'
-              }}
-            >
-              📝 Generate & Draw PDF
-            </button>
             
 
           </div>
         </div>
       </div>
 
-      {/* PDF Drawing Container */}
-      {pdfId && (
-        <div style={{
-          marginTop: '20px',
-          borderRadius: '8px',
-          overflow: 'hidden',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-          background: 'white'
-        }}>
-          <div style={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            color: 'white',
-            padding: '16px 20px',
-            borderRadius: '8px 8px 0 0',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-            flexWrap: 'wrap',
-            gap: '12px'
-          }}>
-            <h3 style={{
-              margin: 0,
-              fontSize: '18px',
-              fontWeight: '600'
-            }}>
-              PDF Drawing Mode
-            </h3>
-            <div style={{
-              display: 'flex',
-              gap: '12px',
-              flexWrap: 'wrap'
-            }}>
-              <button 
-                onClick={handleDownloadPDF}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                  color: 'white',
-                  border: '1px solid rgba(255, 255, 255, 0.3)',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
-                📄 Download Original PDF
-              </button>
-              <button 
-                onClick={() => {
-                  // This will trigger the export from PDFDrawingViewer
-                  const exportEvent = new CustomEvent('export-pdf-with-drawings');
-                  window.dispatchEvent(exportEvent);
-                }}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#28a745',
-                  color: 'white',
-                  border: '1px solid #28a745',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.backgroundColor = '#218838';
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                  e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.2)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.backgroundColor = '#28a745';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
-              >
-                ✏️ Download PDF with Drawings
-              </button>
-            </div>
-          </div>
-          <div style={{
-            height: '600px',
-            width: '100%'
-          }}>
-            <PDFDrawingViewer 
-              pdfId={pdfId} 
-              className="no-export-button"
-              onDrawingChange={handleDrawingChange}
-              initialDrawingData={drawingData || undefined}
-              onExport={(pdfBlob) => {
-                // Generate filename based on form data
-                const incidentName = formData.incidentName || 'Incident';
-                const resourceNumber = formData.resourceOrderNumber || 'Resource';
-                const operatorName = formData.operatorName || 'Operator';
-                
-                // Get the first date from time entries
-                let firstDate = '';
-                for (const entry of timeEntries) {
-                  if (entry.date && entry.date.trim()) {
-                    firstDate = entry.date.trim();
-                    break;
-                  }
-                }
-                
-                // Clean up the date format if needed
-                const cleanDate = firstDate.replace(/[^0-9\/]/g, ''); // Keep only numbers and slashes
-                
-                // Create filename
-                const filename = `${incidentName}_${resourceNumber}_${cleanDate}_${operatorName}_with_drawings.pdf`;
-                
-                // Create download link
-                const url = URL.createObjectURL(pdfBlob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-              }}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* PDF Preview Container */}
 
 
       {/* Custom Remark Modal */}
@@ -1786,33 +1479,6 @@ export const EESTTimeTable: React.FC = () => {
         </div>
       )}
 
-      {/* PDF Debugger - Only show in development or when debugging */}
-      {import.meta.env.DEV && (
-        <PDFDebugger 
-          onTestPDF={async () => {
-            try {
-              const testFormData = {
-                ...formData,
-                equipmentUse: equipmentUse,
-                remarks: customEntries.join('\n'),
-              };
-              const testTimeEntries = timeEntries.map((entry, index) => ({
-                ...entry,
-                special: (specialSelections[index] || []).join('\n') || entry.special
-              }));
-              
-              await generateEESTPDF(testFormData, testTimeEntries, {
-                debugMode: true,
-                returnBlob: true,
-                fontSize: 6
-              });
-            } catch (error) {
-              console.error('PDF generation test failed:', error);
-              throw error;
-            }
-          }}
-        />
-      )}
 
     </div>
   );
