@@ -324,7 +324,10 @@ function propagateFirstValidDateToPersonnelEntriesWithNames(
 /**
  * Hook-like function for React components to handle entry changes
  */
-export function useEntryPropagation<T extends { date: string }>(
+// Union type for all entry types
+type EntryType = FederalEquipmentEntry | FederalPersonnelEntry | EESTTimeEntry;
+
+export function useEntryPropagation<T extends EntryType>(
   entries: T[],
   setEntries: (entries: T[]) => void,
   config: PropagationConfig = DEFAULT_PROPAGATION_CONFIG
@@ -337,28 +340,49 @@ export function useEntryPropagation<T extends { date: string }>(
     let updatedEntries: T[];
     
     if (isFederalEquipmentEntry(entries[index])) {
-      updatedEntries = handleFederalEquipmentEntryChange(
-        entries as FederalEquipmentEntry[],
-        index,
+      const equipmentEntries = entries.filter(isFederalEquipmentEntry);
+      const equipmentIndex = equipmentEntries.findIndex(e => e === entries[index]);
+      const updatedEquipment = handleFederalEquipmentEntryChange(
+        equipmentEntries,
+        equipmentIndex,
         field as keyof FederalEquipmentEntry,
         value,
         config
+      );
+      updatedEntries = entries.map(entry => 
+        isFederalEquipmentEntry(entry) 
+          ? updatedEquipment.find(e => e.date === entry.date) || entry
+          : entry
       ) as T[];
     } else if (isFederalPersonnelEntry(entries[index])) {
-      updatedEntries = handleFederalPersonnelEntryChange(
-        entries as FederalPersonnelEntry[],
-        index,
+      const personnelEntries = entries.filter(isFederalPersonnelEntry);
+      const personnelIndex = personnelEntries.findIndex(p => p === entries[index]);
+      const updatedPersonnel = handleFederalPersonnelEntryChange(
+        personnelEntries,
+        personnelIndex,
         field as keyof FederalPersonnelEntry,
         value,
         config
+      );
+      updatedEntries = entries.map(entry => 
+        isFederalPersonnelEntry(entry) 
+          ? updatedPersonnel.find(p => p.date === entry.date) || entry
+          : entry
       ) as T[];
     } else if (isEESTTimeEntry(entries[index])) {
-      updatedEntries = handleEESTTimeEntryChange(
-        entries as EESTTimeEntry[],
-        index,
+      const eestEntries = entries.filter(isEESTTimeEntry);
+      const eestIndex = eestEntries.findIndex(e => e === entries[index]);
+      const updatedEEST = handleEESTTimeEntryChange(
+        eestEntries,
+        eestIndex,
         field as keyof EESTTimeEntry,
         value,
         config
+      );
+      updatedEntries = entries.map(entry => 
+        isEESTTimeEntry(entry) 
+          ? updatedEEST.find(e => e.date === entry.date) || entry
+          : entry
       ) as T[];
     } else {
       // Generic handling
