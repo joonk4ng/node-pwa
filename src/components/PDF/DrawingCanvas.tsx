@@ -1,5 +1,5 @@
 // Drawing Canvas component for signature and annotation functionality
-import React, { useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
+import React, { useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { usePDFDrawing } from '../../hooks/usePDFDrawing';
 
 export interface DrawingCanvasProps {
@@ -7,7 +7,6 @@ export interface DrawingCanvasProps {
   isRotated?: boolean;
   className?: string;
   style?: React.CSSProperties;
-  onDrawingChange?: () => void;
 }
 
 export interface DrawingCanvasRef {
@@ -20,8 +19,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   isDrawingMode,
   isRotated = false,
   className,
-  style,
-  onDrawingChange
+  style
 }, ref) => {
   const drawCanvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -30,9 +28,27 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
     startDrawing,
     draw,
     stopDrawing,
-    clearDrawing,
-    hasDrawing
-  } = usePDFDrawing(drawCanvasRef, onDrawingChange);
+    clearDrawing
+  } = usePDFDrawing();
+
+  // Check if canvas has drawing content
+  const hasDrawing = useCallback(() => {
+    if (!drawCanvasRef.current) return false;
+    const ctx = drawCanvasRef.current.getContext('2d');
+    if (!ctx) return false;
+    
+    const imageData = ctx.getImageData(0, 0, drawCanvasRef.current.width, drawCanvasRef.current.height);
+    const data = imageData.data;
+    
+    // Check for any non-transparent pixels
+    for (let i = 3; i < data.length; i += 4) {
+      if (data[i] > 0) { // Alpha channel > 0 means non-transparent
+        return true;
+      }
+    }
+    
+    return false;
+  }, []);
 
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
@@ -77,7 +93,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
     };
   }, []);
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (isDrawingMode) {
       e.preventDefault();
       e.stopPropagation();
@@ -85,7 +101,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
     startDrawing(e);
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (isDrawingMode) {
       e.preventDefault();
       e.stopPropagation();
@@ -93,7 +109,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
     draw(e);
   };
 
-  const handleMouseUp = (e: React.MouseEvent) => {
+  const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (isDrawingMode) {
       e.preventDefault();
       e.stopPropagation();
@@ -101,7 +117,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
     stopDrawing();
   };
 
-  const handleMouseLeave = (e: React.MouseEvent) => {
+  const handleMouseLeave = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (isDrawingMode) {
       e.preventDefault();
       e.stopPropagation();
@@ -109,7 +125,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
     stopDrawing();
   };
 
-  const handleTouchStart = (e: React.TouchEvent) => {
+  const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
     if (isDrawingMode) {
       e.preventDefault();
       e.stopPropagation();
@@ -117,7 +133,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
     startDrawing(e);
   };
 
-  const handleTouchMove = (e: React.TouchEvent) => {
+  const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
     if (isDrawingMode) {
       e.preventDefault();
       e.stopPropagation();
@@ -125,7 +141,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
     draw(e);
   };
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
+  const handleTouchEnd = (e: React.TouchEvent<HTMLCanvasElement>) => {
     if (isDrawingMode) {
       e.preventDefault();
       e.stopPropagation();

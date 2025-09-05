@@ -190,7 +190,6 @@ export const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({
           pdfId={pdfId}
           className="pdf-canvas"
           isRotated={isRotated}
-          currentZoom={currentZoom}
           onPDFLoaded={handlePDFLoaded}
           onError={handlePDFError}
           onLoadingChange={handleLoadingChange}

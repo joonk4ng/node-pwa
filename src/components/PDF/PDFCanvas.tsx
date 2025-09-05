@@ -9,7 +9,6 @@ export interface PDFCanvasProps {
   className?: string;
   style?: React.CSSProperties;
   isRotated?: boolean;
-  currentZoom?: number;
   onPDFLoaded?: (pdfDoc: pdfjsLib.PDFDocumentProxy) => void;
   onError?: (error: string) => void;
   onLoadingChange?: (isLoading: boolean) => void;
@@ -27,7 +26,6 @@ export const PDFCanvas = forwardRef<PDFCanvasRef, PDFCanvasProps>(({
   className,
   style,
   isRotated = false,
-  currentZoom = 1.0,
   onPDFLoaded,
   onError,
   onLoadingChange
@@ -40,12 +38,12 @@ export const PDFCanvas = forwardRef<PDFCanvasRef, PDFCanvasProps>(({
     if (!canvasRef.current || !pdfDocRef.current) return;
 
     try {
-      await renderPDFToCanvas(pdfDocRef.current, canvasRef.current, currentZoom);
+      await renderPDFToCanvas(pdfDocRef.current, canvasRef.current);
     } catch (error) {
       console.error('Error rendering PDF:', error);
       onError?.('Failed to render PDF');
     }
-  }, [currentZoom, onError]);
+  }, [onError]);
 
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
@@ -116,12 +114,12 @@ export const PDFCanvas = forwardRef<PDFCanvasRef, PDFCanvasProps>(({
     };
   }, [pdfId, renderPDF, onPDFLoaded, onError, onLoadingChange]);
 
-  // Re-render when zoom changes
+  // Re-render when needed
   useEffect(() => {
     if (pdfDocRef.current) {
       renderPDF();
     }
-  }, [currentZoom, renderPDF]);
+  }, [renderPDF]);
 
   return (
     <canvas 
