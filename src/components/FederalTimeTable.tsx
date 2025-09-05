@@ -9,10 +9,11 @@ import {
   saveFederalFormData,
   loadFederalFormData
 } from '../utils/engineTimeDB';
-import { EnhancedPDFViewer, PDFPreviewViewer } from './PDF';
+import { EnhancedPDFViewer } from './PDF';
 import { getPDF, storePDFWithId } from '../utils/pdfStorage';
-import { mapFederalToPDFFields, validateFederalFormData, debugFederalPDFFieldNames } from '../utils/fieldmapper/federalFieldMapper';
+import { mapFederalToPDFFields, validateFederalFormData } from '../utils/fieldmapper/federalFieldMapper';
 import { handleFederalEquipmentEntryChange, handleFederalPersonnelEntryChange, DEFAULT_PROPAGATION_CONFIG } from '../utils/entryPropagation';
+import { DateCalendar } from './DateCalendar';
 import * as PDFLib from 'pdf-lib';
 
 // Simple Calendar Component
@@ -258,10 +259,14 @@ export const FederalTimeTable: React.FC = () => {
   } | null>(null);
 
   // PDF state
-  const [showPDFPreview, setShowPDFPreview] = useState(false);
   const [showPDFViewer, setShowPDFViewer] = useState(false);
   const [pdfId] = useState<string>('federal-form');
   const [pdfVersion, setPdfVersion] = useState(0); // Force PDF viewer refresh
+
+  // Main calendar state
+  const [showMainCalendar, setShowMainCalendar] = useState(false);
+  const [currentSelectedDate, setCurrentSelectedDate] = useState<string>('');
+  const [savedDates, setSavedDates] = useState<string[]>([]);
 
   // Load Federal data from IndexedDB on mount
   useEffect(() => {
@@ -392,10 +397,6 @@ export const FederalTimeTable: React.FC = () => {
   };
 
   // PDF handlers
-  const handlePreviewPDF = () => {
-    setShowPDFPreview(true);
-    setShowPDFViewer(false);
-  };
 
   const handleViewPDF = async () => {
     try {
@@ -503,7 +504,6 @@ export const FederalTimeTable: React.FC = () => {
       
       // Force a refresh of the PDF viewer by closing and reopening
       setShowPDFViewer(false);
-      setShowPDFPreview(false);
       
       // Small delay to ensure the PDF is saved before reopening
       setTimeout(() => {
@@ -517,7 +517,6 @@ export const FederalTimeTable: React.FC = () => {
   };
 
   const handleClosePDF = () => {
-    setShowPDFPreview(false);
     setShowPDFViewer(false);
   };
 
@@ -527,22 +526,74 @@ export const FederalTimeTable: React.FC = () => {
     // You can add additional save logic here
   };
 
-  // Debug function to see all PDF field names
-  const handleDebugPDFFields = async () => {
+  // Main calendar handlers
+  const handleMainCalendarOpen = () => {
+    setShowMainCalendar(true);
+  };
+
+  const handleMainCalendarClose = () => {
+    setShowMainCalendar(false);
+  };
+
+  const handleMainDateSelect = (dateRange: string) => {
+    setCurrentSelectedDate(dateRange);
+    setShowMainCalendar(false);
+    // Load data for the selected date
+    loadDataForDate(dateRange);
+  };
+
+  const loadDataForDate = async (dateRange: string) => {
     try {
-      const storedPDF = await getPDF('federal-form');
-      if (!storedPDF) {
-        alert('PDF not found in storage');
-        return;
-      }
+      console.log('Loading data for date range:', dateRange);
       
-      await debugFederalPDFFieldNames(storedPDF.pdf);
-      alert('Check the browser console for the list of all PDF field names!');
+      // Load form data for the specific date
+      const formData = await loadFederalFormData();
+      if (formData) {
+        setFederalFormData(formData);
+      }
+
+      // Load equipment entries for the specific date
+      const equipmentEntries = await loadAllFederalEquipmentEntries();
+      setEquipmentEntries(equipmentEntries);
+
+      // Load personnel entries for the specific date
+      const personnelEntries = await loadAllFederalPersonnelEntries();
+      setPersonnelEntries(personnelEntries);
     } catch (error) {
-      console.error('Error debugging PDF fields:', error);
-      alert('Error debugging PDF fields. Check console for details.');
+      console.error('Error loading data for date:', error);
     }
   };
+
+  const saveDataForDate = async () => {
+    try {
+      // Save current form data
+      await saveFederalFormData(federalFormData);
+      
+      // Save equipment entries
+      for (const entry of equipmentEntries) {
+        if (entry.date || entry.start || entry.stop || entry.total || entry.quantity || entry.type || entry.remarks) {
+          await saveFederalEquipmentEntry(entry);
+        }
+      }
+      
+      // Save personnel entries
+      for (const entry of personnelEntries) {
+        if (entry.date || entry.name || entry.start1 || entry.stop1 || entry.start2 || entry.stop2 || entry.total || entry.remarks) {
+          await saveFederalPersonnelEntry(entry);
+        }
+      }
+      
+      // Update saved dates list
+      if (currentSelectedDate && !savedDates.includes(currentSelectedDate)) {
+        setSavedDates(prev => [...prev, currentSelectedDate]);
+      }
+      
+      console.log('Data saved for date:', currentSelectedDate);
+    } catch (error) {
+      console.error('Error saving data for date:', error);
+    }
+  };
+
 
 
   return (
@@ -593,6 +644,84 @@ export const FederalTimeTable: React.FC = () => {
           }}>
             OF-297 (Rev. 10/24) - Emergency Equipment Shift Ticket
           </p>
+        </div>
+
+        {/* Calendar Header */}
+        <div style={{
+          backgroundColor: '#f8f9fa',
+          padding: '16px 20px',
+          borderBottom: '1px solid #e9ecef',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '12px'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px'
+          }}>
+            <button
+              onClick={handleMainCalendarOpen}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: '#007bff',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s ease',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#0056b3'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#007bff'}
+            >
+              📅  Previous Tickets
+            </button>
+            
+            {currentSelectedDate && (
+              <div style={{
+                padding: '8px 12px',
+                backgroundColor: '#e3f2fd',
+                color: '#1976d2',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: '500',
+                border: '1px solid #bbdefb'
+              }}>
+                Selected: {currentSelectedDate}
+              </div>
+            )}
+          </div>
+          
+          {currentSelectedDate && (
+            <button
+              onClick={saveDataForDate}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: '#28a745',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s ease',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#218838'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#28a745'}
+            >
+              💾 Save Data
+            </button>
+          )}
         </div>
 
         {/* Form Content Container */}
@@ -1841,25 +1970,6 @@ export const FederalTimeTable: React.FC = () => {
             flexWrap: 'wrap'
           }}>
             <button
-              onClick={handlePreviewPDF}
-              style={{
-                padding: '12px 24px',
-                backgroundColor: '#007bff',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                fontSize: '14px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'background-color 0.2s ease'
-              }}
-              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#0056b3'}
-              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#007bff'}
-            >
-              📄 Preview PDF
-            </button>
-            
-            <button
               onClick={handleViewPDF}
               style={{
                 padding: '12px 24px',
@@ -1877,25 +1987,6 @@ export const FederalTimeTable: React.FC = () => {
             >
               ✏️ Fill & Sign PDF
             </button>
-            
-            <button
-              onClick={handleDebugPDFFields}
-              style={{
-                padding: '12px 24px',
-                backgroundColor: '#6c757d',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                fontSize: '14px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'background-color 0.2s ease'
-              }}
-              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#545b62'}
-              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#6c757d'}
-            >
-              🔍 Debug PDF Fields
-            </button>
           </div>
         </div>
       </div>
@@ -1911,55 +2002,14 @@ export const FederalTimeTable: React.FC = () => {
          />
        )}
 
-       {/* PDF Preview Modal */}
-       {showPDFPreview && (
-         <div style={{
-           position: 'fixed',
-           top: 0,
-           left: 0,
-           right: 0,
-           bottom: 0,
-           backgroundColor: 'rgba(0, 0, 0, 0.8)',
-           zIndex: 1000,
-           display: 'flex',
-           alignItems: 'center',
-           justifyContent: 'center',
-           padding: '20px'
-         }}>
-           <div style={{
-             backgroundColor: 'white',
-             borderRadius: '12px',
-             padding: '20px',
-             maxWidth: '90vw',
-             maxHeight: '90vh',
-             overflow: 'auto',
-             position: 'relative'
-           }}>
-             <button
-               onClick={handleClosePDF}
-               style={{
-                 position: 'absolute',
-                 top: '10px',
-                 right: '10px',
-                 background: '#dc3545',
-                 color: 'white',
-                 border: 'none',
-                 borderRadius: '50%',
-                 width: '30px',
-                 height: '30px',
-                 cursor: 'pointer',
-                 fontSize: '16px'
-               }}
-             >
-               ×
-             </button>
-             <PDFPreviewViewer
-               key={`preview-${pdfVersion}`}
-               pdfId={pdfId}
-               onLoad={() => console.log('PDF Preview loaded')}
-             />
-           </div>
-         </div>
+
+       {/* Main Calendar Modal */}
+       {showMainCalendar && (
+         <DateCalendar
+           savedDates={savedDates}
+           onDateSelect={handleMainDateSelect}
+           onClose={handleMainCalendarClose}
+         />
        )}
 
        {/* PDF Viewer Modal */}

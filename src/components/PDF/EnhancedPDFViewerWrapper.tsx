@@ -1,11 +1,5 @@
 // React component for the enhanced PDF viewer with signature integration and PDF flattening
-// 
-// Features:
-// - Loads and displays PDF documents
-// - Allows users to draw signatures on a transparent overlay
-// - Flattens the entire PDF (including signature) into a single image layer
-// - Prevents modification of signatures and form fields after saving
-// - Creates a new PDF with flattened content for secure document storage
+
 import React from 'react';
 import { EnhancedPDFViewer as NewEnhancedPDFViewer } from './EnhancedPDFViewer';
 import '../styles/components/PDFViewer.css';
