@@ -528,10 +528,6 @@ export const FederalTimeTable: React.FC = () => {
       // Create a new PDF with filled fields
       const pdfDoc = await PDFLib.PDFDocument.load(await storedPDF.pdf.arrayBuffer());
       
-      // Note: XFA form data warnings are expected and can be ignored
-      // pdf-lib doesn't support XFA forms, but the AcroForm fields should still work
-      console.log('Federal: PDF loaded successfully. XFA warnings can be ignored.');
-      
       // Get the form
       const form = pdfDoc.getForm();
       
@@ -554,14 +550,7 @@ export const FederalTimeTable: React.FC = () => {
         try {
           const field = form.getField(fieldName);
           if (field) {
-            // More robust field type detection
-            const fieldType = field.constructor.name;
-            const fieldTypeString = fieldType.toString();
-            
-            // Debug field type information
-            console.log(`Federal: Field ${fieldName} - Type: ${fieldType}, String: ${fieldTypeString}, Methods: ${Object.getOwnPropertyNames(field).join(', ')}`);
-            
-            // Try to determine field type by available methods
+            // More robust field type detection that works in production builds
             const hasSetText = typeof (field as any).setText === 'function';
             const hasCheck = typeof (field as any).check === 'function';
             const hasSelect = typeof (field as any).select === 'function';
@@ -598,7 +587,7 @@ export const FederalTimeTable: React.FC = () => {
                 filledFieldsCount++;
                 console.log(`Federal: Filled field ${fieldName} with value: ${value} using direct assignment`);
               } catch (directError) {
-                console.warn(`Federal: Field ${fieldName} found but type ${fieldType} not handled. Available methods: ${Object.getOwnPropertyNames(field).join(', ')}`);
+                console.warn(`Federal: Field ${fieldName} found but no suitable method available. Available methods: ${Object.getOwnPropertyNames(field).join(', ')}`);
               }
             }
           } else {
