@@ -20,11 +20,11 @@ export const pdfOptions = {
  */
 export const flattenPDFToImage = async (pdfDoc: pdfjsLib.PDFDocumentProxy): Promise<Blob> => {
   const page = await pdfDoc.getPage(1);
-  // Use scale 1.0 to match the display canvas dimensions
-  // This ensures the flattened image matches the signature canvas dimensions
+  // Use scale 1.0 to match the display canvas dimensions exactly
+  // This ensures the flattened image matches the signature canvas dimensions perfectly
   const viewport = page.getViewport({ scale: 1.0 });
   
-  console.log('🔍 PDF Flattening: Using scale 1.0, viewport dimensions:', viewport.width, 'x', viewport.height);
+  console.log('🔍 PDF Flattening: Using scale 1.0 to match display, viewport dimensions:', viewport.width, 'x', viewport.height);
   
   // Create a temporary canvas for flattening
   const tempCanvas = document.createElement('canvas');
@@ -96,29 +96,16 @@ export const createFlattenedPDF = async (
     console.log('🔍 PDF Flattening: Signature image dimensions:', signatureImage.width, 'x', signatureImage.height);
     console.log('🔍 PDF Flattening: PDF page dimensions:', page.getWidth(), 'x', page.getHeight());
     
-    // Check if dimensions match
-    if (signatureImage.width === pdfImage.width && signatureImage.height === pdfImage.height) {
-      // Perfect match - draw signature at original position
-      page.drawImage(signatureImage, {
-        x: 0,
-        y: 0,
-        width: signatureImage.width,
-        height: signatureImage.height,
-      });
-      console.log('🔍 PDF Flattening: Signature positioned at (0,0) with matching dimensions');
-    } else {
-      // Dimensions don't match - scale signature to fit
-      const scaleX = pdfImage.width / signatureImage.width;
-      const scaleY = pdfImage.height / signatureImage.height;
-      console.log('🔍 PDF Flattening: Scaling signature by', scaleX, 'x', scaleY);
-      
-      page.drawImage(signatureImage, {
-        x: 0,
-        y: 0,
-        width: pdfImage.width,
-        height: pdfImage.height,
-      });
-    }
+    // Since we're using scale 1.0 for both PDF and signature canvas, dimensions should match
+    // Draw signature at original position and size for perfect alignment
+    page.drawImage(signatureImage, {
+      x: 0,
+      y: 0,
+      width: signatureImage.width,
+      height: signatureImage.height,
+    });
+    
+    console.log('🔍 PDF Flattening: Signature positioned at (0,0) with original dimensions:', signatureImage.width, 'x', signatureImage.height);
   }
 
   // Save the flattened PDF

@@ -40,13 +40,11 @@ export const EnhancedPDFViewer: React.FC<EnhancedPDFViewerProps> = (props) => {
   // Local state for toolbar
   const [isDrawingMode, setIsDrawingMode] = useState(false);
 
-  // Handle save action (combines save and download functionality)
+  // Handle save action (only save flattened PDF with signature)
   const handleSave = () => {
     if (pdfViewerRef.current) {
-      // First try to save with signature (flattened PDF)
+      // Only save the flattened PDF with signature
       pdfViewerRef.current.handleSave();
-      // Also trigger download of the original PDF
-      pdfViewerRef.current.handleDownload();
     }
   };
 

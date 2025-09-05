@@ -153,16 +153,20 @@ export const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({
             canvasRef.current.style.height = `${img.height}px`;
             ctx.drawImage(img, 0, 0);
             
-            // Sync draw canvas size
+            // Sync draw canvas size with high DPI support
             if (drawCanvasRef.current) {
-              drawCanvasRef.current.width = img.width;
-              drawCanvasRef.current.height = img.height;
+              const dpr = window.devicePixelRatio || 1;
+              
+              // Set canvas size for high DPI
+              drawCanvasRef.current.width = img.width * dpr;
+              drawCanvasRef.current.height = img.height * dpr;
               drawCanvasRef.current.style.width = `${img.width}px`;
               drawCanvasRef.current.style.height = `${img.height}px`;
               
-              // Set up drawing context
+              // Set up drawing context with high DPI scaling
               const drawCtx = drawCanvasRef.current.getContext('2d');
               if (drawCtx) {
+                drawCtx.scale(dpr, dpr);
                 drawCtx.strokeStyle = '#000000';
                 drawCtx.lineWidth = 2;
                 drawCtx.lineCap = 'round';
@@ -195,14 +199,20 @@ export const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({
       setIsLoading(true);
       await renderPDFToCanvas(pdfDoc, canvasRef.current, containerRef.current || undefined);
       
-      // Sync draw canvas size with main canvas
+      // Sync draw canvas size with main canvas and high DPI support
       if (drawCanvasRef.current && canvasRef.current) {
-        drawCanvasRef.current.height = canvasRef.current.height;
-        drawCanvasRef.current.width = canvasRef.current.width;
+        const dpr = window.devicePixelRatio || 1;
         
-        // Set up the drawing canvas context
+        // Set canvas size for high DPI
+        drawCanvasRef.current.width = canvasRef.current.width * dpr;
+        drawCanvasRef.current.height = canvasRef.current.height * dpr;
+        drawCanvasRef.current.style.width = `${canvasRef.current.width}px`;
+        drawCanvasRef.current.style.height = `${canvasRef.current.height}px`;
+        
+        // Set up the drawing canvas context with high DPI scaling
         const drawCtx = drawCanvasRef.current.getContext('2d');
         if (drawCtx) {
+          drawCtx.scale(dpr, dpr);
           drawCtx.strokeStyle = '#000000';
           drawCtx.lineWidth = 2;
           drawCtx.lineCap = 'round';
