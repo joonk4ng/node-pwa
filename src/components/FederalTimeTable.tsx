@@ -360,7 +360,7 @@ export const FederalTimeTable: React.FC = () => {
     
     for (let i = 0; i < cleanValue.length; i++) {
       const char = cleanValue[i];
-      const validation = validateTimeInput(cleanValue.slice(0, i), char, i);
+      const validation = validateTimeInput(cleanValue.slice(0, i), char);
       
       if (!validation.isValid) {
         isValid = false;

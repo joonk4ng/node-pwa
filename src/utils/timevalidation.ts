@@ -99,13 +99,11 @@ export function validate24HourTime(timeString: string): TimeValidationResult {
  * - 4th digit: 0-9
  * @param currentValue - Current input value
  * @param newChar - New character being typed
- * @param position - Cursor position
  * @returns Object with validation result and suggested value
  */
 export function validateTimeInput(
   currentValue: string, 
-  newChar: string, 
-  position: number
+  newChar: string
 ): { isValid: boolean; newValue: string; error?: string } {
   
   // Allow backspace, delete, and arrow keys

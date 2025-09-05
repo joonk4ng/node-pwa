@@ -6,9 +6,6 @@ import type { EESTTimeEntry } from './engineTimeDB';
 import {
   propagateDateToEntries,
   propagateFirstValidDate,
-  autoCalculateFederalEquipmentTotals,
-  autoCalculateFederalPersonnelTotals,
-  autoCalculateEESTTimeTotals,
   validateAndFormatDate,
   calculateFederalEquipmentTotal,
   calculateFederalPersonnelTotal,
@@ -340,7 +337,7 @@ export function useEntryPropagation<T extends EntryType>(
     let updatedEntries: T[];
     
     if (isFederalEquipmentEntry(entries[index])) {
-      const equipmentEntries = entries.filter(isFederalEquipmentEntry);
+      const equipmentEntries = entries.filter(isFederalEquipmentEntry) as FederalEquipmentEntry[];
       const equipmentIndex = equipmentEntries.findIndex(e => e === entries[index]);
       const updatedEquipment = handleFederalEquipmentEntryChange(
         equipmentEntries,
@@ -355,7 +352,7 @@ export function useEntryPropagation<T extends EntryType>(
           : entry
       ) as T[];
     } else if (isFederalPersonnelEntry(entries[index])) {
-      const personnelEntries = entries.filter(isFederalPersonnelEntry);
+      const personnelEntries = entries.filter(isFederalPersonnelEntry) as FederalPersonnelEntry[];
       const personnelIndex = personnelEntries.findIndex(p => p === entries[index]);
       const updatedPersonnel = handleFederalPersonnelEntryChange(
         personnelEntries,
@@ -370,7 +367,7 @@ export function useEntryPropagation<T extends EntryType>(
           : entry
       ) as T[];
     } else if (isEESTTimeEntry(entries[index])) {
-      const eestEntries = entries.filter(isEESTTimeEntry);
+      const eestEntries = entries.filter(isEESTTimeEntry) as EESTTimeEntry[];
       const eestIndex = eestEntries.findIndex(e => e === entries[index]);
       const updatedEEST = handleEESTTimeEntryChange(
         eestEntries,
