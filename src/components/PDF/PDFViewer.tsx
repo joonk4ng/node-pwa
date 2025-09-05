@@ -269,6 +269,12 @@ export const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({
       const baseCanvas = canvasRef.current;
       const drawCanvas = drawCanvasRef.current;
 
+      // Debug canvas dimensions
+      console.log('🔍 PDFViewer: Base canvas dimensions:', baseCanvas.width, 'x', baseCanvas.height);
+      console.log('🔍 PDFViewer: Draw canvas dimensions:', drawCanvas.width, 'x', drawCanvas.height);
+      console.log('🔍 PDFViewer: Base canvas style dimensions:', baseCanvas.style.width, 'x', baseCanvas.style.height);
+      console.log('🔍 PDFViewer: Draw canvas style dimensions:', drawCanvas.style.width, 'x', drawCanvas.style.height);
+
       // Create a temporary canvas to combine both layers for preview
       const tempCanvas = document.createElement('canvas');
       tempCanvas.width = baseCanvas.width;

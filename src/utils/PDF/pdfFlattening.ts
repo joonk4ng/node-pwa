@@ -20,7 +20,12 @@ export const pdfOptions = {
  */
 export const flattenPDFToImage = async (pdfDoc: pdfjsLib.PDFDocumentProxy): Promise<Blob> => {
   const page = await pdfDoc.getPage(1);
-  const viewport = page.getViewport({ scale: 3.0 }); // Higher scale for better quality
+  
+  // Use scale 1.0 to match the original PDF dimensions
+  // This ensures the flattened image matches the display canvas dimensions
+  const viewport = page.getViewport({ scale: 1.0 });
+  
+  console.log('🔍 PDF Flattening: Using scale 1.0, viewport dimensions:', viewport.width, 'x', viewport.height);
   
   // Create a temporary canvas for flattening
   const tempCanvas = document.createElement('canvas');
@@ -41,6 +46,8 @@ export const flattenPDFToImage = async (pdfDoc: pdfjsLib.PDFDocumentProxy): Prom
     canvasContext: tempCtx,
     viewport: viewport
   }).promise;
+
+  console.log('🔍 PDF Flattening: Canvas dimensions after render:', tempCanvas.width, 'x', tempCanvas.height);
 
   // Convert canvas to blob with high quality
   return new Promise<Blob>((resolve, reject) => {
