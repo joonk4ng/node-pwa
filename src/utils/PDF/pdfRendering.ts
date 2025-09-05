@@ -24,8 +24,6 @@ export const renderPDFToCanvas = async (
   // Get the PDF's original dimensions
   const viewport = page.getViewport({ scale: 1.0 });
   
-  console.log('🔍 PDF Rendering: Original PDF dimensions:', viewport.width, 'x', viewport.height);
-  
   // Calculate optimal scale based on container size
   if (container) {
     const containerWidth = container.clientWidth;
@@ -35,15 +33,11 @@ export const renderPDFToCanvas = async (
       containerHeight / viewport.height
     );
     viewport.scale = scale;
-    console.log('🔍 PDF Rendering: Container dimensions:', containerWidth, 'x', containerHeight);
-    console.log('🔍 PDF Rendering: Calculated scale:', scale);
   }
   
   // Set canvas sizes to match viewport
   canvas.height = viewport.height;
   canvas.width = viewport.width;
-  
-  console.log('🔍 PDF Rendering: Final canvas dimensions:', canvas.width, 'x', canvas.height);
 
   // Clear canvas with white background
   context.fillStyle = 'white';

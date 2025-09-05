@@ -20,9 +20,8 @@ export const pdfOptions = {
  */
 export const flattenPDFToImage = async (pdfDoc: pdfjsLib.PDFDocumentProxy): Promise<Blob> => {
   const page = await pdfDoc.getPage(1);
-  
-  // Use scale 1.0 to match the original PDF dimensions
-  // This ensures the flattened image matches the display canvas dimensions
+  // Use scale 1.0 to match the display canvas dimensions
+  // This ensures the flattened image matches the signature canvas dimensions
   const viewport = page.getViewport({ scale: 1.0 });
   
   console.log('🔍 PDF Flattening: Using scale 1.0, viewport dimensions:', viewport.width, 'x', viewport.height);

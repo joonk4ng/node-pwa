@@ -1,6 +1,7 @@
 // PDF Viewer component for displaying PDF documents
 import React, { useRef, useEffect, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
+import * as PDFLib from 'pdf-lib';
 import { usePDFDrawing } from '../../hooks/usePDFDrawing';
 import { renderPDFToCanvas, loadPDFDocument } from '../../utils/PDF/pdfRendering';
 import { flattenPDFToImage, createFlattenedPDF, hasSignature, canvasToBlob } from '../../utils/PDF/pdfFlattening';
@@ -269,12 +270,6 @@ export const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({
       const baseCanvas = canvasRef.current;
       const drawCanvas = drawCanvasRef.current;
 
-      // Debug canvas dimensions
-      console.log('🔍 PDFViewer: Base canvas dimensions:', baseCanvas.width, 'x', baseCanvas.height);
-      console.log('🔍 PDFViewer: Draw canvas dimensions:', drawCanvas.width, 'x', drawCanvas.height);
-      console.log('🔍 PDFViewer: Base canvas style dimensions:', baseCanvas.style.width, 'x', baseCanvas.style.height);
-      console.log('🔍 PDFViewer: Draw canvas style dimensions:', drawCanvas.style.width, 'x', drawCanvas.style.height);
-
       // Create a temporary canvas to combine both layers for preview
       const tempCanvas = document.createElement('canvas');
       tempCanvas.width = baseCanvas.width;
@@ -354,9 +349,43 @@ export const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({
     if (!pdfDocRef.current) return;
 
     try {
-      // Get the current PDF data
+      console.log('🔍 PDFViewer: Starting original PDF download with signature...');
+      
+      // Get the current PDF data and load it with pdf-lib
       const pdfBytes = await pdfDocRef.current.getData();
-      const pdfBlob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const pdfDoc = await PDFLib.PDFDocument.load(pdfBytes);
+      
+      // Check if there's a signature to embed
+      if (drawCanvasRef.current && hasSignature(drawCanvasRef.current)) {
+        console.log('🔍 PDFViewer: Embedding signature in original PDF...');
+        
+        // Get the signature as an image
+        const signatureImageBlob = await canvasToBlob(drawCanvasRef.current);
+        const signatureImageBytes = new Uint8Array(await signatureImageBlob.arrayBuffer());
+        const signatureImage = await pdfDoc.embedPng(signatureImageBytes);
+        
+        // Get the first page
+        const pages = pdfDoc.getPages();
+        const firstPage = pages[0];
+        
+        // Embed the signature at the bottom of the page (typical signature location)
+        const { width: pageWidth, height: pageHeight } = firstPage.getSize();
+        const signatureWidth = pageWidth * 0.3; // 30% of page width
+        const signatureHeight = signatureWidth * 0.3; // Maintain aspect ratio
+        
+        firstPage.drawImage(signatureImage, {
+          x: pageWidth * 0.1, // 10% from left
+          y: pageHeight * 0.1, // 10% from bottom
+          width: signatureWidth,
+          height: signatureHeight,
+        });
+        
+        console.log('🔍 PDFViewer: Signature embedded in original PDF');
+      }
+      
+      // Save the modified PDF
+      const modifiedPdfBytes = await pdfDoc.save();
+      const pdfBlob = new Blob([modifiedPdfBytes], { type: 'application/pdf' });
       
       // Create a URL for the PDF blob
       const url = URL.createObjectURL(pdfBlob);
@@ -385,9 +414,11 @@ export const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({
       
       // Clean up the URL
       URL.revokeObjectURL(url);
+      
+      console.log('🔍 PDFViewer: Original PDF with signature downloaded successfully');
     } catch (err) {
-      console.error('Error downloading PDF:', err);
-      setError('Failed to download PDF.');
+      console.error('Error downloading PDF with signature:', err);
+      setError('Failed to download PDF with signature.');
     }
   };
 
@@ -506,8 +537,9 @@ export const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({
                 if (isDrawingMode) {
                   e.preventDefault();
                   e.stopPropagation();
+                  // Don't stop drawing on mouse leave - let user continue drawing
+                  // stopDrawing();
                 }
-                stopDrawing();
               }}
               onTouchStart={(e) => {
                 if (isDrawingMode) {
