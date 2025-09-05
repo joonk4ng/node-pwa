@@ -198,6 +198,23 @@
   border-color: #138496;
 }
 
+.rotate-btn {
+  background: #ffc107;
+  color: #212529;
+  border-color: #ffc107;
+}
+
+.rotate-btn:hover {
+  background: #e0a800;
+  border-color: #e0a800;
+}
+
+.rotate-btn.active {
+  background: #e0a800;
+  color: #212529;
+  border-color: #e0a800;
+}
+
 .loading {
   position: absolute;
   top: 50%;
@@ -238,8 +255,55 @@
   }
   
   .enhanced-pdf-viewer {
-    height: calc(100vh - 80px); /* Leave space for toolbar */
+    height: calc(100vh - 60px); /* Reduced toolbar space for more PDF area */
     overflow: auto;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  }
+  
+  .canvas-container {
+    min-height: 120vh; /* Increased height to better fill landscape */
+    padding: 10px; /* Reduced padding for more space */
+    display: flex;
+    justify-content: center;
+    align-items: flex-start; /* Align to top for better mobile experience */
+    touch-action: pan-x pan-y; /* Allow touch scrolling */
+    overflow: visible; /* Allow canvas to extend beyond container */
+  }
+  
+  /* Mobile PDF canvas improvements */
+  .pdf-canvas {
+    max-width: none !important;
+    max-height: none !important;
+    width: auto !important;
+    height: auto !important;
+    min-width: 100% !important;
+    min-height: 100vh !important; /* Increased minimum height to fill viewport */
+  }
+  
+  .draw-canvas {
+    max-width: none !important;
+    max-height: none !important;
+    width: auto !important;
+    height: auto !important;
+    min-width: 100% !important;
+    min-height: 100vh !important; /* Increased minimum height to fill viewport */
+  }
+  
+  /* Rotated PDF adjustments for mobile */
+  .pdf-canvas[style*="rotate(90deg)"] {
+    max-width: 100vh !important;
+    max-height: 100vw !important;
+    width: auto !important;
+    height: auto !important;
+    min-height: 100vh !important; /* Ensure rotated PDF also fills viewport height */
+  }
+  
+  .draw-canvas[style*="rotate(90deg)"] {
+    max-width: 100vh !important;
+    max-height: 100vw !important;
+    width: auto !important;
+    height: auto !important;
+    min-height: 100vh !important; /* Ensure rotated PDF also fills viewport height */
   }
   
   .toolbar {
@@ -274,6 +338,19 @@
     flex: 1;
     justify-content: center;
     margin-right: 0;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  
+  .zoom-btn {
+    min-width: 45px !important;
+    font-size: 11px !important;
+    padding: 6px 8px !important;
+  }
+  
+  .zoom-label {
+    font-size: 14px !important;
+    margin-right: 8px;
   }
 }
 

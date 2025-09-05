@@ -6,12 +6,11 @@ export interface PDFToolbarProps {
   onToggleDrawing: () => void;
   onSave?: () => void;
   onClear: () => void;
-  onDownload?: () => void;
-  onPrint?: () => void;
   readOnly?: boolean;
   currentZoom?: number;
   availableZooms?: number[];
   onZoomChange?: (zoom: number) => void;
+  isMobile?: boolean;
 }
 
 export const PDFToolbar: React.FC<PDFToolbarProps> = ({
@@ -19,30 +18,21 @@ export const PDFToolbar: React.FC<PDFToolbarProps> = ({
   onToggleDrawing,
   onSave,
   onClear,
-  onDownload,
-  onPrint,
   readOnly = false,
   currentZoom = 1.0,
   availableZooms = [1.0, 1.25, 1.5],
-  onZoomChange
+  onZoomChange,
+  isMobile = false
 }) => {
   if (readOnly) {
     return (
       <div className="toolbar">
-        {onDownload && (
-          <button onClick={onDownload} className="download-btn" title="Download PDF">
+        {onSave && (
+          <button onClick={onSave} className="save-btn" title="Save PDF">
             <svg viewBox="0 0 24 24" width="24" height="24">
-              <path fill="currentColor" d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+              <path fill="currentColor" d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/>
             </svg>
-            Download
-          </button>
-        )}
-        {onPrint && (
-          <button onClick={onPrint} className="print-btn" title="Print PDF">
-            <svg viewBox="0 0 24 24" width="24" height="24">
-              <path fill="currentColor" d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/>
-            </svg>
-            Print
+            Save
           </button>
         )}
       </div>
@@ -51,8 +41,8 @@ export const PDFToolbar: React.FC<PDFToolbarProps> = ({
 
   return (
     <div className="toolbar">
-      {/* Zoom Controls */}
-      {onZoomChange && (
+      {/* Zoom Controls - Only show on desktop */}
+      {onZoomChange && !isMobile && (
         <div className="zoom-controls">
           <span className="zoom-label">Zoom:</span>
           {availableZooms.map((zoom) => (
@@ -62,11 +52,12 @@ export const PDFToolbar: React.FC<PDFToolbarProps> = ({
               className={`zoom-btn ${Math.abs(currentZoom - zoom) < 0.01 ? 'active' : ''}`}
               title={`${Math.round(zoom * 100)}%`}
             >
-              {Math.round(zoom * 100)}%
+              {`${Math.round(zoom * 100)}%`}
             </button>
           ))}
         </div>
       )}
+      
       
       <button
         onClick={onToggleDrawing}
@@ -80,7 +71,7 @@ export const PDFToolbar: React.FC<PDFToolbarProps> = ({
       </button>
       
       {onSave && (
-        <button onClick={onSave} className="save-btn" title="Save Flattened PDF">
+        <button onClick={onSave} className="save-btn" title="Save PDF">
         <svg viewBox="0 0 24 24" width="24" height="24">
           <path fill="currentColor" d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/>
         </svg>
@@ -94,24 +85,6 @@ export const PDFToolbar: React.FC<PDFToolbarProps> = ({
         </svg>
         Undo
       </button>
-      
-      {onDownload && (
-        <button onClick={onDownload} className="download-btn" title="Download PDF">
-          <svg viewBox="0 0 24 24" width="24" height="24">
-            <path fill="currentColor" d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
-          </svg>
-          Download
-        </button>
-      )}
-      
-      {onPrint && (
-        <button onClick={onPrint} className="print-btn" title="Print PDF">
-          <svg viewBox="0 0 24 24" width="24" height="24">
-            <path fill="currentColor" d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/>
-          </svg>
-          Print
-        </button>
-      )}
     </div>
   );
 };

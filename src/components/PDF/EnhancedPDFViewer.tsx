@@ -27,36 +27,26 @@ export const EnhancedPDFViewer: React.FC<EnhancedPDFViewerProps> = (props) => {
   const pdfViewerRef = useRef<{ 
     handleSave: () => void; 
     handleDownload: () => void; 
-    handlePrint: () => void;
     isDrawingMode: boolean;
     toggleDrawingMode: () => void;
     clearDrawing: () => void;
     currentZoom: number;
     setZoom: (zoom: number) => void;
     availableZooms: number[];
+    isRotated: boolean;
+    toggleRotation: () => void;
   }>(null);
 
   // Local state for toolbar
   const [isDrawingMode, setIsDrawingMode] = useState(false);
 
-  // Handle save action
+  // Handle save action (combines save and download functionality)
   const handleSave = () => {
     if (pdfViewerRef.current) {
+      // First try to save with signature (flattened PDF)
       pdfViewerRef.current.handleSave();
-    }
-  };
-
-  // Handle download action
-  const handleDownload = () => {
-    if (pdfViewerRef.current) {
+      // Also trigger download of the original PDF
       pdfViewerRef.current.handleDownload();
-    }
-  };
-
-  // Handle print action
-  const handlePrint = () => {
-    if (pdfViewerRef.current) {
-      pdfViewerRef.current.handlePrint();
     }
   };
 
@@ -82,6 +72,7 @@ export const EnhancedPDFViewer: React.FC<EnhancedPDFViewerProps> = (props) => {
     }
   };
 
+
   // Get current zoom and available zooms
   const getCurrentZoom = () => pdfViewerRef.current?.currentZoom || 1.0;
   const getAvailableZooms = () => pdfViewerRef.current?.availableZooms || [1.0, 1.25, 1.5];
@@ -95,12 +86,11 @@ export const EnhancedPDFViewer: React.FC<EnhancedPDFViewerProps> = (props) => {
           onToggleDrawing={handleToggleDrawing}
           onSave={onSave ? handleSave : undefined}
           onClear={handleClearDrawing}
-          onDownload={handleDownload}
-          onPrint={handlePrint}
           readOnly={readOnly}
           currentZoom={getCurrentZoom()}
           availableZooms={getAvailableZooms()}
           onZoomChange={handleZoomChange}
+          isMobile={window.innerWidth <= 768}
         />
       )}
     </div>

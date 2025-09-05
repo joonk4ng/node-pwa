@@ -2,7 +2,7 @@
 import React, { useRef, useEffect, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { usePDFDrawing } from '../../hooks/usePDFDrawing';
-import { renderPDFToCanvas, loadPDFDocument, createPrintStyles } from '../../utils/PDF/pdfRendering';
+import { renderPDFToCanvas, loadPDFDocument } from '../../utils/PDF/pdfRendering';
 import { flattenPDFToImage, createFlattenedPDF, hasSignature, canvasToBlob } from '../../utils/PDF/pdfFlattening';
 import { getPDF } from '../../utils/pdfStorage';
 import { generateExportFilename } from '../../utils/filenameGenerator';
@@ -26,13 +26,14 @@ export interface PDFViewerProps {
 export interface PDFViewerRef {
   handleSave: () => void;
   handleDownload: () => void;
-  handlePrint: () => void;
   isDrawingMode: boolean;
   toggleDrawingMode: () => void;
   clearDrawing: () => void;
   currentZoom: number;
   setZoom: (zoom: number) => void;
   availableZooms: number[];
+  isRotated: boolean;
+  toggleRotation: () => void;
 }
 
 export const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({
@@ -55,7 +56,36 @@ export const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({
   // Zoom system state
   const [currentZoom, setCurrentZoom] = useState(1.0);
   const [zoomLevels, setZoomLevels] = useState<Record<number, Blob>>({});
-  const availableZooms = [1.0, 1.25, 1.5];
+  const [isMobile, setIsMobile] = useState(false);
+  
+  // Different zoom levels for mobile vs desktop
+  const availableZooms = isMobile ? [1.0, 1.5, 2.0, 2.5, 3.0] : [1.0, 1.25, 1.5];
+  
+  // Mobile rotation state
+  const [isRotated, setIsRotated] = useState(false);
+
+  // Detect mobile device and enable rotation
+  useEffect(() => {
+    const checkMobile = () => {
+      const isMobileDevice = window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      setIsMobile(isMobileDevice);
+      
+      // Auto-enable rotation and better zoom on mobile
+      if (isMobileDevice && !isRotated) {
+        setIsRotated(true);
+        // Auto-set to a higher zoom level for better mobile viewing
+        setTimeout(() => {
+          setCurrentZoom(2.5); // Increased to 2.5x zoom for better landscape utilization
+        }, 1000); // Delay to ensure PDF is loaded
+        console.log('📱 PDFViewer: Mobile device detected, auto-enabling landscape rotation and 2.5x zoom');
+      }
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, [isRotated]);
 
   // Generate zoom level images
   const generateZoomLevels = useCallback(async (pdfDoc: pdfjsLib.PDFDocumentProxy) => {
@@ -101,12 +131,12 @@ export const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({
     
     setZoomLevels(zoomImages);
     console.log('🔍 PDFViewer: All zoom levels generated');
-  }, [availableZooms]);
+  }, [availableZooms, isMobile]);
 
   // Switch to a different zoom level
   const setZoom = useCallback((newZoom: number) => {
     if (zoomLevels[newZoom] && newZoom !== currentZoom) {
-      console.log(`🔍 PDFViewer: Switching to zoom level ${newZoom}x`);
+      console.log(`🔍 PDFViewer: Switching to zoom level ${newZoom}x (mobile: ${isMobile})`);
       setCurrentZoom(newZoom);
       
       // Update the PDF canvas with the new zoom level image
@@ -115,14 +145,19 @@ export const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({
         img.onload = () => {
           const ctx = canvasRef.current?.getContext('2d');
           if (ctx && canvasRef.current) {
+            // Set canvas size to actual image size for better mobile zoom
             canvasRef.current.width = img.width;
             canvasRef.current.height = img.height;
+            canvasRef.current.style.width = `${img.width}px`;
+            canvasRef.current.style.height = `${img.height}px`;
             ctx.drawImage(img, 0, 0);
             
             // Sync draw canvas size
             if (drawCanvasRef.current) {
               drawCanvasRef.current.width = img.width;
               drawCanvasRef.current.height = img.height;
+              drawCanvasRef.current.style.width = `${img.width}px`;
+              drawCanvasRef.current.style.height = `${img.height}px`;
               
               // Set up drawing context
               const drawCtx = drawCanvasRef.current.getContext('2d');
@@ -204,17 +239,23 @@ export const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({
     }
   }, [drawCanvasRef]);
 
+  // Toggle rotation function
+  const toggleRotation = () => {
+    setIsRotated(!isRotated);
+  };
+
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
     handleSave,
     handleDownload,
-    handlePrint,
     isDrawingMode,
     toggleDrawingMode,
     clearDrawing,
     currentZoom,
     setZoom,
-    availableZooms
+    availableZooms,
+    isRotated,
+    toggleRotation
   }));
 
   // Handle saving the PDF with signature (flattened)
@@ -344,64 +385,6 @@ export const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({
     }
   };
 
-  const handlePrint = async () => {
-    if (!pdfDocRef.current || !canvasRef.current || !containerRef.current) {
-      throw new Error('PDF viewer not properly initialized');
-    }
-
-    // Create and append print-specific styles
-    const style = createPrintStyles();
-    document.head.appendChild(style);
-
-    // Store current scroll position
-    const container = containerRef.current;
-    const originalScroll = {
-      top: container.scrollTop,
-      left: container.scrollLeft
-    };
-
-    try {
-      // Ensure the PDF is rendered at optimal print quality
-      const page = await pdfDocRef.current.getPage(1);
-      const viewport = page.getViewport({ scale: 2.0 }); // Higher scale for print quality
-      
-      const canvas = canvasRef.current;
-      const context = canvas.getContext('2d');
-      
-      if (!context) {
-        throw new Error('Could not get canvas context');
-      }
-
-      // Update canvas dimensions for print
-      canvas.height = viewport.height;
-      canvas.width = viewport.width;
-
-      // Render at high quality
-      await page.render({
-        canvasContext: context,
-        viewport: viewport
-      }).promise;
-
-      // Print
-      window.print();
-
-    } finally {
-      // Clean up print styles
-      const printStyle = document.getElementById('pdf-print-style');
-      if (printStyle) {
-        printStyle.remove();
-      }
-
-      // Restore original scroll position
-      if (container) {
-        container.scrollTop = originalScroll.top;
-        container.scrollLeft = originalScroll.left;
-      }
-
-      // Re-render at normal quality if needed
-      renderPDF(pdfDocRef.current);
-    }
-  };
 
   // Load PDF effect
   useEffect(() => {
@@ -471,7 +454,15 @@ export const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({
       <div className="canvas-container">
         {error && <div className="error-message">{error}</div>}
         {isLoading && <div className="loading">Loading PDF...</div>}
-        <canvas ref={canvasRef} className="pdf-canvas" />
+        <canvas 
+          ref={canvasRef} 
+          className="pdf-canvas" 
+          style={{
+            transform: isRotated ? 'rotate(90deg)' : 'none',
+            transformOrigin: 'center center',
+            transition: 'transform 0.3s ease-in-out'
+          }}
+        />
         {!readOnly && (
           <>
             <canvas
@@ -479,7 +470,10 @@ export const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({
               className="draw-canvas"
               style={{ 
                 pointerEvents: isDrawingMode ? 'auto' : 'none',
-                cursor: isDrawingMode ? 'crosshair' : 'default'
+                cursor: isDrawingMode ? 'crosshair' : 'default',
+                transform: isRotated ? 'rotate(90deg)' : 'none',
+                transformOrigin: 'center center',
+                transition: 'transform 0.3s ease-in-out'
               }}
               onMouseDown={(e) => {
                 if (isDrawingMode) {

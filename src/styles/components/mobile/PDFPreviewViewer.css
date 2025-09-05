@@ -5,7 +5,9 @@
   }
   
   .pdf-preview-viewer img {
-    max-height: 60vh;
+    max-height: 80vh; /* Increased height to better fill landscape view */
+    width: auto;
+    height: auto;
   }
   
   .pdf-preview-actions {
