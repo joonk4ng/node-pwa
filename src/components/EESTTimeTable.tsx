@@ -1397,10 +1397,14 @@ export const EESTTimeTable: React.FC = () => {
           zIndex: 1000
         }}>
           <div style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
             backgroundColor: '#fff',
             padding: '24px',
             borderRadius: '8px',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)',
             minWidth: '400px',
             maxWidth: '500px'
           }}>
