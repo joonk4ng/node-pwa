@@ -1,8 +1,8 @@
 // Refactored PDF Viewer component using smaller, focused components
 import React, { useRef, useEffect, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
-import { PDFCanvas, type PDFCanvasRef } from './PDFCanvas';
-import { DrawingCanvas, type DrawingCanvasRef } from './DrawingCanvas';
+import { PDFCanvas, PDFCanvasRef } from './PDFCanvas';
+import { DrawingCanvas, DrawingCanvasRef } from './DrawingCanvas';
 import { ZoomControls } from './ZoomControls';
 import { savePDFWithSignature, downloadOriginalPDF } from '../../utils/PDF/pdfSaveHandler';
 import '../../styles/components/PDFViewer.css';

@@ -1,0 +1,138 @@
+// PDF Canvas component for rendering PDF content
+import React, { useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
+import * as pdfjsLib from 'pdfjs-dist';
+import { renderPDFToCanvas, loadPDFDocument } from '../../utils/PDF/pdfRendering';
+import { getPDF } from '../../utils/pdfStorage';
+
+export interface PDFCanvasProps {
+  pdfId?: string;
+  className?: string;
+  style?: React.CSSProperties;
+  isRotated?: boolean;
+  currentZoom?: number;
+  onPDFLoaded?: (pdfDoc: pdfjsLib.PDFDocumentProxy) => void;
+  onError?: (error: string) => void;
+  onLoadingChange?: (isLoading: boolean) => void;
+}
+
+export interface PDFCanvasRef {
+  canvas: HTMLCanvasElement | null;
+  pdfDoc: pdfjsLib.PDFDocumentProxy | null;
+  renderPDF: () => Promise<void>;
+  destroy: () => void;
+}
+
+export const PDFCanvas = forwardRef<PDFCanvasRef, PDFCanvasProps>(({
+  pdfId,
+  className,
+  style,
+  isRotated = false,
+  currentZoom = 1.0,
+  onPDFLoaded,
+  onError,
+  onLoadingChange
+}, ref) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const pdfDocRef = useRef<pdfjsLib.PDFDocumentProxy | null>(null);
+
+  // Render PDF to canvas
+  const renderPDF = useCallback(async () => {
+    if (!canvasRef.current || !pdfDocRef.current) return;
+
+    try {
+      await renderPDFToCanvas(pdfDocRef.current, canvasRef.current, currentZoom);
+    } catch (error) {
+      console.error('Error rendering PDF:', error);
+      onError?.('Failed to render PDF');
+    }
+  }, [currentZoom, onError]);
+
+  // Expose methods to parent component
+  useImperativeHandle(ref, () => ({
+    canvas: canvasRef.current,
+    pdfDoc: pdfDocRef.current,
+    renderPDF,
+    destroy: () => {
+      if (pdfDocRef.current) {
+        pdfDocRef.current.destroy();
+        pdfDocRef.current = null;
+      }
+    }
+  }));
+
+  // Load PDF effect
+  useEffect(() => {
+    let mounted = true;
+    let currentPdf: pdfjsLib.PDFDocumentProxy | null = null;
+
+    const loadPDF = async () => {
+      if (!pdfId) return;
+
+      try {
+        onLoadingChange?.(true);
+        
+        const storedPDF = await getPDF(pdfId);
+        if (!storedPDF || !mounted) return;
+
+        // Load the PDF document
+        const pdf = await loadPDFDocument(storedPDF.pdf);
+        
+        if (!mounted) {
+          pdf.destroy();
+          return;
+        }
+
+        // Clean up previous PDF document
+        if (pdfDocRef.current) {
+          pdfDocRef.current.destroy();
+        }
+
+        currentPdf = pdf;
+        pdfDocRef.current = pdf;
+
+        await renderPDF();
+        onPDFLoaded?.(pdf);
+        onLoadingChange?.(false);
+      } catch (err) {
+        console.error('Error loading PDF:', err);
+        if (mounted) {
+          onError?.('Failed to load PDF. Please try again.');
+          onLoadingChange?.(false);
+        }
+      }
+    };
+
+    loadPDF();
+
+    return () => {
+      mounted = false;
+      if (currentPdf) {
+        currentPdf.destroy();
+      }
+      if (pdfDocRef.current) {
+        pdfDocRef.current.destroy();
+        pdfDocRef.current = null;
+      }
+    };
+  }, [pdfId, renderPDF, onPDFLoaded, onError, onLoadingChange]);
+
+  // Re-render when zoom changes
+  useEffect(() => {
+    if (pdfDocRef.current) {
+      renderPDF();
+    }
+  }, [currentZoom, renderPDF]);
+
+  return (
+    <canvas 
+      ref={canvasRef} 
+      className={className}
+      style={{
+        ...style,
+        transform: isRotated ? 'rotate(90deg)' : 'none',
+        transformOrigin: 'center center',
+        transition: 'transform 0.3s ease-in-out'
+      }}
+    />
+  );
+});
