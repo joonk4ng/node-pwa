@@ -32,10 +32,12 @@ export const usePDFDrawing = (options: UsePDFDrawingOptions = {}) => {
     const rect = drawCanvasRef.current.getBoundingClientRect();
     const scaleX = drawCanvasRef.current.width / rect.width;
     const scaleY = drawCanvasRef.current.height / rect.height;
-    return {
-      x: (touch.clientX - rect.left) * scaleX,
-      y: (touch.clientY - rect.top) * scaleY
-    };
+    
+    // Round coordinates to integers to avoid sub-pixel rendering issues
+    const x = Math.round((touch.clientX - rect.left) * scaleX);
+    const y = Math.round((touch.clientY - rect.top) * scaleY);
+    
+    return { x, y };
   }, []);
 
   // Get mouse position for the draw canvas
@@ -44,10 +46,12 @@ export const usePDFDrawing = (options: UsePDFDrawingOptions = {}) => {
     const rect = drawCanvasRef.current.getBoundingClientRect();
     const scaleX = drawCanvasRef.current.width / rect.width;
     const scaleY = drawCanvasRef.current.height / rect.height;
-    return {
-      x: (e.clientX - rect.left) * scaleX,
-      y: (e.clientY - rect.top) * scaleY
-    };
+    
+    // Round coordinates to integers to avoid sub-pixel rendering issues
+    const x = Math.round((e.clientX - rect.left) * scaleX);
+    const y = Math.round((e.clientY - rect.top) * scaleY);
+    
+    return { x, y };
   }, []);
 
   // Start drawing
@@ -92,22 +96,7 @@ export const usePDFDrawing = (options: UsePDFDrawingOptions = {}) => {
 
   // Draw signature
   const draw = useCallback((e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    console.log('🔍 usePDFDrawing: draw called', { 
-      isDrawing, 
-      hasCanvas: !!drawCanvasRef.current, 
-      hasLastPos: !!lastPosRef.current, 
-      isDrawingMode, 
-      readOnly 
-    });
-    
     if (!isDrawing || !drawCanvasRef.current || !lastPosRef.current || !isDrawingMode || readOnly) {
-      console.log('🔍 usePDFDrawing: draw blocked', { 
-        isDrawing, 
-        hasCanvas: !!drawCanvasRef.current, 
-        hasLastPos: !!lastPosRef.current, 
-        isDrawingMode, 
-        readOnly 
-      });
       return;
     }
     
@@ -118,19 +107,29 @@ export const usePDFDrawing = (options: UsePDFDrawingOptions = {}) => {
       currentPos = getMousePos(e as React.MouseEvent<HTMLCanvasElement>);
     }
 
+    // Skip if coordinates haven't changed significantly (performance optimization)
+    const threshold = 1; // Minimum pixel movement
+    const dx = Math.abs(currentPos.x - lastPosRef.current.x);
+    const dy = Math.abs(currentPos.y - lastPosRef.current.y);
+    
+    if (dx < threshold && dy < threshold) {
+      return; // Skip unnecessary draws
+    }
+
     const ctx = drawCanvasRef.current.getContext('2d');
     if (!ctx) {
-      console.log('🔍 usePDFDrawing: No canvas context available');
       return;
     }
 
-    console.log('🔍 usePDFDrawing: Drawing line from', lastPosRef.current, 'to', currentPos);
-
-    // Begin the path
+    // Configure context for crisp drawing
     ctx.beginPath();
-    ctx.strokeStyle = '#000000'; // Default black color
-    ctx.lineWidth = 2; // Default line width
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
     ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.imageSmoothingEnabled = false; // Crisp lines
+    
+    // Draw the line
     ctx.moveTo(lastPosRef.current.x, lastPosRef.current.y);
     ctx.lineTo(currentPos.x, currentPos.y);
     ctx.stroke();
@@ -152,6 +151,37 @@ export const usePDFDrawing = (options: UsePDFDrawingOptions = {}) => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }, []);
+
+  // Setup canvas for optimal drawing quality
+  const setupCanvas = useCallback((pdfViewport: any) => {
+    const canvas = drawCanvasRef.current;
+    if (!canvas || !pdfViewport) return;
+
+    // Set canvas size to match PDF viewport exactly
+    canvas.width = pdfViewport.width;
+    canvas.height = pdfViewport.height;
+    
+    // Set display size
+    canvas.style.width = `${pdfViewport.width}px`;
+    canvas.style.height = `${pdfViewport.height}px`;
+    
+    // Configure context for crisp drawing
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.imageSmoothingEnabled = false; // Crisp lines
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 2;
+    }
+    
+    console.log('🔍 usePDFDrawing: Canvas setup complete', {
+      width: canvas.width,
+      height: canvas.height,
+      displayWidth: canvas.style.width,
+      displayHeight: canvas.style.height
+    });
   }, []);
 
   // Toggle drawing mode
@@ -240,6 +270,7 @@ export const usePDFDrawing = (options: UsePDFDrawingOptions = {}) => {
     stopDrawing,
     clearDrawing,
     toggleDrawingMode,
+    setupCanvas,
     
     // Utilities
     getTouchPos,
