@@ -69,6 +69,8 @@ export const createFlattenedPDF = async (
   const pdfImageBytes = new Uint8Array(await pdfImageBlob.arrayBuffer());
   const pdfImage = await pdfDoc.embedPng(pdfImageBytes);
   
+  console.log('🔍 PDF Flattening: PDF image dimensions:', pdfImage.width, 'x', pdfImage.height);
+  
   // Create a page with the same dimensions as the PDF image
   const page = pdfDoc.addPage([pdfImage.width, pdfImage.height]);
   
@@ -85,13 +87,32 @@ export const createFlattenedPDF = async (
     const signatureImageBytes = new Uint8Array(await signatureImageBlob.arrayBuffer());
     const signatureImage = await pdfDoc.embedPng(signatureImageBytes);
     
-    // Scale signature to match page dimensions
-    page.drawImage(signatureImage, {
-      x: 0,
-      y: 0,
-      width: pdfImage.width,
-      height: pdfImage.height,
-    });
+    console.log('🔍 PDF Flattening: Signature image dimensions:', signatureImage.width, 'x', signatureImage.height);
+    console.log('🔍 PDF Flattening: PDF page dimensions:', page.getWidth(), 'x', page.getHeight());
+    
+    // Check if dimensions match
+    if (signatureImage.width === pdfImage.width && signatureImage.height === pdfImage.height) {
+      // Perfect match - draw signature at original position
+      page.drawImage(signatureImage, {
+        x: 0,
+        y: 0,
+        width: signatureImage.width,
+        height: signatureImage.height,
+      });
+      console.log('🔍 PDF Flattening: Signature positioned at (0,0) with matching dimensions');
+    } else {
+      // Dimensions don't match - scale signature to fit
+      const scaleX = pdfImage.width / signatureImage.width;
+      const scaleY = pdfImage.height / signatureImage.height;
+      console.log('🔍 PDF Flattening: Scaling signature by', scaleX, 'x', scaleY);
+      
+      page.drawImage(signatureImage, {
+        x: 0,
+        y: 0,
+        width: pdfImage.width,
+        height: pdfImage.height,
+      });
+    }
   }
 
   // Save the flattened PDF
