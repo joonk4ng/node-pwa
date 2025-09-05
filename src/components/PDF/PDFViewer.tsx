@@ -1,7 +1,6 @@
 // PDF Viewer component for displaying PDF documents
 import React, { useRef, useEffect, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
-import * as PDFLib from 'pdf-lib';
 import { usePDFDrawing } from '../../hooks/usePDFDrawing';
 import { renderPDFToCanvas, loadPDFDocument } from '../../utils/PDF/pdfRendering';
 import { flattenPDFToImage, createFlattenedPDF, hasSignature, canvasToBlob } from '../../utils/PDF/pdfFlattening';
@@ -153,20 +152,16 @@ export const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({
             canvasRef.current.style.height = `${img.height}px`;
             ctx.drawImage(img, 0, 0);
             
-            // Sync draw canvas size with high DPI support
+            // Sync draw canvas size
             if (drawCanvasRef.current) {
-              const dpr = window.devicePixelRatio || 1;
-              
-              // Set canvas size for high DPI
-              drawCanvasRef.current.width = img.width * dpr;
-              drawCanvasRef.current.height = img.height * dpr;
+              drawCanvasRef.current.width = img.width;
+              drawCanvasRef.current.height = img.height;
               drawCanvasRef.current.style.width = `${img.width}px`;
               drawCanvasRef.current.style.height = `${img.height}px`;
               
-              // Set up drawing context with high DPI scaling
+              // Set up drawing context
               const drawCtx = drawCanvasRef.current.getContext('2d');
               if (drawCtx) {
-                drawCtx.scale(dpr, dpr);
                 drawCtx.strokeStyle = '#000000';
                 drawCtx.lineWidth = 2;
                 drawCtx.lineCap = 'round';
@@ -199,20 +194,14 @@ export const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({
       setIsLoading(true);
       await renderPDFToCanvas(pdfDoc, canvasRef.current, containerRef.current || undefined);
       
-      // Sync draw canvas size with main canvas and high DPI support
+      // Sync draw canvas size with main canvas
       if (drawCanvasRef.current && canvasRef.current) {
-        const dpr = window.devicePixelRatio || 1;
+        drawCanvasRef.current.height = canvasRef.current.height;
+        drawCanvasRef.current.width = canvasRef.current.width;
         
-        // Set canvas size for high DPI
-        drawCanvasRef.current.width = canvasRef.current.width * dpr;
-        drawCanvasRef.current.height = canvasRef.current.height * dpr;
-        drawCanvasRef.current.style.width = `${canvasRef.current.width}px`;
-        drawCanvasRef.current.style.height = `${canvasRef.current.height}px`;
-        
-        // Set up the drawing canvas context with high DPI scaling
+        // Set up the drawing canvas context
         const drawCtx = drawCanvasRef.current.getContext('2d');
         if (drawCtx) {
-          drawCtx.scale(dpr, dpr);
           drawCtx.strokeStyle = '#000000';
           drawCtx.lineWidth = 2;
           drawCtx.lineCap = 'round';
@@ -359,43 +348,9 @@ export const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({
     if (!pdfDocRef.current) return;
 
     try {
-      console.log('🔍 PDFViewer: Starting original PDF download with signature...');
-      
-      // Get the current PDF data and load it with pdf-lib
+      // Get the current PDF data
       const pdfBytes = await pdfDocRef.current.getData();
-      const pdfDoc = await PDFLib.PDFDocument.load(pdfBytes);
-      
-      // Check if there's a signature to embed
-      if (drawCanvasRef.current && hasSignature(drawCanvasRef.current)) {
-        console.log('🔍 PDFViewer: Embedding signature in original PDF...');
-        
-        // Get the signature as an image
-        const signatureImageBlob = await canvasToBlob(drawCanvasRef.current);
-        const signatureImageBytes = new Uint8Array(await signatureImageBlob.arrayBuffer());
-        const signatureImage = await pdfDoc.embedPng(signatureImageBytes);
-        
-        // Get the first page
-        const pages = pdfDoc.getPages();
-        const firstPage = pages[0];
-        
-        // Embed the signature at the bottom of the page (typical signature location)
-        const { width: pageWidth, height: pageHeight } = firstPage.getSize();
-        const signatureWidth = pageWidth * 0.3; // 30% of page width
-        const signatureHeight = signatureWidth * 0.3; // Maintain aspect ratio
-        
-        firstPage.drawImage(signatureImage, {
-          x: pageWidth * 0.1, // 10% from left
-          y: pageHeight * 0.1, // 10% from bottom
-          width: signatureWidth,
-          height: signatureHeight,
-        });
-        
-        console.log('🔍 PDFViewer: Signature embedded in original PDF');
-      }
-      
-      // Save the modified PDF
-      const modifiedPdfBytes = await pdfDoc.save();
-      const pdfBlob = new Blob([modifiedPdfBytes], { type: 'application/pdf' });
+      const pdfBlob = new Blob([pdfBytes], { type: 'application/pdf' });
       
       // Create a URL for the PDF blob
       const url = URL.createObjectURL(pdfBlob);
@@ -424,11 +379,9 @@ export const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({
       
       // Clean up the URL
       URL.revokeObjectURL(url);
-      
-      console.log('🔍 PDFViewer: Original PDF with signature downloaded successfully');
     } catch (err) {
-      console.error('Error downloading PDF with signature:', err);
-      setError('Failed to download PDF with signature.');
+      console.error('Error downloading PDF:', err);
+      setError('Failed to download PDF.');
     }
   };
 
@@ -547,9 +500,8 @@ export const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({
                 if (isDrawingMode) {
                   e.preventDefault();
                   e.stopPropagation();
-                  // Don't stop drawing on mouse leave - let user continue drawing
-                  // stopDrawing();
                 }
+                stopDrawing();
               }}
               onTouchStart={(e) => {
                 if (isDrawingMode) {
