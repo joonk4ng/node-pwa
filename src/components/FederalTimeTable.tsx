@@ -528,6 +528,10 @@ export const FederalTimeTable: React.FC = () => {
       // Create a new PDF with filled fields
       const pdfDoc = await PDFLib.PDFDocument.load(await storedPDF.pdf.arrayBuffer());
       
+      // Note: XFA form data warnings are expected and can be ignored
+      // pdf-lib doesn't support XFA forms, but the AcroForm fields should still work
+      console.log('Federal: PDF loaded successfully. XFA warnings can be ignored.');
+      
       // Get the form
       const form = pdfDoc.getForm();
       
@@ -550,12 +554,26 @@ export const FederalTimeTable: React.FC = () => {
         try {
           const field = form.getField(fieldName);
           if (field) {
+            // More robust field type detection
             const fieldType = field.constructor.name;
-            if (fieldType === 'PDFTextField' || fieldType === 'PDFTextField2') {
+            const fieldTypeString = fieldType.toString();
+            
+            // Debug field type information
+            console.log(`Federal: Field ${fieldName} - Type: ${fieldType}, String: ${fieldTypeString}, Methods: ${Object.getOwnPropertyNames(field).join(', ')}`);
+            
+            // Try to determine field type by available methods
+            const hasSetText = typeof (field as any).setText === 'function';
+            const hasCheck = typeof (field as any).check === 'function';
+            const hasSelect = typeof (field as any).select === 'function';
+            const hasSetValue = typeof (field as any).setValue === 'function';
+            
+            if (hasSetText) {
+              // Text field
               (field as any).setText(value);
               filledFieldsCount++;
               console.log(`Federal: Filled text field ${fieldName} with value: ${value}`);
-            } else if (fieldType === 'PDFCheckBox' || fieldType === 'PDFCheckBox2') {
+            } else if (hasCheck) {
+              // Checkbox field
               if (value === 'Yes' || value === 'On' || value === 'YES' || value === 'HOURS') {
                 (field as any).check();
               } else {
@@ -563,12 +581,25 @@ export const FederalTimeTable: React.FC = () => {
               }
               filledFieldsCount++;
               console.log(`Federal: Filled checkbox ${fieldName} with value: ${value}`);
-            } else if (fieldType === 'PDFDropdown' || fieldType === 'PDFDropdown2') {
+            } else if (hasSelect) {
+              // Dropdown field
               (field as any).select(value);
               filledFieldsCount++;
               console.log(`Federal: Filled dropdown ${fieldName} with value: ${value}`);
+            } else if (hasSetValue) {
+              // Generic field with setValue method
+              (field as any).setValue(value);
+              filledFieldsCount++;
+              console.log(`Federal: Filled field ${fieldName} with value: ${value} using setValue`);
             } else {
-              console.log(`Federal: Field ${fieldName} found but type ${fieldType} not handled`);
+              // Try to set the field value directly
+              try {
+                (field as any).value = value;
+                filledFieldsCount++;
+                console.log(`Federal: Filled field ${fieldName} with value: ${value} using direct assignment`);
+              } catch (directError) {
+                console.warn(`Federal: Field ${fieldName} found but type ${fieldType} not handled. Available methods: ${Object.getOwnPropertyNames(field).join(', ')}`);
+              }
             }
           } else {
             console.warn(`Federal: Field ${fieldName} not found in PDF`);
