@@ -46,6 +46,10 @@
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
+  /* Ensure the canvas maintains its aspect ratio and positioning */
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
 }
 
 .draw-canvas[style*="pointer-events: auto"] {

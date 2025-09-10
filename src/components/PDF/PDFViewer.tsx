@@ -202,6 +202,7 @@ export const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({
               isDrawingMode={isDrawingMode}
               isRotated={isRotated}
               className="draw-canvas"
+              pdfCanvasRef={pdfCanvasRef}
             />
             
             <ZoomControls

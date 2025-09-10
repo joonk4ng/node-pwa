@@ -30,24 +30,50 @@ export const usePDFDrawing = (options: UsePDFDrawingOptions = {}) => {
     if (!drawCanvasRef.current) return { x: 0, y: 0 };
     const touch = e.touches[0];
     const rect = drawCanvasRef.current.getBoundingClientRect();
+    
+    // Calculate the scale factor between canvas internal size and displayed size
     const scaleX = drawCanvasRef.current.width / rect.width;
     const scaleY = drawCanvasRef.current.height / rect.height;
-    return {
+    
+    const pos = {
       x: (touch.clientX - rect.left) * scaleX,
       y: (touch.clientY - rect.top) * scaleY
     };
+    
+    console.log('🔍 usePDFDrawing: Touch position calculated', {
+      clientPos: { x: touch.clientX, y: touch.clientY },
+      rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+      canvasSize: { width: drawCanvasRef.current.width, height: drawCanvasRef.current.height },
+      scale: { x: scaleX, y: scaleY },
+      finalPos: pos
+    });
+    
+    return pos;
   }, []);
 
   // Get mouse position for the draw canvas
   const getMousePos = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!drawCanvasRef.current) return { x: 0, y: 0 };
     const rect = drawCanvasRef.current.getBoundingClientRect();
+    
+    // Calculate the scale factor between canvas internal size and displayed size
     const scaleX = drawCanvasRef.current.width / rect.width;
     const scaleY = drawCanvasRef.current.height / rect.height;
-    return {
+    
+    const pos = {
       x: (e.clientX - rect.left) * scaleX,
       y: (e.clientY - rect.top) * scaleY
     };
+    
+    console.log('🔍 usePDFDrawing: Mouse position calculated', {
+      clientPos: { x: e.clientX, y: e.clientY },
+      rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+      canvasSize: { width: drawCanvasRef.current.width, height: drawCanvasRef.current.height },
+      scale: { x: scaleX, y: scaleY },
+      finalPos: pos
+    });
+    
+    return pos;
   }, []);
 
   // Start drawing

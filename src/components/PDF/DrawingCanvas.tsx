@@ -7,6 +7,7 @@ export interface DrawingCanvasProps {
   isRotated?: boolean;
   className?: string;
   style?: React.CSSProperties;
+  pdfCanvasRef?: React.RefObject<{ canvas: HTMLCanvasElement | null } | null>;
 }
 
 export interface DrawingCanvasRef {
@@ -19,7 +20,8 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   isDrawingMode,
   isRotated = false,
   className,
-  style
+  style,
+  pdfCanvasRef
 }, ref) => {
   const drawCanvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -57,14 +59,40 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
     hasDrawing
   }));
 
-  // Sync canvas size with parent canvas
+  // Sync canvas size with PDF canvas
   useEffect(() => {
     const syncCanvasSize = () => {
       if (drawCanvasRef.current) {
-        const parentCanvas = drawCanvasRef.current.parentElement?.querySelector('.pdf-canvas') as HTMLCanvasElement;
-        if (parentCanvas && drawCanvasRef.current) {
-          drawCanvasRef.current.width = parentCanvas.width;
-          drawCanvasRef.current.height = parentCanvas.height;
+        // Use the provided PDF canvas ref or fall back to query selector
+        const pdfCanvas = pdfCanvasRef?.current?.canvas || 
+          drawCanvasRef.current.parentElement?.querySelector('.pdf-canvas') as HTMLCanvasElement;
+        
+        if (pdfCanvas && drawCanvasRef.current) {
+          // Get the actual rendered size of the PDF canvas
+          const pdfRect = pdfCanvas.getBoundingClientRect();
+          const containerRect = container?.getBoundingClientRect();
+          
+          if (containerRect) {
+            // Set drawing canvas to match PDF canvas dimensions exactly
+            drawCanvasRef.current.width = pdfCanvas.width;
+            drawCanvasRef.current.height = pdfCanvas.height;
+            
+            // Position the drawing canvas to match the PDF canvas position
+            const pdfOffsetX = pdfRect.left - containerRect.left;
+            const pdfOffsetY = pdfRect.top - containerRect.top;
+            
+            drawCanvasRef.current.style.width = `${pdfRect.width}px`;
+            drawCanvasRef.current.style.height = `${pdfRect.height}px`;
+            drawCanvasRef.current.style.left = `${pdfOffsetX}px`;
+            drawCanvasRef.current.style.top = `${pdfOffsetY}px`;
+            
+            console.log('🔍 DrawingCanvas: Synced with PDF canvas', {
+              pdfCanvas: { width: pdfCanvas.width, height: pdfCanvas.height },
+              pdfRect: { width: pdfRect.width, height: pdfRect.height },
+              offset: { x: pdfOffsetX, y: pdfOffsetY },
+              drawingCanvas: { width: drawCanvasRef.current.width, height: drawCanvasRef.current.height }
+            });
+          }
           
           // Set up the drawing canvas context
           const drawCtx = drawCanvasRef.current.getContext('2d');
@@ -79,8 +107,8 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
       }
     };
 
-    // Initial sync
-    syncCanvasSize();
+    // Initial sync with a small delay to ensure PDF canvas is rendered
+    const timeoutId = setTimeout(syncCanvasSize, 100);
 
     // Set up resize observer to sync canvas sizes
     const resizeObserver = new ResizeObserver(syncCanvasSize);
@@ -88,7 +116,15 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
       resizeObserver.observe(drawCanvasRef.current);
     }
 
+    // Also observe the PDF canvas for changes
+    const container = drawCanvasRef.current?.parentElement;
+    const pdfCanvas = pdfCanvasRef?.current?.canvas || container?.querySelector('.pdf-canvas');
+    if (pdfCanvas) {
+      resizeObserver.observe(pdfCanvas);
+    }
+
     return () => {
+      clearTimeout(timeoutId);
       resizeObserver.disconnect();
     };
   }, []);
