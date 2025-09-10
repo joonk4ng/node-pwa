@@ -62,11 +62,14 @@ export const ZoomControls: React.FC<ZoomControlsProps> = ({
           tempCtx.fillStyle = 'white';
           tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
           
-          // Render PDF at this zoom level
-          await page.render({
+          // Render PDF at this zoom level with better error handling
+          const renderTask = page.render({
             canvasContext: tempCtx,
-            viewport: viewport
-          }).promise;
+            viewport: viewport,
+            intent: 'display' // Optimize for display
+          });
+          
+          await renderTask.promise;
           
           // Convert to blob
           const blob = await new Promise<Blob>((resolve) => {

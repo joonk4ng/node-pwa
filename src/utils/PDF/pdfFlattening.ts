@@ -9,7 +9,9 @@ export const pdfOptions = {
   disableAutoFetch: true,
   disableStream: true,
   disableRange: true,
-  disableFontFace: true,
+  disableFontFace: false, // Enable font face loading to fix font warnings
+  useSystemFonts: true, // Use system fonts as fallback
+  standardFontDataUrl: undefined, // Let PDF.js handle font loading
 };
 
 /**

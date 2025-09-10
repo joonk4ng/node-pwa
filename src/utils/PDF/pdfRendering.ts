@@ -44,10 +44,13 @@ export const renderPDFToCanvas = async (
   context.fillRect(0, 0, canvas.width, canvas.height);
 
   // Render PDF page with optimized settings
-  await page.render({
+  const renderTask = page.render({
     canvasContext: context,
-    viewport: viewport
-  }).promise;
+    viewport: viewport,
+    intent: 'display' // Optimize for display
+  });
+  
+  await renderTask.promise;
 };
 
 /**
@@ -71,10 +74,13 @@ export const renderPDFForPrint = async (
   canvas.width = viewport.width;
 
   // Render at high quality
-  await page.render({
+  const renderTask = page.render({
     canvasContext: context,
-    viewport: viewport
-  }).promise;
+    viewport: viewport,
+    intent: 'print' // Optimize for print quality
+  });
+  
+  await renderTask.promise;
 };
 
 /**
