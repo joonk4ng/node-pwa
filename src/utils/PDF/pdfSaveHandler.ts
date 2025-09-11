@@ -154,7 +154,7 @@ export async function savePDFWithSignature(
         if (isMobile) {
           // Adjust X coordinate to compensate for mobile positioning issues
           // This shifts the signature slightly to the right to account for coordinate mapping discrepancies
-          const mobileXAdjustment = -185; // Adjust this value as needed
+          const mobileXAdjustment = -145; // Adjust this value as needed
           adjustedMinX = Math.max(0, minX - mobileXAdjustment);
           
           console.log('🔍 PDFSaveHandler: Mobile device detected, applying X-axis adjustment:', {
