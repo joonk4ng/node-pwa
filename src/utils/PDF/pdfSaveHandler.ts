@@ -45,21 +45,50 @@ export async function savePDFWithSignature(
     const previewImage = await canvasToBlob(tempCanvas);
 
     // Check if there's a signature to flatten
-    let signatureImageBlob: Blob | null = null;
-    if (hasSignature(drawCanvas)) {
-      signatureImageBlob = await canvasToBlob(drawCanvas);
-      console.log('🔍 PDFSaveHandler: Signature detected, will be flattened');
-    } else {
-      console.log('🔍 PDFSaveHandler: No signature detected, flattening PDF only');
-    }
+    const hasSig = hasSignature(drawCanvas);
+    console.log('🔍 PDFSaveHandler: Signature check result:', hasSig);
+    console.log('🔍 PDFSaveHandler: Draw canvas dimensions:', { width: drawCanvas.width, height: drawCanvas.height });
+    console.log('🔍 PDFSaveHandler: Base canvas dimensions:', { width: baseCanvas.width, height: baseCanvas.height });
+    console.log('🔍 PDFSaveHandler: Combined canvas dimensions:', { width: tempCanvas.width, height: tempCanvas.height });
 
-    // Flatten the PDF to an image
-    console.log('🔍 PDFSaveHandler: Flattening PDF content to image...');
+    // Create a high-resolution combined canvas for the flattened PDF
+    // First, flatten the PDF to high resolution
+    console.log('🔍 PDFSaveHandler: Creating high-resolution flattened PDF image...');
     const flattenedPdfImage = await flattenPDFToImage(pdfDoc);
-
-    // Create the flattened PDF
-    console.log('🔍 PDFSaveHandler: Creating flattened PDF...');
-    const flattenedPdfBytes = await createFlattenedPDF(flattenedPdfImage, signatureImageBlob);
+    console.log('🔍 PDFSaveHandler: Flattened PDF image dimensions:', { width: flattenedPdfImage.width, height: flattenedPdfImage.height });
+    
+    // Create a high-resolution combined canvas
+    const highResCanvas = document.createElement('canvas');
+    highResCanvas.width = flattenedPdfImage.width;
+    highResCanvas.height = flattenedPdfImage.height;
+    const highResCtx = highResCanvas.getContext('2d', {
+      alpha: false, // Optimize for non-transparent content
+      willReadFrequently: false, // Optimize for write-only operations
+      imageSmoothingEnabled: true, // Enable image smoothing for better quality
+      imageSmoothingQuality: 'high' // Use high quality smoothing
+    });
+    
+    if (!highResCtx) throw new Error('Failed to get high-res canvas context');
+    
+    // Draw the high-resolution PDF image
+    highResCtx.drawImage(flattenedPdfImage, 0, 0);
+    
+    // If there's a signature, scale and draw it on the high-res canvas
+    if (hasSig) {
+      console.log('🔍 PDFSaveHandler: Scaling signature to high resolution...');
+      // Calculate scale factor from display canvas to high-res canvas
+      const scaleX = flattenedPdfImage.width / baseCanvas.width;
+      const scaleY = flattenedPdfImage.height / baseCanvas.height;
+      
+      console.log('🔍 PDFSaveHandler: Signature scale factors:', { scaleX, scaleY });
+      
+      // Draw the signature scaled to high resolution
+      highResCtx.drawImage(drawCanvas, 0, 0, baseCanvas.width, baseCanvas.height, 0, 0, flattenedPdfImage.width, flattenedPdfImage.height);
+    }
+    
+    // Use the high-resolution combined canvas for the flattened PDF
+    console.log('🔍 PDFSaveHandler: Using high-resolution combined canvas for flattened PDF...');
+    const flattenedPdfBytes = await createFlattenedPDF(highResCanvas, null, null);
     const flattenedPdfBlob = new Blob([flattenedPdfBytes], { type: 'application/pdf' });
     
     console.log('🔍 PDFSaveHandler: Flattened PDF created successfully');

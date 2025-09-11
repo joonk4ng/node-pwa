@@ -31,7 +31,10 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
     draw,
     stopDrawing,
     clearDrawing
-  } = usePDFDrawing();
+  } = usePDFDrawing({
+    canvasRef: drawCanvasRef,
+    isDrawingMode: isDrawingMode
+  });
 
   // Check if canvas has drawing content
   const hasDrawing = useCallback(() => {
@@ -73,9 +76,10 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
           const containerRect = container?.getBoundingClientRect();
           
           if (containerRect) {
-            // Set drawing canvas to match PDF canvas dimensions exactly
-            drawCanvasRef.current.width = pdfCanvas.width;
-            drawCanvasRef.current.height = pdfCanvas.height;
+            // Set drawing canvas to match PDF canvas display size for 1:1 mapping
+            // This ensures canvas internal size matches display size
+            drawCanvasRef.current.width = pdfRect.width;
+            drawCanvasRef.current.height = pdfRect.height;
             
             // Position the drawing canvas to match the PDF canvas position
             const pdfOffsetX = pdfRect.left - containerRect.left;
@@ -86,11 +90,12 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
             drawCanvasRef.current.style.left = `${pdfOffsetX}px`;
             drawCanvasRef.current.style.top = `${pdfOffsetY}px`;
             
-            console.log('🔍 DrawingCanvas: Synced with PDF canvas', {
+            console.log('🔍 DrawingCanvas: 1:1 canvas setup', {
               pdfCanvas: { width: pdfCanvas.width, height: pdfCanvas.height },
               pdfRect: { width: pdfRect.width, height: pdfRect.height },
               offset: { x: pdfOffsetX, y: pdfOffsetY },
-              drawingCanvas: { width: drawCanvasRef.current.width, height: drawCanvasRef.current.height }
+              drawingCanvas: { width: drawCanvasRef.current.width, height: drawCanvasRef.current.height },
+              is1to1: drawCanvasRef.current.width === pdfRect.width && drawCanvasRef.current.height === pdfRect.height
             });
           }
           
@@ -162,22 +167,34 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   };
 
   const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    console.log('🔍 DrawingCanvas: Touch start event', { 
+      isDrawingMode, 
+      touchCount: e.touches.length,
+      target: e.target 
+    });
+    
     if (isDrawingMode) {
       e.preventDefault();
       e.stopPropagation();
+      startDrawing(e);
     }
-    startDrawing(e);
   };
 
   const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
     if (isDrawingMode) {
       e.preventDefault();
       e.stopPropagation();
+      draw(e);
     }
-    draw(e);
   };
 
   const handleTouchEnd = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    console.log('🔍 DrawingCanvas: Touch end event', { 
+      isDrawingMode, 
+      changedTouchCount: e.changedTouches.length,
+      target: e.target 
+    });
+    
     if (isDrawingMode) {
       e.preventDefault();
       e.stopPropagation();
@@ -196,7 +213,12 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
           cursor: isDrawingMode ? 'crosshair' : 'default',
           transform: isRotated ? 'rotate(90deg)' : 'none',
           transformOrigin: 'center center',
-          transition: 'transform 0.3s ease-in-out'
+          transition: 'transform 0.3s ease-in-out',
+          // Mobile-specific touch handling
+          touchAction: isDrawingMode ? 'none' : 'auto',
+          WebkitTouchCallout: 'none',
+          WebkitUserSelect: 'none',
+          userSelect: 'none'
         }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
@@ -205,6 +227,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
       />
       {isDrawingMode && (
         <>
@@ -233,6 +256,45 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
             zIndex: 20
           }}>
             Canvas: {drawCanvasRef.current ? `${drawCanvasRef.current.width}x${drawCanvasRef.current.height}` : 'Not found'}
+          </div>
+          <div style={{
+            position: 'absolute',
+            top: '70px',
+            left: '10px',
+            background: 'rgba(0, 255, 0, 0.7)',
+            color: 'white',
+            padding: '5px 10px',
+            borderRadius: '4px',
+            fontSize: '12px',
+            zIndex: 20
+          }}>
+            Mobile: {/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ? 'Yes' : 'No'}
+          </div>
+          <div style={{
+            position: 'absolute',
+            top: '100px',
+            left: '10px',
+            background: 'rgba(255, 165, 0, 0.7)',
+            color: 'white',
+            padding: '5px 10px',
+            borderRadius: '4px',
+            fontSize: '12px',
+            zIndex: 20
+          }}>
+            Rotated: {isRotated ? 'Yes' : 'No'}
+          </div>
+          <div style={{
+            position: 'absolute',
+            top: '130px',
+            left: '10px',
+            background: 'rgba(0, 0, 255, 0.7)',
+            color: 'white',
+            padding: '5px 10px',
+            borderRadius: '4px',
+            fontSize: '12px',
+            zIndex: 20
+          }}>
+            1:1 Mapping: {drawCanvasRef.current && drawCanvasRef.current.width === drawCanvasRef.current.getBoundingClientRect().width ? 'Yes' : 'No'}
           </div>
         </>
       )}

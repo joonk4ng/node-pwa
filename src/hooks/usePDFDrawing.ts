@@ -10,70 +10,85 @@ export interface DrawingState {
 export interface UsePDFDrawingOptions {
   onBeforeSign?: () => Promise<void>;
   readOnly?: boolean;
+  canvasRef?: React.RefObject<HTMLCanvasElement | null>;
+  isDrawingMode?: boolean;
 }
 
 export const usePDFDrawing = (options: UsePDFDrawingOptions = {}) => {
-  const { onBeforeSign, readOnly = false } = options;
+  const { onBeforeSign, readOnly = false, canvasRef, isDrawingMode = false } = options;
   
   const [isDrawing, setIsDrawing] = useState(false);
-  const [isDrawingMode, setIsDrawingMode] = useState(false);
   const lastPosRef = useRef<{ x: number; y: number } | null>(null);
-  const drawCanvasRef = useRef<HTMLCanvasElement>(null);
+  const drawCanvasRef = canvasRef || useRef<HTMLCanvasElement>(null);
 
   // Detect Chrome on iOS for special handling
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
   const isChrome = /Chrome/.test(navigator.userAgent);
   const isChromeIOS = isIOS && isChrome;
 
-  // Get touch position for the draw canvas
+  // Get touch position for the draw canvas - 1:1 mapping
   const getTouchPos = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
     if (!drawCanvasRef.current) return { x: 0, y: 0 };
-    const touch = e.touches[0];
+    
+    // Use the first touch point, or changedTouches if available (for touchend events)
+    const touch = e.touches[0] || e.changedTouches[0];
+    if (!touch) return { x: 0, y: 0 };
+    
     const rect = drawCanvasRef.current.getBoundingClientRect();
     
-    // Calculate the scale factor between canvas internal size and displayed size
-    const scaleX = drawCanvasRef.current.width / rect.width;
-    const scaleY = drawCanvasRef.current.height / rect.height;
-    
+    // Direct 1:1 coordinate mapping - no scaling needed if canvas size matches display size
     const pos = {
-      x: (touch.clientX - rect.left) * scaleX,
-      y: (touch.clientY - rect.top) * scaleY
+      x: touch.clientX - rect.left,
+      y: touch.clientY - rect.top
     };
     
-    console.log('🔍 usePDFDrawing: Touch position calculated', {
+    console.log('🔍 usePDFDrawing: Touch position (1:1 mapping)', {
+      eventType: e.type,
       clientPos: { x: touch.clientX, y: touch.clientY },
       rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
       canvasSize: { width: drawCanvasRef.current.width, height: drawCanvasRef.current.height },
-      scale: { x: scaleX, y: scaleY },
       finalPos: pos
     });
     
     return pos;
   }, []);
 
-  // Get mouse position for the draw canvas
+  // Get mouse position for the draw canvas - 1:1 mapping
   const getMousePos = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!drawCanvasRef.current) return { x: 0, y: 0 };
     const rect = drawCanvasRef.current.getBoundingClientRect();
     
-    // Calculate the scale factor between canvas internal size and displayed size
-    const scaleX = drawCanvasRef.current.width / rect.width;
-    const scaleY = drawCanvasRef.current.height / rect.height;
-    
+    // Direct 1:1 coordinate mapping - no scaling needed if canvas size matches display size
     const pos = {
-      x: (e.clientX - rect.left) * scaleX,
-      y: (e.clientY - rect.top) * scaleY
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
     };
     
-    console.log('🔍 usePDFDrawing: Mouse position calculated', {
+    console.log('🔍 usePDFDrawing: Mouse position (1:1 mapping)', {
       clientPos: { x: e.clientX, y: e.clientY },
       rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
       canvasSize: { width: drawCanvasRef.current.width, height: drawCanvasRef.current.height },
-      scale: { x: scaleX, y: scaleY },
       finalPos: pos
     });
     
     return pos;
+  }, []);
+
+  // Ensure drawing context is properly configured
+  const ensureDrawingContext = useCallback(() => {
+    if (!drawCanvasRef.current) return false;
+    
+    const ctx = drawCanvasRef.current.getContext('2d');
+    if (!ctx) return false;
+    
+    // Configure the context for drawing
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#000000';
+    ctx.globalCompositeOperation = 'source-over';
+    
+    return true;
   }, []);
 
   // Start drawing
@@ -92,6 +107,12 @@ export const usePDFDrawing = (options: UsePDFDrawingOptions = {}) => {
         isDrawingMode, 
         readOnly 
       });
+      return;
+    }
+    
+    // Ensure context is properly configured
+    if (!ensureDrawingContext()) {
+      console.log('🔍 usePDFDrawing: Failed to configure drawing context');
       return;
     }
     
@@ -149,6 +170,13 @@ export const usePDFDrawing = (options: UsePDFDrawingOptions = {}) => {
       console.log('🔍 usePDFDrawing: No canvas context available');
       return;
     }
+    
+    // Ensure context is properly configured
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#000000';
+    ctx.globalCompositeOperation = 'source-over';
 
     console.log('🔍 usePDFDrawing: Drawing line from', lastPosRef.current, 'to', currentPos);
 
@@ -172,7 +200,6 @@ export const usePDFDrawing = (options: UsePDFDrawingOptions = {}) => {
 
   // Clear drawing
   const clearDrawing = useCallback(() => {
-    setIsDrawingMode(false);
     const canvas = drawCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -180,42 +207,27 @@ export const usePDFDrawing = (options: UsePDFDrawingOptions = {}) => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   }, []);
 
-  // Toggle drawing mode
-  const toggleDrawingMode = useCallback(async () => {
-    if (readOnly) return;
-    
-    console.log('🔍 usePDFDrawing: Toggling drawing mode from', isDrawingMode, 'to', !isDrawingMode);
-    
-    // If we're about to enable drawing mode and there's a sneaky save callback, call it
-    if (!isDrawingMode && onBeforeSign) {
-      try {
-        await onBeforeSign();
-      } catch (error) {
-        console.error('Error during sneaky save before signing:', error);
-        // Continue with signing even if sneaky save fails
-      }
-    }
-    
-    setIsDrawingMode(prev => {
-      const newMode = !prev;
-      console.log('🔍 usePDFDrawing: Drawing mode set to', newMode);
-      return newMode;
-    });
-    
-    // Clear any existing drawing when toggling mode
-    if (drawCanvasRef.current) {
+  // Clear drawing when drawing mode is turned OFF (but not when turned ON)
+  const [prevDrawingMode, setPrevDrawingMode] = useState(isDrawingMode);
+  useEffect(() => {
+    // Only clear if drawing mode was turned OFF (true -> false)
+    if (prevDrawingMode && !isDrawingMode && drawCanvasRef.current) {
       const ctx = drawCanvasRef.current.getContext('2d');
       if (ctx) {
         ctx.clearRect(0, 0, drawCanvasRef.current.width, drawCanvasRef.current.height);
-        console.log('🔍 usePDFDrawing: Cleared existing drawing');
+        console.log('🔍 usePDFDrawing: Cleared existing drawing due to mode being turned OFF');
       }
     }
-    // Reset drawing state
+    
+    // Reset drawing state when mode changes
     setIsDrawing(false);
     lastPosRef.current = null;
-  }, [isDrawingMode, onBeforeSign, readOnly]);
+    
+    // Update previous state
+    setPrevDrawingMode(isDrawingMode);
+  }, [isDrawingMode, prevDrawingMode]);
 
-  // Set up touch event prevention for iOS Chrome and prevent scrolling when drawing
+  // Set up touch event prevention for mobile devices to prevent scrolling when drawing
   useEffect(() => {
     const container = drawCanvasRef.current?.parentElement;
     const pdfViewer = container?.parentElement; // The enhanced-pdf-viewer container
@@ -224,14 +236,16 @@ export const usePDFDrawing = (options: UsePDFDrawingOptions = {}) => {
     const options = { passive: false };
     
     const preventDefault = (e: TouchEvent) => {
-      // Prevent default if we're in drawing mode and touching the canvas or its container
-      if (isDrawingMode && (e.target === drawCanvasRef.current || e.target === container)) {
+      // Only prevent default if we're in drawing mode and NOT touching the drawing canvas
+      // This allows the drawing canvas to handle its own events while preventing scrolling
+      if (isDrawingMode && e.target !== drawCanvasRef.current) {
         e.preventDefault();
         e.stopPropagation();
+        console.log('🔍 usePDFDrawing: Prevented default touch behavior for non-canvas target');
       }
     };
 
-    // Add touch event listeners with passive: false to both container and PDF viewer
+    // Add touch event listeners to prevent scrolling when drawing
     container.addEventListener('touchstart', preventDefault, options);
     container.addEventListener('touchmove', preventDefault, options);
     container.addEventListener('touchend', preventDefault, options);
@@ -265,7 +279,6 @@ export const usePDFDrawing = (options: UsePDFDrawingOptions = {}) => {
     draw,
     stopDrawing,
     clearDrawing,
-    toggleDrawingMode,
     
     // Utilities
     getTouchPos,
