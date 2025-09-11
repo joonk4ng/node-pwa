@@ -146,20 +146,30 @@ export async function savePDFWithSignature(
         const scaleX = flattenedPdfImage.width / baseCanvasInternalWidth;
         const scaleY = flattenedPdfImage.height / baseCanvasInternalHeight;
         
-        // Detect iPad for coordinate adjustment
+        // Detect mobile devices and iPads for coordinate adjustment
+        const isMobile = window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         const isIPad = /iPad/.test(navigator.userAgent);
         
-        // Apply iPad-specific X-axis adjustment
+        // Apply mobile-specific X-axis adjustment
         let adjustedMinX = minX;
-        if (isIPad) {
-          // iPad-specific adjustment to fix signature positioning
-          const ipadAdjustment = -125;
-          adjustedMinX = Math.max(0, minX - ipadAdjustment);
+        if (isMobile) {
+          let adjustment;
           
-          console.log('🔍 PDFSaveHandler: iPad detected, applying X-axis adjustment:', {
+          if (isIPad) {
+            // iPad-specific adjustment (easily changeable)
+            adjustment = -125;
+          } else {
+            // General mobile device adjustment
+            adjustment = -185;
+          }
+          
+          adjustedMinX = Math.max(0, minX - adjustment);
+          
+          console.log('🔍 PDFSaveHandler: Mobile device detected, applying X-axis adjustment:', {
+            isIPad,
             originalMinX: minX,
             adjustedMinX: adjustedMinX,
-            adjustment: ipadAdjustment
+            adjustment: adjustment
           });
         }
         
