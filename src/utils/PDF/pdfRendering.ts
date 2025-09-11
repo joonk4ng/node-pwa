@@ -38,6 +38,10 @@ export const renderPDFToCanvas = async (
   // Set canvas sizes to match viewport
   canvas.height = viewport.height;
   canvas.width = viewport.width;
+  
+  // Ensure canvas style matches internal size for consistent coordinate mapping
+  canvas.style.width = `${viewport.width}px`;
+  canvas.style.height = `${viewport.height}px`;
 
   // Clear canvas with white background
   context.fillStyle = 'white';

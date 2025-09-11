@@ -25,7 +25,7 @@ export const usePDFDrawing = (options: UsePDFDrawingOptions = {}) => {
   const isChrome = /Chrome/.test(navigator.userAgent);
   const isChromeIOS = isIOS && isChrome;
 
-  // Get touch position for the draw canvas - 1:1 mapping
+  // Get touch position for the draw canvas with proper scaling
   const getTouchPos = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
     if (!drawCanvasRef.current) return { x: 0, y: 0 };
     
@@ -35,38 +35,54 @@ export const usePDFDrawing = (options: UsePDFDrawingOptions = {}) => {
     
     const rect = drawCanvasRef.current.getBoundingClientRect();
     
-    // Direct 1:1 coordinate mapping - no scaling needed if canvas size matches display size
+    // Calculate position relative to canvas
+    const clientX = touch.clientX - rect.left;
+    const clientY = touch.clientY - rect.top;
+    
+    // Scale coordinates to match canvas internal size
+    const scaleX = drawCanvasRef.current.width / rect.width;
+    const scaleY = drawCanvasRef.current.height / rect.height;
+    
     const pos = {
-      x: touch.clientX - rect.left,
-      y: touch.clientY - rect.top
+      x: clientX * scaleX,
+      y: clientY * scaleY
     };
     
-    console.log('🔍 usePDFDrawing: Touch position (1:1 mapping)', {
+    console.log('🔍 usePDFDrawing: Touch position (scaled mapping)', {
       eventType: e.type,
       clientPos: { x: touch.clientX, y: touch.clientY },
       rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
       canvasSize: { width: drawCanvasRef.current.width, height: drawCanvasRef.current.height },
+      scale: { x: scaleX, y: scaleY },
       finalPos: pos
     });
     
     return pos;
   }, []);
 
-  // Get mouse position for the draw canvas - 1:1 mapping
+  // Get mouse position for the draw canvas with proper scaling
   const getMousePos = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!drawCanvasRef.current) return { x: 0, y: 0 };
     const rect = drawCanvasRef.current.getBoundingClientRect();
     
-    // Direct 1:1 coordinate mapping - no scaling needed if canvas size matches display size
+    // Calculate position relative to canvas
+    const clientX = e.clientX - rect.left;
+    const clientY = e.clientY - rect.top;
+    
+    // Scale coordinates to match canvas internal size
+    const scaleX = drawCanvasRef.current.width / rect.width;
+    const scaleY = drawCanvasRef.current.height / rect.height;
+    
     const pos = {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
+      x: clientX * scaleX,
+      y: clientY * scaleY
     };
     
-    console.log('🔍 usePDFDrawing: Mouse position (1:1 mapping)', {
+    console.log('🔍 usePDFDrawing: Mouse position (scaled mapping)', {
       clientPos: { x: e.clientX, y: e.clientY },
       rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
       canvasSize: { width: drawCanvasRef.current.width, height: drawCanvasRef.current.height },
+      scale: { x: scaleX, y: scaleY },
       finalPos: pos
     });
     

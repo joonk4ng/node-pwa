@@ -73,50 +73,81 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
         if (pdfCanvas && drawCanvasRef.current) {
           // Get the actual rendered size of the PDF canvas
           const pdfRect = pdfCanvas.getBoundingClientRect();
+          const container = drawCanvasRef.current.parentElement;
           const containerRect = container?.getBoundingClientRect();
           
-          if (containerRect) {
-            // Set drawing canvas to match PDF canvas display size for 1:1 mapping
-            // This ensures canvas internal size matches display size
-            drawCanvasRef.current.width = pdfRect.width;
-            drawCanvasRef.current.height = pdfRect.height;
+          if (containerRect && pdfRect.width > 0 && pdfRect.height > 0) {
+            // Calculate device pixel ratio for high-DPI displays
+            const devicePixelRatio = window.devicePixelRatio || 1;
+            
+            // Set drawing canvas internal size to match PDF canvas internal size
+            // This ensures proper coordinate mapping regardless of display scaling
+            drawCanvasRef.current.width = pdfCanvas.width;
+            drawCanvasRef.current.height = pdfCanvas.height;
+            
+            // Set display size to match PDF canvas display size
+            drawCanvasRef.current.style.width = `${pdfRect.width}px`;
+            drawCanvasRef.current.style.height = `${pdfRect.height}px`;
             
             // Position the drawing canvas to match the PDF canvas position
             const pdfOffsetX = pdfRect.left - containerRect.left;
             const pdfOffsetY = pdfRect.top - containerRect.top;
             
-            drawCanvasRef.current.style.width = `${pdfRect.width}px`;
-            drawCanvasRef.current.style.height = `${pdfRect.height}px`;
             drawCanvasRef.current.style.left = `${pdfOffsetX}px`;
             drawCanvasRef.current.style.top = `${pdfOffsetY}px`;
             
-            console.log('🔍 DrawingCanvas: 1:1 canvas setup', {
+            // Set up the drawing canvas context
+            const drawCtx = drawCanvasRef.current.getContext('2d');
+            if (drawCtx) {
+              drawCtx.lineCap = 'round';
+              drawCtx.lineJoin = 'round';
+              drawCtx.lineWidth = 2;
+              drawCtx.strokeStyle = '#000000';
+              drawCtx.globalCompositeOperation = 'source-over';
+            }
+            
+            console.log('🔍 DrawingCanvas: Enhanced canvas setup', {
               pdfCanvas: { width: pdfCanvas.width, height: pdfCanvas.height },
               pdfRect: { width: pdfRect.width, height: pdfRect.height },
               offset: { x: pdfOffsetX, y: pdfOffsetY },
               drawingCanvas: { width: drawCanvasRef.current.width, height: drawCanvasRef.current.height },
-              is1to1: drawCanvasRef.current.width === pdfRect.width && drawCanvasRef.current.height === pdfRect.height
+              devicePixelRatio,
+              isAligned: drawCanvasRef.current.width === pdfCanvas.width && drawCanvasRef.current.height === pdfCanvas.height
             });
-          }
-          
-          // Set up the drawing canvas context
-          const drawCtx = drawCanvasRef.current.getContext('2d');
-          if (drawCtx) {
-            drawCtx.lineCap = 'round';
-            drawCtx.lineJoin = 'round';
-            drawCtx.lineWidth = 2;
-            drawCtx.strokeStyle = '#000000';
-            drawCtx.globalCompositeOperation = 'source-over';
           }
         }
       }
     };
 
-    // Initial sync with a small delay to ensure PDF canvas is rendered
-    const timeoutId = setTimeout(syncCanvasSize, 100);
+    // Multiple sync attempts to handle different loading scenarios
+    const syncAttempts = [50, 100, 200, 500, 1000, 2000];
+    const timeoutIds = syncAttempts.map(delay => setTimeout(syncCanvasSize, delay));
+    
+    // Also try to sync when the PDF canvas becomes available
+    let pdfCanvasCheckInterval: number | null = null;
+    const checkForPDFCanvas = () => {
+      const pdfCanvas = pdfCanvasRef?.current?.canvas || 
+        drawCanvasRef.current?.parentElement?.querySelector('.pdf-canvas') as HTMLCanvasElement;
+      if (pdfCanvas && pdfCanvas.width > 0 && pdfCanvas.height > 0) {
+        syncCanvasSize();
+        if (pdfCanvasCheckInterval) {
+          clearInterval(pdfCanvasCheckInterval);
+          pdfCanvasCheckInterval = null;
+        }
+      } else {
+        pdfCanvasCheckInterval = setTimeout(checkForPDFCanvas, 100);
+      }
+    };
+    
+    // Start checking for PDF canvas availability
+    setTimeout(checkForPDFCanvas, 0);
 
     // Set up resize observer to sync canvas sizes
-    const resizeObserver = new ResizeObserver(syncCanvasSize);
+    const resizeObserver = new ResizeObserver(() => {
+      // Debounce resize events
+      setTimeout(syncCanvasSize, 50);
+    });
+    
     if (drawCanvasRef.current) {
       resizeObserver.observe(drawCanvasRef.current);
     }
@@ -128,8 +159,16 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
       resizeObserver.observe(pdfCanvas);
     }
 
+    // Also observe the container for changes
+    if (container) {
+      resizeObserver.observe(container);
+    }
+
     return () => {
-      clearTimeout(timeoutId);
+      timeoutIds.forEach(id => clearTimeout(id));
+      if (pdfCanvasCheckInterval) {
+        clearTimeout(pdfCanvasCheckInterval);
+      }
       resizeObserver.disconnect();
     };
   }, []);
@@ -294,7 +333,20 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
             fontSize: '12px',
             zIndex: 20
           }}>
-            1:1 Mapping: {drawCanvasRef.current && drawCanvasRef.current.width === drawCanvasRef.current.getBoundingClientRect().width ? 'Yes' : 'No'}
+            Scale: {drawCanvasRef.current ? `${(drawCanvasRef.current.width / drawCanvasRef.current.getBoundingClientRect().width).toFixed(2)}x` : 'N/A'}
+          </div>
+          <div style={{
+            position: 'absolute',
+            top: '160px',
+            left: '10px',
+            background: 'rgba(128, 0, 128, 0.7)',
+            color: 'white',
+            padding: '5px 10px',
+            borderRadius: '4px',
+            fontSize: '12px',
+            zIndex: 20
+          }}>
+            DPR: {window.devicePixelRatio || 1}
           </div>
         </>
       )}
