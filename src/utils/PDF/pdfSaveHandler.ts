@@ -233,16 +233,14 @@ export async function downloadPDF(
   options: SaveOptions = {}
 ): Promise<void> {
   try {
-    // Create a URL for the PDF blob
-    const url = URL.createObjectURL(pdfBlob);
-    
-    // Create a temporary link element
-    const link = document.createElement('a');
-    link.href = url;
+    // Detect iOS devices
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
     
     // Generate filename using crew info if available
+    let filename;
     if (options.crewInfo && options.date) {
-      link.download = generateExportFilename({
+      filename = generateExportFilename({
         crewNumber: options.crewInfo.crewNumber,
         fireName: options.crewInfo.fireName,
         fireNumber: options.crewInfo.fireNumber,
@@ -250,18 +248,67 @@ export async function downloadPDF(
         type: 'PDF'
       });
     } else {
-      link.download = options.filename || 'document.pdf';
+      filename = options.filename || 'document.pdf';
     }
     
-    console.log('🔍 PDFSaveHandler: Downloading PDF with filename:', link.download);
+    console.log('🔍 PDFSaveHandler: Downloading PDF with filename:', filename);
+    console.log('🔍 PDFSaveHandler: Device info:', { isIOS, isSafari, userAgent: navigator.userAgent });
     
-    // Trigger the download
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    // Clean up the URL
-    URL.revokeObjectURL(url);
+    if (isIOS && isSafari) {
+      // iOS Safari specific handling
+      console.log('🔍 PDFSaveHandler: Using iOS Safari download method');
+      
+      // Create a URL for the PDF blob
+      const url = URL.createObjectURL(pdfBlob);
+      
+      // For iOS Safari, we need to open in a new window/tab
+      const newWindow = window.open(url, '_blank');
+      
+      if (newWindow) {
+        // Set the window title to the filename
+        newWindow.document.title = filename;
+        
+        // Clean up the URL after a delay
+        setTimeout(() => {
+          URL.revokeObjectURL(url);
+        }, 1000);
+      } else {
+        // Fallback: create a link and try to download
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.target = '_blank';
+        
+        // Add to DOM temporarily
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up
+        setTimeout(() => {
+          URL.revokeObjectURL(url);
+        }, 1000);
+      }
+    } else {
+      // Standard download method for other browsers
+      console.log('🔍 PDFSaveHandler: Using standard download method');
+      
+      // Create a URL for the PDF blob
+      const url = URL.createObjectURL(pdfBlob);
+      
+      // Create a temporary link element
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      
+      // Trigger the download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up the URL
+      URL.revokeObjectURL(url);
+    }
   } catch (error) {
     console.error('Error downloading PDF:', error);
     throw new Error('Failed to download PDF');
