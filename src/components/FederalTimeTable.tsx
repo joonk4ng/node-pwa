@@ -872,7 +872,7 @@ export const FederalTimeTable: React.FC = () => {
                 fontWeight: '600',
                 color: '#2c3e50'
               }}>
-                Agreement Number
+                1. Agreement Number
               </label>
               <input
                 type="text"
@@ -901,7 +901,7 @@ export const FederalTimeTable: React.FC = () => {
                 fontWeight: '600',
                 color: '#2c3e50'
               }}>
-                Contractor/Agency Name
+                2. Contractor/Agency Name
               </label>
               <input
                 type="text"
@@ -930,7 +930,7 @@ export const FederalTimeTable: React.FC = () => {
                 fontWeight: '600',
                 color: '#2c3e50'
               }}>
-                Resource Order Number
+                3. Resource Order Number
               </label>
               <input
                 type="text"
@@ -959,7 +959,7 @@ export const FederalTimeTable: React.FC = () => {
                 fontWeight: '600',
                 color: '#2c3e50'
               }}>
-                Incident Name
+                4. Incident Name
               </label>
               <input
                 type="text"
@@ -988,7 +988,7 @@ export const FederalTimeTable: React.FC = () => {
                 fontWeight: '600',
                 color: '#2c3e50'
               }}>
-                Incident Number
+                5. Incident Number
               </label>
               <input
                 type="text"
@@ -1017,7 +1017,7 @@ export const FederalTimeTable: React.FC = () => {
                 fontWeight: '600',
                 color: '#2c3e50'
               }}>
-                Financial Code
+                6. Financial Code
               </label>
               <input
                 type="text"
@@ -1054,7 +1054,7 @@ export const FederalTimeTable: React.FC = () => {
                 fontWeight: '600',
                 color: '#2c3e50'
               }}>
-                Equipment Make/Model
+                7. Equipment Make/Model
               </label>
               <input
                 type="text"
@@ -1083,7 +1083,7 @@ export const FederalTimeTable: React.FC = () => {
                 fontWeight: '600',
                 color: '#2c3e50'
               }}>
-                Equipment Type
+                8. Equipment Type
               </label>
               <input
                 type="text"
@@ -1112,7 +1112,7 @@ export const FederalTimeTable: React.FC = () => {
                 fontWeight: '600',
                 color: '#2c3e50'
               }}>
-                Serial/VIN Number
+                9. Serial/VIN Number
               </label>
               <input
                 type="text"
@@ -1141,7 +1141,7 @@ export const FederalTimeTable: React.FC = () => {
                 fontWeight: '600',
                 color: '#2c3e50'
               }}>
-                License/ID Number
+                10. License/ID Number
               </label>
               <input
                 type="text"
@@ -1170,7 +1170,7 @@ export const FederalTimeTable: React.FC = () => {
                 fontWeight: '600',
                 color: '#2c3e50'
               }}>
-                Transport Retained?
+                12. Transport Retained?
               </label>
               <select
                 value={federalFormData.transportRetained}
@@ -1201,7 +1201,7 @@ export const FederalTimeTable: React.FC = () => {
                 fontWeight: '600',
                 color: '#2c3e50'
               }}>
-                First/Last Ticket?
+                13. First/Last Ticket?
               </label>
               <select
                 value={federalFormData.isFirstLastTicket}
@@ -1232,7 +1232,7 @@ export const FederalTimeTable: React.FC = () => {
                 fontWeight: '600',
                 color: '#2c3e50'
               }}>
-                Rate Type
+                14. Rate Type
               </label>
               <select
                 value={federalFormData.rateType}
@@ -1261,7 +1261,7 @@ export const FederalTimeTable: React.FC = () => {
                 fontWeight: '600',
                 color: '#2c3e50'
               }}>
-                Agency Representative
+                31. Contractor/Agency Representative
               </label>
               <input
                 type="text"
@@ -1290,7 +1290,7 @@ export const FederalTimeTable: React.FC = () => {
                 fontWeight: '600',
                 color: '#2c3e50'
               }}>
-                Incident Supervisor
+                33. Incident Supervisor
               </label>
               <input
                 type="text"
@@ -1333,9 +1333,9 @@ export const FederalTimeTable: React.FC = () => {
               flexDirection: 'column',
               gap: '12px'
             }}>
-              {Array.from({ length: 4 }, (_, idx) => {
+              {Array.from({ length: 1 }, (_, idx) => {
                 const entry = equipmentEntries[idx] || { date: '', start: '', stop: '', total: '', quantity: '', type: '', remarks: '' };
-                const rowColors = ['#e3f2fd', '#f3e5f5', '#e8f5e8', '#fff3e0'];
+                const rowColors = ['#e3f2fd'];
                 return (
                   <div key={idx} style={{
                     border: '1px solid #e9ecef',
@@ -1381,7 +1381,7 @@ export const FederalTimeTable: React.FC = () => {
                           color: '#2c3e50',
                           marginBottom: '4px'
                         }}>
-                          Equipment Entry #{idx + 1}
+                          Equipment Entry
                         </label>
                                                  <div style={{
                            position: 'relative'
@@ -1456,7 +1456,7 @@ export const FederalTimeTable: React.FC = () => {
                           marginBottom: '4px',
                           display: 'block'
                         }}>
-                          Start
+                          Start Time
                         </label>
                         <input
                           type="text"
@@ -1492,7 +1492,7 @@ export const FederalTimeTable: React.FC = () => {
                           marginBottom: '4px',
                           display: 'block'
                         }}>
-                          Stop
+                          Stop Time
                         </label>
                         <input
                           type="text"
@@ -1861,7 +1861,7 @@ export const FederalTimeTable: React.FC = () => {
                             marginBottom: '4px',
                             display: 'block'
                           }}>
-                            Start
+                            Start Time
                           </label>
                           <input
                             type="text"
@@ -1896,7 +1896,7 @@ export const FederalTimeTable: React.FC = () => {
                             marginBottom: '4px',
                             display: 'block'
                           }}>
-                            Stop
+                            Stop Time
                           </label>
                           <input
                             type="text"
@@ -1952,7 +1952,7 @@ export const FederalTimeTable: React.FC = () => {
                             marginBottom: '4px',
                             display: 'block'
                           }}>
-                            Start
+                            Start Time
                           </label>
                           <input
                             type="text"
@@ -1987,7 +1987,7 @@ export const FederalTimeTable: React.FC = () => {
                             marginBottom: '4px',
                             display: 'block'
                           }}>
-                            Stop
+                            Stop Time
                           </label>
                           <input
                             type="text"

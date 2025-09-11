@@ -118,19 +118,18 @@ export function mapFederalToPDFFields(
   // Note: We need to find the correct field name for this from the debug output
   // fields['topmostSubform[0].Page1[0]._30_Remarks__Provide_details_of_any_equipment_breakdown_or_operating_issues_Include_other_information_as_necessary[0]'] = (formData.remarks || '').substring(0, 200);
   
-  // Map equipment time entries to PDF fields (4 rows) - using calculated entries
-  calculatedEquipmentEntries.forEach((entry, index) => {
-    if (index < 4) { // PDF has 4 rows for equipment entries
-      const rowNum = index + 1;
-      fields[`topmostSubform[0].Page1[0]._15_DateRow${rowNum}[0]`] = (entry.date || '').substring(0, 12);
-      fields[`topmostSubform[0].Page1[0]._16_StartRow${rowNum}[0]`] = (entry.start || '').substring(0, 8);
-      fields[`topmostSubform[0].Page1[0]._17_StopRow${rowNum}[0]`] = (entry.stop || '').substring(0, 8);
-      fields[`topmostSubform[0].Page1[0]._18_TotalRow${rowNum}[0]`] = (entry.total || '').substring(0, 15);
-      fields[`topmostSubform[0].Page1[0]._19_QuantityRow${rowNum}[0]`] = (entry.quantity || '').substring(0, 15);
-      fields[`topmostSubform[0].Page1[0]._20_TypeRow${rowNum}[0]`] = (entry.type || '').substring(0, 20);
-      fields[`topmostSubform[0].Page1[0]._21_Note_Travel_Other_remarksRow${rowNum}[0]`] = (entry.remarks || '').substring(0, 50);
-    }
-  });
+  // Map equipment time entries to PDF fields (only first entry) - using calculated entries
+  if (calculatedEquipmentEntries.length > 0) {
+    const entry = calculatedEquipmentEntries[0]; // Only map the first equipment entry
+    const rowNum = 1; // Always use row 1
+    fields[`topmostSubform[0].Page1[0]._15_DateRow${rowNum}[0]`] = (entry.date || '').substring(0, 12);
+    fields[`topmostSubform[0].Page1[0]._16_StartRow${rowNum}[0]`] = (entry.start || '').substring(0, 8);
+    fields[`topmostSubform[0].Page1[0]._17_StopRow${rowNum}[0]`] = (entry.stop || '').substring(0, 8);
+    fields[`topmostSubform[0].Page1[0]._18_TotalRow${rowNum}[0]`] = (entry.total || '').substring(0, 15);
+    fields[`topmostSubform[0].Page1[0]._19_QuantityRow${rowNum}[0]`] = (entry.quantity || '').substring(0, 15);
+    fields[`topmostSubform[0].Page1[0]._20_TypeRow${rowNum}[0]`] = (entry.type || '').substring(0, 20);
+    fields[`topmostSubform[0].Page1[0]._21_Note_Travel_Other_remarksRow${rowNum}[0]`] = (entry.remarks || '').substring(0, 50);
+  }
   
   // Map personnel time entries to PDF fields (4 rows) - using calculated entries
   calculatedPersonnelEntries.forEach((entry, index) => {
