@@ -146,21 +146,20 @@ export async function savePDFWithSignature(
         const scaleX = flattenedPdfImage.width / baseCanvasInternalWidth;
         const scaleY = flattenedPdfImage.height / baseCanvasInternalHeight;
         
-        // Detect mobile device for coordinate adjustment
-        const isMobile = window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        // Detect iPad for coordinate adjustment
+        const isIPad = /iPad/.test(navigator.userAgent);
         
-        // Apply mobile-specific X-axis adjustment
+        // Apply iPad-specific X-axis adjustment
         let adjustedMinX = minX;
-        if (isMobile) {
-          // Adjust X coordinate to compensate for mobile positioning issues
-          // This shifts the signature slightly to the right to account for coordinate mapping discrepancies
-          const mobileXAdjustment = -145; // Adjust this value as needed
-          adjustedMinX = Math.max(0, minX - mobileXAdjustment);
+        if (isIPad) {
+          // iPad-specific adjustment to fix signature positioning
+          const ipadAdjustment = -125;
+          adjustedMinX = Math.max(0, minX - ipadAdjustment);
           
-          console.log('🔍 PDFSaveHandler: Mobile device detected, applying X-axis adjustment:', {
+          console.log('🔍 PDFSaveHandler: iPad detected, applying X-axis adjustment:', {
             originalMinX: minX,
             adjustedMinX: adjustedMinX,
-            adjustment: mobileXAdjustment
+            adjustment: ipadAdjustment
           });
         }
         
@@ -170,7 +169,7 @@ export async function savePDFWithSignature(
         const scaledSigHeight = sigHeight * scaleY;
         
         console.log('🔍 PDFSaveHandler: Drawing signature at scaled position:', {
-          isMobile,
+          isIPad,
           originalBounds: { minX, minY, width: sigWidth, height: sigHeight },
           adjustedBounds: { minX: adjustedMinX, minY, width: sigWidth, height: sigHeight },
           scaledBounds: { x: scaledMinX, y: scaledMinY, width: scaledSigWidth, height: scaledSigHeight },
