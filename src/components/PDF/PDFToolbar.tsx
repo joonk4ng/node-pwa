@@ -7,10 +7,6 @@ export interface PDFToolbarProps {
   onSave?: () => void;
   onClear: () => void;
   readOnly?: boolean;
-  currentZoom?: number;
-  availableZooms?: number[];
-  onZoomChange?: (zoom: number) => void;
-  isMobile?: boolean;
 }
 
 export const PDFToolbar: React.FC<PDFToolbarProps> = ({
@@ -18,11 +14,7 @@ export const PDFToolbar: React.FC<PDFToolbarProps> = ({
   onToggleDrawing,
   onSave,
   onClear,
-  readOnly = false,
-  currentZoom = 1.0,
-  availableZooms = [1.0, 1.25, 1.5],
-  onZoomChange,
-  isMobile = false
+  readOnly = false
 }) => {
   if (readOnly) {
     return (
@@ -41,24 +33,6 @@ export const PDFToolbar: React.FC<PDFToolbarProps> = ({
 
   return (
     <div className="toolbar">
-      {/* Zoom Controls - Only show on desktop */}
-      {onZoomChange && !isMobile && (
-        <div className="zoom-controls">
-          <span className="zoom-label">Zoom:</span>
-          {availableZooms.map((zoom) => (
-            <button
-              key={zoom}
-              onClick={() => onZoomChange(zoom)}
-              className={`zoom-btn ${Math.abs(currentZoom - zoom) < 0.01 ? 'active' : ''}`}
-              title={`${Math.round(zoom * 100)}%`}
-            >
-              {`${Math.round(zoom * 100)}%`}
-            </button>
-          ))}
-        </div>
-      )}
-      
-      
       <button
         onClick={onToggleDrawing}
         className={`draw-btn ${isDrawingMode ? 'active' : ''}`}

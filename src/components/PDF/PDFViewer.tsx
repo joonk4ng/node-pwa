@@ -3,7 +3,6 @@ import React, { useRef, useEffect, useState, useCallback, forwardRef, useImperat
 import * as pdfjsLib from 'pdfjs-dist';
 import { PDFCanvas, type PDFCanvasRef } from './PDFCanvas';
 import { DrawingCanvas, type DrawingCanvasRef } from './DrawingCanvas';
-import { ZoomControls } from './ZoomControls';
 import { savePDFWithSignature, downloadOriginalPDF } from '../../utils/PDF/pdfSaveHandler';
 import '../../styles/components/PDFViewer.css';
 
@@ -28,9 +27,6 @@ export interface PDFViewerRef {
   isDrawingMode: boolean;
   toggleDrawingMode: () => void;
   clearDrawing: () => void;
-  currentZoom: number;
-  setZoom: (zoom: number) => void;
-  availableZooms: number[];
   isRotated: boolean;
   toggleRotation: () => void;
 }
@@ -53,33 +49,21 @@ export const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({
   const [error, setError] = useState<string | null>(null);
   const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
   
-  // Zoom system state
-  const [currentZoom, setCurrentZoom] = useState(1.0);
-  const [isMobile, setIsMobile] = useState(false);
-  
   // Mobile rotation state
   const [isRotated, setIsRotated] = useState(false);
   
   // Drawing state
   const [isDrawingMode, setIsDrawingMode] = useState(false);
 
-  // Different zoom levels for mobile vs desktop
-  const availableZooms = isMobile ? [1.0, 1.5, 2.0, 2.5, 3.0] : [1.0, 1.25, 1.5];
-
   // Detect mobile device and enable rotation
   useEffect(() => {
     const checkMobile = () => {
       const isMobileDevice = window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      setIsMobile(isMobileDevice);
       
-      // Auto-enable rotation and better zoom on mobile
+      // Auto-enable rotation on mobile
       if (isMobileDevice && !isRotated) {
         setIsRotated(true);
-        // Auto-set to a higher zoom level for better mobile viewing
-        setTimeout(() => {
-          setCurrentZoom(2.5); // Increased to 2.5x zoom for better landscape utilization
-        }, 1000); // Delay to ensure PDF is loaded
-        console.log('📱 PDFViewer: Mobile device detected, auto-enabling landscape rotation and 2.5x zoom');
+        console.log('📱 PDFViewer: Mobile device detected, auto-enabling landscape rotation');
       }
     };
 
@@ -165,9 +149,6 @@ export const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({
     isDrawingMode,
     toggleDrawingMode,
     clearDrawing,
-    currentZoom,
-    setZoom: setCurrentZoom,
-    availableZooms,
     isRotated,
     toggleRotation
   }));
@@ -203,13 +184,6 @@ export const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({
               isRotated={isRotated}
               className="draw-canvas"
               pdfCanvasRef={pdfCanvasRef}
-            />
-            
-            <ZoomControls
-              pdfDoc={pdfDoc}
-              currentZoom={currentZoom}
-              onZoomChange={setCurrentZoom}
-              isMobile={isMobile}
             />
           </>
         )}

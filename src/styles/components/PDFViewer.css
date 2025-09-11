@@ -57,16 +57,16 @@
 }
 
 .toolbar {
-  position: absolute;
-  top: 10px;
-  right: 10px;
+  position: relative;
   display: flex;
   gap: 8px;
   background: rgba(255, 255, 255, 0.95);
-  padding: 8px;
+  padding: 12px;
   border-radius: 6px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  z-index: 20;
+  margin-top: 10px;
+  justify-content: center;
+  border: 1px solid #e0e0e0;
 }
 
 .toolbar button {
@@ -103,42 +103,6 @@
   height: 16px;
 }
 
-/* Zoom Controls */
-.zoom-controls {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-right: 8px;
-}
-
-.zoom-label {
-  font-size: 12px;
-  color: #666;
-  white-space: nowrap;
-}
-
-.zoom-btn {
-  padding: 4px 8px;
-  border: 1px solid #ddd;
-  border-radius: 3px;
-  background: white;
-  color: #333;
-  font-size: 11px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  min-width: 35px;
-}
-
-.zoom-btn:hover {
-  background: #f8f9fa;
-  border-color: #007bff;
-}
-
-.zoom-btn.active {
-  background: #007bff;
-  color: white;
-  border-color: #007bff;
-}
 
 /* Draw button specific styles */
 .toolbar .draw-btn {
@@ -311,17 +275,12 @@
   }
   
   .toolbar {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    top: auto;
-    transform: none;
+    position: relative;
+    margin-top: 10px;
     flex-wrap: wrap;
     justify-content: center;
-    max-width: none;
-    border-radius: 0;
-    border-top: 1px solid #ddd;
+    border-radius: 6px;
+    border: 1px solid #e0e0e0;
     background: rgba(255, 255, 255, 0.98);
     backdrop-filter: blur(10px);
   }
@@ -338,24 +297,6 @@
     height: 14px;
   }
   
-  .zoom-controls {
-    flex: 1;
-    justify-content: center;
-    margin-right: 0;
-    flex-wrap: wrap;
-    gap: 4px;
-  }
-  
-  .zoom-btn {
-    min-width: 45px !important;
-    font-size: 11px !important;
-    padding: 6px 8px !important;
-  }
-  
-  .zoom-label {
-    font-size: 14px !important;
-    margin-right: 8px;
-  }
 }
 
 /* Print styles */

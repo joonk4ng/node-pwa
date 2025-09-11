@@ -30,9 +30,6 @@ export const EnhancedPDFViewer: React.FC<EnhancedPDFViewerProps> = (props) => {
     isDrawingMode: boolean;
     toggleDrawingMode: () => void;
     clearDrawing: () => void;
-    currentZoom: number;
-    setZoom: (zoom: number) => void;
-    availableZooms: number[];
     isRotated: boolean;
     toggleRotation: () => void;
   }>(null);
@@ -63,17 +60,6 @@ export const EnhancedPDFViewer: React.FC<EnhancedPDFViewerProps> = (props) => {
     }
   };
 
-  // Handle zoom change
-  const handleZoomChange = (newZoom: number) => {
-    if (pdfViewerRef.current) {
-      pdfViewerRef.current.setZoom(newZoom);
-    }
-  };
-
-
-  // Get current zoom and available zooms
-  const getCurrentZoom = () => pdfViewerRef.current?.currentZoom || 1.0;
-  const getAvailableZooms = () => pdfViewerRef.current?.availableZooms || [1.0, 1.25, 1.5];
 
   return (
     <div className="enhanced-pdf-container">
@@ -85,10 +71,6 @@ export const EnhancedPDFViewer: React.FC<EnhancedPDFViewerProps> = (props) => {
           onSave={onSave ? handleSave : undefined}
           onClear={handleClearDrawing}
           readOnly={readOnly}
-          currentZoom={getCurrentZoom()}
-          availableZooms={getAvailableZooms()}
-          onZoomChange={handleZoomChange}
-          isMobile={window.innerWidth <= 768}
         />
       )}
     </div>
