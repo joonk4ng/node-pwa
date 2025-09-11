@@ -64,9 +64,10 @@
   padding: 12px;
   border-radius: 6px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  margin-top: 10px;
+  margin-bottom: 10px;
   justify-content: center;
   border: 1px solid #e0e0e0;
+  z-index: 20;
 }
 
 .toolbar button {
@@ -120,6 +121,7 @@
   background: #28a745;
   color: white;
   border-color: #28a745;
+  box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.25);
 }
 
 .save-btn {
@@ -131,6 +133,7 @@
 .save-btn:hover {
   background: #0056b3;
   border-color: #0056b3;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }
 
 .clear-btn {
@@ -142,6 +145,7 @@
 .clear-btn:hover {
   background: #c82333;
   border-color: #c82333;
+  box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.25);
 }
 
 .download-btn {
@@ -257,32 +261,17 @@
     min-height: 100vh !important; /* Increased minimum height to fill viewport */
   }
   
-  /* Rotated PDF adjustments for mobile */
-  .pdf-canvas[style*="rotate(90deg)"] {
-    max-width: 100vh !important;
-    max-height: 100vw !important;
-    width: auto !important;
-    height: auto !important;
-    min-height: 100vh !important; /* Ensure rotated PDF also fills viewport height */
-  }
-  
-  .draw-canvas[style*="rotate(90deg)"] {
-    max-width: 100vh !important;
-    max-height: 100vw !important;
-    width: auto !important;
-    height: auto !important;
-    min-height: 100vh !important; /* Ensure rotated PDF also fills viewport height */
-  }
   
   .toolbar {
     position: relative;
-    margin-top: 10px;
+    margin-bottom: 10px;
     flex-wrap: wrap;
     justify-content: center;
     border-radius: 6px;
     border: 1px solid #e0e0e0;
     background: rgba(255, 255, 255, 0.98);
     backdrop-filter: blur(10px);
+    z-index: 20;
   }
   
   .toolbar button {

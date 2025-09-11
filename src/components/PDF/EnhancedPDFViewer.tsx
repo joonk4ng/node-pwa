@@ -1,5 +1,5 @@
 // Enhanced PDF Viewer - Main component that combines PDF viewing with signature functionality
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import { PDFViewer } from './PDFViewer';
 import { PDFToolbar } from './PDFToolbar';
 
@@ -30,12 +30,7 @@ export const EnhancedPDFViewer: React.FC<EnhancedPDFViewerProps> = (props) => {
     isDrawingMode: boolean;
     toggleDrawingMode: () => void;
     clearDrawing: () => void;
-    isRotated: boolean;
-    toggleRotation: () => void;
   }>(null);
-
-  // Local state for toolbar
-  const [isDrawingMode, setIsDrawingMode] = useState(false);
 
   // Handle save action (saves flattened PDF with signature only)
   const handleSave = () => {
@@ -46,12 +41,14 @@ export const EnhancedPDFViewer: React.FC<EnhancedPDFViewerProps> = (props) => {
   };
 
   // Handle toggle drawing mode
-  const handleToggleDrawing = () => {
+  const handleToggleDrawing = async () => {
     if (pdfViewerRef.current) {
-      pdfViewerRef.current.toggleDrawingMode();
-      setIsDrawingMode(pdfViewerRef.current.isDrawingMode);
+      await pdfViewerRef.current.toggleDrawingMode();
     }
   };
+
+  // Get the current drawing mode from the PDFViewer
+  const isDrawingMode = pdfViewerRef.current?.isDrawingMode || false;
 
   // Handle clear drawing
   const handleClearDrawing = () => {
@@ -63,7 +60,6 @@ export const EnhancedPDFViewer: React.FC<EnhancedPDFViewerProps> = (props) => {
 
   return (
     <div className="enhanced-pdf-container">
-      <PDFViewer ref={pdfViewerRef} {...props} />
       {!readOnly && (
         <PDFToolbar
           isDrawingMode={isDrawingMode}
@@ -73,6 +69,7 @@ export const EnhancedPDFViewer: React.FC<EnhancedPDFViewerProps> = (props) => {
           readOnly={readOnly}
         />
       )}
+      <PDFViewer ref={pdfViewerRef} {...props} />
     </div>
   );
 };

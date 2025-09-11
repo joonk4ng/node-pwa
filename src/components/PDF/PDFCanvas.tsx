@@ -8,7 +8,6 @@ export interface PDFCanvasProps {
   pdfId?: string;
   className?: string;
   style?: React.CSSProperties;
-  isRotated?: boolean;
   onPDFLoaded?: (pdfDoc: pdfjsLib.PDFDocumentProxy) => void;
   onError?: (error: string) => void;
   onLoadingChange?: (isLoading: boolean) => void;
@@ -25,7 +24,6 @@ export const PDFCanvas = forwardRef<PDFCanvasRef, PDFCanvasProps>(({
   pdfId,
   className,
   style,
-  isRotated = false,
   onPDFLoaded,
   onError,
   onLoadingChange
@@ -126,10 +124,7 @@ export const PDFCanvas = forwardRef<PDFCanvasRef, PDFCanvasProps>(({
       ref={canvasRef} 
       className={className}
       style={{
-        ...style,
-        transform: isRotated ? 'rotate(90deg)' : 'none',
-        transformOrigin: 'center center',
-        transition: 'transform 0.3s ease-in-out'
+        ...style
       }}
     />
   );

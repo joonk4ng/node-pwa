@@ -1,5 +1,5 @@
 // Refactored PDF Viewer component using smaller, focused components
-import React, { useRef, useEffect, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
+import React, { useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { PDFCanvas, type PDFCanvasRef } from './PDFCanvas';
 import { DrawingCanvas, type DrawingCanvasRef } from './DrawingCanvas';
@@ -27,8 +27,6 @@ export interface PDFViewerRef {
   isDrawingMode: boolean;
   toggleDrawingMode: () => void;
   clearDrawing: () => void;
-  isRotated: boolean;
-  toggleRotation: () => void;
 }
 
 export const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({
@@ -49,29 +47,10 @@ export const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({
   const [error, setError] = useState<string | null>(null);
   const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
   
-  // Mobile rotation state
-  const [isRotated, setIsRotated] = useState(false);
   
   // Drawing state
   const [isDrawingMode, setIsDrawingMode] = useState(false);
 
-  // Detect mobile device and enable rotation
-  useEffect(() => {
-    const checkMobile = () => {
-      const isMobileDevice = window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      
-      // Auto-enable rotation on mobile
-      if (isMobileDevice && !isRotated) {
-        setIsRotated(true);
-        console.log('📱 PDFViewer: Mobile device detected, auto-enabling landscape rotation');
-      }
-    };
-
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    
-    return () => window.removeEventListener('resize', checkMobile);
-  }, [isRotated]);
 
   // Handle PDF loading
   const handlePDFLoaded = useCallback((loadedPdfDoc: pdfjsLib.PDFDocumentProxy) => {
@@ -89,10 +68,6 @@ export const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({
     setIsLoading(loading);
   }, []);
 
-  // Toggle rotation function
-  const toggleRotation = useCallback(() => {
-    setIsRotated(!isRotated);
-  }, [isRotated]);
 
   // Toggle drawing mode
   const toggleDrawingMode = useCallback(async () => {
@@ -148,9 +123,7 @@ export const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({
     handleDownload,
     isDrawingMode,
     toggleDrawingMode,
-    clearDrawing,
-    isRotated,
-    toggleRotation
+    clearDrawing
   }));
 
   return (
@@ -170,7 +143,6 @@ export const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({
           ref={pdfCanvasRef}
           pdfId={pdfId}
           className="pdf-canvas"
-          isRotated={isRotated}
           onPDFLoaded={handlePDFLoaded}
           onError={handlePDFError}
           onLoadingChange={handleLoadingChange}
@@ -181,7 +153,6 @@ export const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({
             <DrawingCanvas
               ref={drawingCanvasRef}
               isDrawingMode={isDrawingMode}
-              isRotated={isRotated}
               className="draw-canvas"
               pdfCanvasRef={pdfCanvasRef}
             />

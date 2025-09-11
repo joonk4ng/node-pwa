@@ -48,13 +48,45 @@ export const usePDFDrawing = (options: UsePDFDrawingOptions = {}) => {
       y: clientY * scaleY
     };
     
+    // Debug: Check if there's a PDF canvas to compare positioning
+    const container = drawCanvasRef.current.parentElement;
+    const pdfCanvas = container?.querySelector('.pdf-canvas') as HTMLCanvasElement;
+    let pdfRect = null;
+    if (pdfCanvas) {
+      pdfRect = pdfCanvas.getBoundingClientRect();
+    }
+    
     console.log('🔍 usePDFDrawing: Touch position (scaled mapping)', {
       eventType: e.type,
       clientPos: { x: touch.clientX, y: touch.clientY },
       rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
       canvasSize: { width: drawCanvasRef.current.width, height: drawCanvasRef.current.height },
       scale: { x: scaleX, y: scaleY },
-      finalPos: pos
+      finalPos: pos,
+      canvasStyle: {
+        left: drawCanvasRef.current.style.left,
+        top: drawCanvasRef.current.style.top,
+        position: drawCanvasRef.current.style.position
+      },
+      // Debug: Check if the canvas is positioned correctly
+      canvasPosition: {
+        actualLeft: rect.left,
+        actualTop: rect.top,
+        styleLeft: drawCanvasRef.current.style.left,
+        styleTop: drawCanvasRef.current.style.top
+      },
+      // Debug: Compare with PDF canvas position
+      pdfCanvasPosition: pdfRect ? {
+        left: pdfRect.left,
+        top: pdfRect.top,
+        width: pdfRect.width,
+        height: pdfRect.height
+      } : null,
+      // Debug: Calculate offset between drawing canvas and PDF canvas
+      offsetFromPDF: pdfRect ? {
+        x: rect.left - pdfRect.left,
+        y: rect.top - pdfRect.top
+      } : null
     });
     
     return pos;

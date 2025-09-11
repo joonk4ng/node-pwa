@@ -4,7 +4,6 @@ import { usePDFDrawing } from '../../hooks/usePDFDrawing';
 
 export interface DrawingCanvasProps {
   isDrawingMode: boolean;
-  isRotated?: boolean;
   className?: string;
   style?: React.CSSProperties;
   pdfCanvasRef?: React.RefObject<{ canvas: HTMLCanvasElement | null } | null>;
@@ -18,7 +17,6 @@ export interface DrawingCanvasRef {
 
 export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   isDrawingMode,
-  isRotated = false,
   className,
   style,
   pdfCanvasRef
@@ -80,21 +78,46 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
             // Calculate device pixel ratio for high-DPI displays
             const devicePixelRatio = window.devicePixelRatio || 1;
             
-            // Set drawing canvas internal size to match PDF canvas internal size
+            // Set drawing canvas internal size to match PDF canvas internal size exactly
             // This ensures proper coordinate mapping regardless of display scaling
             drawCanvasRef.current.width = pdfCanvas.width;
             drawCanvasRef.current.height = pdfCanvas.height;
             
-            // Set display size to match PDF canvas display size
+            // Set display size to match PDF canvas display size exactly
             drawCanvasRef.current.style.width = `${pdfRect.width}px`;
             drawCanvasRef.current.style.height = `${pdfRect.height}px`;
             
-            // Position the drawing canvas to match the PDF canvas position
+            // Position the drawing canvas to match the PDF canvas position exactly
+            // Calculate the offset from the container to the PDF canvas
             const pdfOffsetX = pdfRect.left - containerRect.left;
             const pdfOffsetY = pdfRect.top - containerRect.top;
             
+            // Ensure the drawing canvas is positioned absolutely and matches the PDF canvas exactly
+            drawCanvasRef.current.style.position = 'absolute';
             drawCanvasRef.current.style.left = `${pdfOffsetX}px`;
             drawCanvasRef.current.style.top = `${pdfOffsetY}px`;
+            drawCanvasRef.current.style.zIndex = '10';
+            
+            // Reset any transform that might be affecting positioning
+            drawCanvasRef.current.style.transform = 'none';
+            drawCanvasRef.current.style.transformOrigin = 'initial';
+            
+            // Verify the positioning is correct by checking the actual position
+            const drawRect = drawCanvasRef.current.getBoundingClientRect();
+            const positionMatch = Math.abs(drawRect.left - pdfRect.left) < 1 && Math.abs(drawRect.top - pdfRect.top) < 1;
+            
+            // If positioning doesn't match, try to correct it
+            if (!positionMatch) {
+              console.warn('🔍 DrawingCanvas: Position mismatch detected, attempting correction...');
+              // Force the position to match exactly
+              drawCanvasRef.current.style.left = `${pdfOffsetX}px`;
+              drawCanvasRef.current.style.top = `${pdfOffsetY}px`;
+              
+              // Re-check position after correction
+              const correctedRect = drawCanvasRef.current.getBoundingClientRect();
+              const correctedMatch = Math.abs(correctedRect.left - pdfRect.left) < 1 && Math.abs(correctedRect.top - pdfRect.top) < 1;
+              console.log('🔍 DrawingCanvas: Position after correction:', correctedMatch);
+            }
             
             // Set up the drawing canvas context
             const drawCtx = drawCanvasRef.current.getContext('2d');
@@ -108,11 +131,22 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
             
             console.log('🔍 DrawingCanvas: Enhanced canvas setup', {
               pdfCanvas: { width: pdfCanvas.width, height: pdfCanvas.height },
-              pdfRect: { width: pdfRect.width, height: pdfRect.height },
+              pdfRect: { width: pdfRect.width, height: pdfRect.height, left: pdfRect.left, top: pdfRect.top },
+              containerRect: { left: containerRect.left, top: containerRect.top },
               offset: { x: pdfOffsetX, y: pdfOffsetY },
-              drawingCanvas: { width: drawCanvasRef.current.width, height: drawCanvasRef.current.height },
+              drawingCanvas: { 
+                width: drawCanvasRef.current.width, 
+                height: drawCanvasRef.current.height,
+                styleWidth: drawCanvasRef.current.style.width,
+                styleHeight: drawCanvasRef.current.style.height,
+                styleLeft: drawCanvasRef.current.style.left,
+                styleTop: drawCanvasRef.current.style.top,
+                actualLeft: drawRect.left,
+                actualTop: drawRect.top
+              },
               devicePixelRatio,
-              isAligned: drawCanvasRef.current.width === pdfCanvas.width && drawCanvasRef.current.height === pdfCanvas.height
+              isAligned: drawCanvasRef.current.width === pdfCanvas.width && drawCanvasRef.current.height === pdfCanvas.height,
+              positionMatch
             });
           }
         }
@@ -250,9 +284,6 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
           ...style,
           pointerEvents: isDrawingMode ? 'auto' : 'none',
           cursor: isDrawingMode ? 'crosshair' : 'default',
-          transform: isRotated ? 'rotate(90deg)' : 'none',
-          transformOrigin: 'center center',
-          transition: 'transform 0.3s ease-in-out',
           // Mobile-specific touch handling
           touchAction: isDrawingMode ? 'none' : 'auto',
           WebkitTouchCallout: 'none',
@@ -308,19 +339,6 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
             zIndex: 20
           }}>
             Mobile: {/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ? 'Yes' : 'No'}
-          </div>
-          <div style={{
-            position: 'absolute',
-            top: '100px',
-            left: '10px',
-            background: 'rgba(255, 165, 0, 0.7)',
-            color: 'white',
-            padding: '5px 10px',
-            borderRadius: '4px',
-            fontSize: '12px',
-            zIndex: 20
-          }}>
-            Rotated: {isRotated ? 'Yes' : 'No'}
           </div>
           <div style={{
             position: 'absolute',
