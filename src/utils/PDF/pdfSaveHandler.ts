@@ -157,7 +157,7 @@ export async function savePDFWithSignature(
           
           if (isIPad) {
             // iPad-specific adjustment (easily changeable)
-            adjustment = -65;
+            adjustment = -45;
           } else {
             // General mobile device adjustment
             adjustment = -185;
