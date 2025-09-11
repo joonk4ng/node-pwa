@@ -66,7 +66,7 @@ export async function savePDFWithSignature(
       willReadFrequently: false, // Optimize for write-only operations
       imageSmoothingEnabled: true, // Enable image smoothing for better quality
       imageSmoothingQuality: 'high' // Use high quality smoothing
-    });
+    }) as CanvasRenderingContext2D;
     
     if (!highResCtx) throw new Error('Failed to get high-res canvas context');
     

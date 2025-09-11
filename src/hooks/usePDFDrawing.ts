@@ -8,14 +8,13 @@ export interface DrawingState {
 }
 
 export interface UsePDFDrawingOptions {
-  onBeforeSign?: () => Promise<void>;
   readOnly?: boolean;
   canvasRef?: React.RefObject<HTMLCanvasElement | null>;
   isDrawingMode?: boolean;
 }
 
 export const usePDFDrawing = (options: UsePDFDrawingOptions = {}) => {
-  const { onBeforeSign, readOnly = false, canvasRef, isDrawingMode = false } = options;
+  const { readOnly = false, canvasRef, isDrawingMode = false } = options;
   
   const [isDrawing, setIsDrawing] = useState(false);
   const lastPosRef = useRef<{ x: number; y: number } | null>(null);
