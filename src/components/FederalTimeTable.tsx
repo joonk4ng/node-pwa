@@ -274,9 +274,61 @@ export const FederalTimeTable: React.FC = () => {
   // Time validation state
   const [timeValidationErrors, setTimeValidationErrors] = useState<Record<string, string>>({});
 
+  // Utility function to convert YYYY-MM-DD to MM/DD/YY format
+  const convertYYYYMMDDToMMDDYY = (dateStr: string): string => {
+    if (dateStr.includes('-') && dateStr.length === 10) {
+      const [year, month, day] = dateStr.split('-');
+      const shortYear = year.slice(-2);
+      return `${month}/${day}/${shortYear}`;
+    }
+    return dateStr; // Already in MM/DD/YY format
+  };
+
+  // Migration function to convert old date formats to new format
+  const migrateDateFormats = async () => {
+    try {
+      // Load all entries
+      const allEquipmentEntries = await loadAllFederalEquipmentEntries();
+      const allPersonnelEntries = await loadAllFederalPersonnelEntries();
+      
+      let hasChanges = false;
+      
+      // Check and convert equipment entries
+      for (const entry of allEquipmentEntries) {
+        if (entry.date && entry.date.includes('-') && entry.date.length === 10) {
+          const newDate = convertYYYYMMDDToMMDDYY(entry.date);
+          if (newDate !== entry.date) {
+            await saveFederalEquipmentEntry({ ...entry, date: newDate });
+            hasChanges = true;
+          }
+        }
+      }
+      
+      // Check and convert personnel entries
+      for (const entry of allPersonnelEntries) {
+        if (entry.date && entry.date.includes('-') && entry.date.length === 10) {
+          const newDate = convertYYYYMMDDToMMDDYY(entry.date);
+          if (newDate !== entry.date) {
+            await saveFederalPersonnelEntry({ ...entry, date: newDate });
+            hasChanges = true;
+          }
+        }
+      }
+      
+      if (hasChanges) {
+        console.log('Migrated old date formats to MM/DD/YY format');
+      }
+    } catch (error) {
+      console.error('Error migrating date formats:', error);
+    }
+  };
+
   // Load Federal data from IndexedDB on mount
   useEffect(() => {
     const initializeData = async () => {
+      // First, migrate any old date formats
+      await migrateDateFormats();
+      
       // Load form data
       const saved = await loadFederalFormData();
       if (saved) {
@@ -904,7 +956,7 @@ export const FederalTimeTable: React.FC = () => {
   const saveDataForDate = async () => {
     try {
       // Ensure we have a date to save to
-      const dateToSave = currentSelectedDate || new Date().toISOString().split('T')[0];
+      const dateToSave = currentSelectedDate || formatToMMDDYY(new Date());
       
       console.log('Saving data for date:', dateToSave);
       console.log('Equipment entries to save:', equipmentEntries.length);
