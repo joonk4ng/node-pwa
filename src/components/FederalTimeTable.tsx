@@ -683,12 +683,14 @@ export const FederalTimeTable: React.FC = () => {
   // Next Day handlers
   const handleNextDay = async () => {
     try {
-      // First, save the current data
+      // First, save the current data for the current selected date
       await saveDataForDate();
       
-      // Get the current date from the first equipment entry, or use today's date
+      // Get the current date from the selected date or first equipment entry, or use today's date
       let currentDate = new Date();
-      if (equipmentEntries.length > 0 && equipmentEntries[0].date) {
+      if (currentSelectedDate) {
+        currentDate = new Date(currentSelectedDate);
+      } else if (equipmentEntries.length > 0 && equipmentEntries[0].date) {
         currentDate = new Date(equipmentEntries[0].date);
       }
       
@@ -705,7 +707,7 @@ export const FederalTimeTable: React.FC = () => {
       setCurrentSelectedDate(nextDateString);
       await loadDataForDate(nextDateString);
       
-      console.log('Data saved and copied to next day:', nextDateString);
+      console.log('Data saved for current date and copied to next day:', nextDateString);
     } catch (error) {
       console.error('Error creating next day:', error);
     }
@@ -818,6 +820,13 @@ export const FederalTimeTable: React.FC = () => {
 
   const saveDataForDate = async () => {
     try {
+      // Ensure we have a date to save to
+      const dateToSave = currentSelectedDate || new Date().toISOString().split('T')[0];
+      
+      console.log('Saving data for date:', dateToSave);
+      console.log('Equipment entries to save:', equipmentEntries.length);
+      console.log('Personnel entries to save:', personnelEntries.length);
+      
       // Save current form data
       await saveFederalFormData(federalFormData);
       
@@ -825,10 +834,11 @@ export const FederalTimeTable: React.FC = () => {
       for (const entry of equipmentEntries) {
         const entryToSave = {
           ...entry,
-          date: currentSelectedDate || entry.date
+          date: dateToSave
         };
         if (entryToSave.date || entryToSave.start || entryToSave.stop || entryToSave.total || entryToSave.quantity || entryToSave.type || entryToSave.remarks) {
           await saveFederalEquipmentEntry(entryToSave);
+          console.log('Saved equipment entry for date:', dateToSave);
         }
       }
       
@@ -836,17 +846,18 @@ export const FederalTimeTable: React.FC = () => {
       for (const entry of personnelEntries) {
         const entryToSave = {
           ...entry,
-          date: currentSelectedDate || entry.date
+          date: dateToSave
         };
         if (entryToSave.date || entryToSave.name || entryToSave.start1 || entryToSave.stop1 || entryToSave.start2 || entryToSave.stop2 || entryToSave.total || entryToSave.remarks) {
           await saveFederalPersonnelEntry(entryToSave);
+          console.log('Saved personnel entry for date:', dateToSave);
         }
       }
       
       // Refresh the saved dates list
       await refreshSavedDates();
       
-      console.log('Data saved for date:', currentSelectedDate);
+      console.log('Data saved for date:', dateToSave);
     } catch (error) {
       console.error('Error saving data for date:', error);
     }
