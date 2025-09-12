@@ -85,9 +85,15 @@ export const DateCalendar: React.FC<DateCalendarProps> = ({ savedDates, onDateSe
   // check if the date is saved
   const isDateSaved = (date: Date) => {
     const dateStr = date.toISOString().split('T')[0];
-    return savedDates.some(range => {
-      const [start, end] = range.split(' to ');
-      return dateStr >= start && dateStr <= end;
+    return savedDates.some(savedDate => {
+      // Handle both individual dates and date ranges
+      if (savedDate.includes(' to ')) {
+        const [start, end] = savedDate.split(' to ');
+        return dateStr >= start && dateStr <= end;
+      } else {
+        // Handle individual dates
+        return dateStr === savedDate;
+      }
     });
   };
 

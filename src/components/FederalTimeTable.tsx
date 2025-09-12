@@ -4,8 +4,10 @@ import type { FederalEquipmentEntry, FederalPersonnelEntry, FederalFormData } fr
 import {
   saveFederalEquipmentEntry,
   loadAllFederalEquipmentEntries,
+  deleteFederalEquipmentEntry,
   saveFederalPersonnelEntry,
   loadAllFederalPersonnelEntries,
+  deleteFederalPersonnelEntry,
   saveFederalFormData,
   loadFederalFormData
 } from '../utils/engineTimeDB';
@@ -274,19 +276,32 @@ export const FederalTimeTable: React.FC = () => {
 
   // Load Federal data from IndexedDB on mount
   useEffect(() => {
-    loadFederalFormData().then((saved) => {
+    const initializeData = async () => {
+      // Load form data
+      const saved = await loadFederalFormData();
       if (saved) {
         setFederalFormData(saved);
       }
-    });
 
-    loadAllFederalEquipmentEntries().then((entries) => {
-      setEquipmentEntries(entries);
-    });
-
-    loadAllFederalPersonnelEntries().then((entries) => {
-      setPersonnelEntries(entries);
-    });
+      // Load all equipment and personnel entries
+      const equipmentEntries = await loadAllFederalEquipmentEntries();
+      const personnelEntries = await loadAllFederalPersonnelEntries();
+      
+      setEquipmentEntries(equipmentEntries);
+      setPersonnelEntries(personnelEntries);
+      
+      // Set today's date as default if no date is selected
+      if (!currentSelectedDate) {
+        const today = new Date().toISOString().split('T')[0];
+        setCurrentSelectedDate(today);
+        await loadDataForDate(today);
+      }
+      
+      // Update saved dates list
+      await refreshSavedDates();
+    };
+    
+    initializeData();
   }, []);
 
   // Initialize federal PDF in storage
@@ -665,25 +680,139 @@ export const FederalTimeTable: React.FC = () => {
     loadDataForDate(dateRange);
   };
 
+  // Next Day handlers
+  const handleNextDay = async () => {
+    try {
+      // First, save the current data
+      await saveDataForDate();
+      
+      // Get the current date from the first equipment entry, or use today's date
+      let currentDate = new Date();
+      if (equipmentEntries.length > 0 && equipmentEntries[0].date) {
+        currentDate = new Date(equipmentEntries[0].date);
+      }
+      
+      // Add one day
+      const nextDate = new Date(currentDate);
+      nextDate.setDate(nextDate.getDate() + 1);
+      
+      const nextDateString = nextDate.toISOString().split('T')[0];
+      
+      // Copy all current data to the next day
+      await copyDataToNextDay(nextDateString);
+      
+      // Set the new date as current and load it
+      setCurrentSelectedDate(nextDateString);
+      await loadDataForDate(nextDateString);
+      
+      console.log('Data saved and copied to next day:', nextDateString);
+    } catch (error) {
+      console.error('Error creating next day:', error);
+    }
+  };
+
+
+  const copyDataToNextDay = async (nextDateString: string) => {
+    try {
+      // Copy form data (it's a singleton, so we keep the same form data)
+      // The form data doesn't need to be copied as it's shared across dates
+      
+      // Get all existing entries for the next day to clear them first
+      const allEquipmentEntries = await loadAllFederalEquipmentEntries();
+      const allPersonnelEntries = await loadAllFederalPersonnelEntries();
+      
+      // Clear existing entries for the next day
+      const existingEquipmentForNextDay = allEquipmentEntries.filter(entry => entry.date === nextDateString);
+      const existingPersonnelForNextDay = allPersonnelEntries.filter(entry => entry.date === nextDateString);
+      
+      // Delete existing entries for the next day
+      for (const entry of existingEquipmentForNextDay) {
+        if (entry.id) {
+          await deleteFederalEquipmentEntry(entry.id);
+        }
+      }
+      
+      for (const entry of existingPersonnelForNextDay) {
+        if (entry.id) {
+          await deleteFederalPersonnelEntry(entry.id);
+        }
+      }
+      
+      // Copy equipment entries with one-to-one mapping
+      const newEquipmentEntries = equipmentEntries.map(entry => ({
+        ...entry,
+        id: undefined, // Remove ID so it creates a new entry
+        date: nextDateString
+      }));
+      
+      // Copy personnel entries with one-to-one mapping
+      const newPersonnelEntries = personnelEntries.map(entry => ({
+        ...entry,
+        id: undefined, // Remove ID so it creates a new entry
+        date: nextDateString
+      }));
+      
+      // Save the new entries in order (maintaining one-to-one mapping)
+      for (const entry of newEquipmentEntries) {
+        if (entry.date || entry.start || entry.stop || entry.total || entry.quantity || entry.type || entry.remarks) {
+          await saveFederalEquipmentEntry(entry);
+        }
+      }
+      
+      for (const entry of newPersonnelEntries) {
+        if (entry.date || entry.name || entry.start1 || entry.stop1 || entry.start2 || entry.stop2 || entry.total || entry.remarks) {
+          await saveFederalPersonnelEntry(entry);
+        }
+      }
+      
+      // Refresh the saved dates list
+      await refreshSavedDates();
+      
+      console.log('Data copied to next day with one-to-one mapping successfully');
+    } catch (error) {
+      console.error('Error copying data to next day:', error);
+    }
+  };
+
   const loadDataForDate = async (dateRange: string) => {
     try {
       console.log('Loading data for date range:', dateRange);
       
-      // Load form data for the specific date
+      // Load form data (singleton)
       const formData = await loadFederalFormData();
       if (formData) {
         setFederalFormData(formData);
       }
 
       // Load equipment entries for the specific date
-      const equipmentEntries = await loadAllFederalEquipmentEntries();
-      setEquipmentEntries(equipmentEntries);
+      const allEquipmentEntries = await loadAllFederalEquipmentEntries();
+      const dateEquipmentEntries = allEquipmentEntries.filter(entry => entry.date === dateRange);
+      setEquipmentEntries(dateEquipmentEntries);
 
       // Load personnel entries for the specific date
-      const personnelEntries = await loadAllFederalPersonnelEntries();
-      setPersonnelEntries(personnelEntries);
+      const allPersonnelEntries = await loadAllFederalPersonnelEntries();
+      const datePersonnelEntries = allPersonnelEntries.filter(entry => entry.date === dateRange);
+      setPersonnelEntries(datePersonnelEntries);
     } catch (error) {
       console.error('Error loading data for date:', error);
+    }
+  };
+
+  const refreshSavedDates = async () => {
+    try {
+      // Load all equipment and personnel entries to get all dates
+      const allEquipmentEntries = await loadAllFederalEquipmentEntries();
+      const allPersonnelEntries = await loadAllFederalPersonnelEntries();
+      
+      // Collect all unique dates
+      const allDates = new Set<string>();
+      allEquipmentEntries.forEach(entry => entry.date && allDates.add(entry.date));
+      allPersonnelEntries.forEach(entry => entry.date && allDates.add(entry.date));
+      
+      setSavedDates(Array.from(allDates));
+      console.log('Refreshed saved dates:', Array.from(allDates));
+    } catch (error) {
+      console.error('Error refreshing saved dates:', error);
     }
   };
 
@@ -692,24 +821,30 @@ export const FederalTimeTable: React.FC = () => {
       // Save current form data
       await saveFederalFormData(federalFormData);
       
-      // Save equipment entries
+      // Save equipment entries with the current selected date
       for (const entry of equipmentEntries) {
-        if (entry.date || entry.start || entry.stop || entry.total || entry.quantity || entry.type || entry.remarks) {
-          await saveFederalEquipmentEntry(entry);
+        const entryToSave = {
+          ...entry,
+          date: currentSelectedDate || entry.date
+        };
+        if (entryToSave.date || entryToSave.start || entryToSave.stop || entryToSave.total || entryToSave.quantity || entryToSave.type || entryToSave.remarks) {
+          await saveFederalEquipmentEntry(entryToSave);
         }
       }
       
-      // Save personnel entries
+      // Save personnel entries with the current selected date
       for (const entry of personnelEntries) {
-        if (entry.date || entry.name || entry.start1 || entry.stop1 || entry.start2 || entry.stop2 || entry.total || entry.remarks) {
-          await saveFederalPersonnelEntry(entry);
+        const entryToSave = {
+          ...entry,
+          date: currentSelectedDate || entry.date
+        };
+        if (entryToSave.date || entryToSave.name || entryToSave.start1 || entryToSave.stop1 || entryToSave.start2 || entryToSave.stop2 || entryToSave.total || entryToSave.remarks) {
+          await saveFederalPersonnelEntry(entryToSave);
         }
       }
       
-      // Update saved dates list
-      if (currentSelectedDate && !savedDates.includes(currentSelectedDate)) {
-        setSavedDates(prev => [...prev, currentSelectedDate]);
-      }
+      // Refresh the saved dates list
+      await refreshSavedDates();
       
       console.log('Data saved for date:', currentSelectedDate);
     } catch (error) {
@@ -807,24 +942,8 @@ export const FederalTimeTable: React.FC = () => {
               📅 Previous Tickets
             </button>
             
-            {currentSelectedDate && (
-              <div style={{
-                padding: '8px 12px',
-                backgroundColor: '#e3f2fd',
-                color: '#1976d2',
-                borderRadius: '6px',
-                fontSize: '14px',
-                fontWeight: '500',
-                border: '1px solid #bbdefb'
-              }}>
-                Selected: {currentSelectedDate}
-              </div>
-            )}
-          </div>
-          
-          {currentSelectedDate && (
             <button
-              onClick={saveDataForDate}
+              onClick={handleNextDay}
               style={{
                 padding: '8px 16px',
                 backgroundColor: '#28a745',
@@ -842,9 +961,24 @@ export const FederalTimeTable: React.FC = () => {
               onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#218838'}
               onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#28a745'}
             >
-              💾 Save Data
+              ➡️ Next Day
             </button>
-          )}
+            
+            {currentSelectedDate && (
+              <div style={{
+                padding: '8px 12px',
+                backgroundColor: '#e3f2fd',
+                color: '#1976d2',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: '500',
+                border: '1px solid #bbdefb'
+              }}>
+                Selected: {currentSelectedDate}
+              </div>
+            )}
+          </div>
+          
         </div>
 
         {/* Form Content Container */}
