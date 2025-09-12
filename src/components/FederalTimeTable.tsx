@@ -306,6 +306,12 @@ export const FederalTimeTable: React.FC = () => {
 
   // Function to update selected date based on entry dates
   const updateSelectedDateFromEntries = useCallback(() => {
+    // Only update the selected date if there's no current selected date
+    // This prevents overriding the user's current date selection
+    if (currentSelectedDate) {
+      return; // Don't update if user has already selected a date
+    }
+    
     // Check equipment entries for dates
     const equipmentDates = equipmentEntries
       .filter(entry => entry.date && entry.date.trim() !== '')
@@ -323,19 +329,14 @@ export const FederalTimeTable: React.FC = () => {
       // If there's only one date, use it
       if (allDates.length === 1) {
         const singleDate = allDates[0];
-        if (singleDate !== currentSelectedDate) {
-          setCurrentSelectedDate(singleDate);
-          console.log('Updated selected date to single entry date:', singleDate);
-        }
+        setCurrentSelectedDate(singleDate);
+        console.log('Updated selected date to single entry date:', singleDate);
       } else {
         // If there are multiple dates, use the most recent one
         const sortedDates = allDates.sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
         const mostRecentDate = sortedDates[0];
-        
-        if (mostRecentDate !== currentSelectedDate) {
-          setCurrentSelectedDate(mostRecentDate);
-          console.log('Updated selected date to most recent entry date:', mostRecentDate);
-        }
+        setCurrentSelectedDate(mostRecentDate);
+        console.log('Updated selected date to most recent entry date:', mostRecentDate);
       }
     }
   }, [equipmentEntries, personnelEntries, currentSelectedDate]);
@@ -735,9 +736,6 @@ export const FederalTimeTable: React.FC = () => {
   // Next Day handlers
   const handleNextDay = async () => {
     try {
-      // First, save the current data for the current selected date
-      await saveDataForDate();
-      
       // Get the current date from the selected date or first equipment entry, or use today's date
       let currentDate = new Date();
       if (currentSelectedDate) {
@@ -751,6 +749,9 @@ export const FederalTimeTable: React.FC = () => {
       nextDate.setDate(nextDate.getDate() + 1);
       
       const nextDateString = nextDate.toISOString().split('T')[0];
+      
+      // First, save the current data for the current selected date
+      await saveDataForDate();
       
       // Copy all current data to the next day
       await copyDataToNextDay(nextDateString);
