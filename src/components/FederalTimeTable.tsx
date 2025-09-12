@@ -1,5 +1,5 @@
 // Federal Time Table
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { FederalEquipmentEntry, FederalPersonnelEntry, FederalFormData } from '../utils/engineTimeDB';
 import {
   saveFederalEquipmentEntry,
@@ -304,6 +304,55 @@ export const FederalTimeTable: React.FC = () => {
     initializeData();
   }, []);
 
+  // Function to update selected date based on entry dates
+  const updateSelectedDateFromEntries = useCallback(() => {
+    // Check equipment entries for dates
+    const equipmentDates = equipmentEntries
+      .filter(entry => entry.date && entry.date.trim() !== '')
+      .map(entry => entry.date);
+    
+    // Check personnel entries for dates
+    const personnelDates = personnelEntries
+      .filter(entry => entry.date && entry.date.trim() !== '')
+      .map(entry => entry.date);
+    
+    // Get all unique dates
+    const allDates = [...new Set([...equipmentDates, ...personnelDates])];
+    
+    if (allDates.length > 0) {
+      // If there's only one date, use it
+      if (allDates.length === 1) {
+        const singleDate = allDates[0];
+        if (singleDate !== currentSelectedDate) {
+          setCurrentSelectedDate(singleDate);
+          console.log('Updated selected date to single entry date:', singleDate);
+        }
+      } else {
+        // If there are multiple dates, use the most recent one
+        const sortedDates = allDates.sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+        const mostRecentDate = sortedDates[0];
+        
+        if (mostRecentDate !== currentSelectedDate) {
+          setCurrentSelectedDate(mostRecentDate);
+          console.log('Updated selected date to most recent entry date:', mostRecentDate);
+        }
+      }
+    }
+  }, [equipmentEntries, personnelEntries, currentSelectedDate]);
+
+  // Watch for date changes in entries and update selected date
+  useEffect(() => {
+    updateSelectedDateFromEntries();
+  }, [updateSelectedDateFromEntries]);
+
+  // Function to handle manual date selection in entries
+  const handleEntryDateSelect = useCallback((selectedDate: string) => {
+    if (selectedDate && selectedDate !== currentSelectedDate) {
+      setCurrentSelectedDate(selectedDate);
+      console.log('Manually updated selected date from entry:', selectedDate);
+    }
+  }, [currentSelectedDate]);
+
   // Initialize federal PDF in storage
   useEffect(() => {
     const initializeFederalPDF = async () => {
@@ -499,6 +548,9 @@ export const FederalTimeTable: React.FC = () => {
       } else {
         handlePersonnelEntryChange(calendarOpen.index, 'date', date);
       }
+      
+      // Update the main selected date when a date is selected in an entry
+      handleEntryDateSelect(date);
     }
   };
 
