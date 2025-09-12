@@ -726,11 +726,16 @@ export const FederalTimeTable: React.FC = () => {
     setShowMainCalendar(false);
   };
 
-  const handleMainDateSelect = (dateRange: string) => {
+  const handleMainDateSelect = async (dateRange: string) => {
+    // First, save the current data before switching dates
+    if (currentSelectedDate && currentSelectedDate !== dateRange) {
+      await saveDataForDate();
+    }
+    
     setCurrentSelectedDate(dateRange);
     setShowMainCalendar(false);
     // Load data for the selected date
-    loadDataForDate(dateRange);
+    await loadDataForDate(dateRange);
   };
 
   // Utility function to convert MM/DD/YY to Date object
