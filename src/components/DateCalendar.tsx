@@ -65,34 +65,59 @@ export const DateCalendar: React.FC<DateCalendarProps> = ({ savedDates, onDateSe
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
   };
 
+  // Utility function to convert Date to MM/DD/YY format
+  const formatToMMDDYY = (date: Date): string => {
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const year = date.getFullYear().toString().slice(-2);
+    return `${month}/${day}/${year}`;
+  };
+
+  // Utility function to convert MM/DD/YY to YYYY-MM-DD format
+  const convertMMDDYYToYYYYMMDD = (dateStr: string): string => {
+    if (dateStr.includes('/')) {
+      const [month, day, year] = dateStr.split('/');
+      const fullYear = 2000 + parseInt(year);
+      return `${fullYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+    return dateStr; // Already in YYYY-MM-DD format
+  };
+
   // handle the date click
   const handleDateClick = (date: Date) => {
     setSelectedDate(date);
-    // Find if there's a saved date range that includes this date
-    const dateStr = date.toISOString().split('T')[0];
-    const matchingDateRange = savedDates.find(range => {
-      const [start, end] = range.split(' to ');
-      return dateStr >= start && dateStr <= end;
+    // Convert date to MM/DD/YY format for selection
+    const dateStr = formatToMMDDYY(date);
+    const yyyyMMddStr = date.toISOString().split('T')[0];
+    
+    // Find if there's a saved date that matches this date
+    const matchingDate = savedDates.find(savedDate => {
+      // Handle both MM/DD/YY and YYYY-MM-DD formats
+      if (savedDate.includes('/')) {
+        return savedDate === dateStr;
+      } else {
+        return savedDate === yyyyMMddStr;
+      }
     });
     
-    // if there is a matching date range, select the date and close the calendar
-    if (matchingDateRange) {
-      onDateSelect(matchingDateRange);
+    // if there is a matching date, select it and close the calendar
+    if (matchingDate) {
+      onDateSelect(matchingDate);
       onClose();
     }
   };
 
   // check if the date is saved
   const isDateSaved = (date: Date) => {
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = formatToMMDDYY(date);
+    const yyyyMMddStr = date.toISOString().split('T')[0];
+    
     return savedDates.some(savedDate => {
-      // Handle both individual dates and date ranges
-      if (savedDate.includes(' to ')) {
-        const [start, end] = savedDate.split(' to ');
-        return dateStr >= start && dateStr <= end;
+      // Handle both MM/DD/YY and YYYY-MM-DD formats
+      if (savedDate.includes('/')) {
+        return savedDate === dateStr;
       } else {
-        // Handle individual dates
-        return dateStr === savedDate;
+        return savedDate === yyyyMMddStr;
       }
     });
   };

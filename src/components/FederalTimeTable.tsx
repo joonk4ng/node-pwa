@@ -292,7 +292,7 @@ export const FederalTimeTable: React.FC = () => {
       
       // Set today's date as default if no date is selected
       if (!currentSelectedDate) {
-        const today = new Date().toISOString().split('T')[0];
+        const today = formatToMMDDYY(new Date());
         setCurrentSelectedDate(today);
         await loadDataForDate(today);
       }
