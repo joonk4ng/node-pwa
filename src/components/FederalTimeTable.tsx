@@ -733,22 +733,47 @@ export const FederalTimeTable: React.FC = () => {
     loadDataForDate(dateRange);
   };
 
+  // Utility function to convert MM/DD/YY to Date object
+  const parseMMDDYY = (dateStr: string): Date => {
+    const [month, day, year] = dateStr.split('/');
+    const fullYear = 2000 + parseInt(year);
+    return new Date(fullYear, parseInt(month) - 1, parseInt(day));
+  };
+
+  // Utility function to convert Date to MM/DD/YY format
+  const formatToMMDDYY = (date: Date): string => {
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const year = date.getFullYear().toString().slice(-2);
+    return `${month}/${day}/${year}`;
+  };
+
   // Next Day handlers
   const handleNextDay = async () => {
     try {
       // Get the current date from the selected date or first equipment entry, or use today's date
       let currentDate = new Date();
       if (currentSelectedDate) {
-        currentDate = new Date(currentSelectedDate);
+        // Check if currentSelectedDate is in MM/DD/YY format
+        if (currentSelectedDate.includes('/')) {
+          currentDate = parseMMDDYY(currentSelectedDate);
+        } else {
+          currentDate = new Date(currentSelectedDate);
+        }
       } else if (equipmentEntries.length > 0 && equipmentEntries[0].date) {
-        currentDate = new Date(equipmentEntries[0].date);
+        if (equipmentEntries[0].date.includes('/')) {
+          currentDate = parseMMDDYY(equipmentEntries[0].date);
+        } else {
+          currentDate = new Date(equipmentEntries[0].date);
+        }
       }
       
       // Add one day
       const nextDate = new Date(currentDate);
       nextDate.setDate(nextDate.getDate() + 1);
       
-      const nextDateString = nextDate.toISOString().split('T')[0];
+      // Convert to MM/DD/YY format to maintain consistency
+      const nextDateString = formatToMMDDYY(nextDate);
       
       // First, save the current data for the current selected date
       await saveDataForDate();
