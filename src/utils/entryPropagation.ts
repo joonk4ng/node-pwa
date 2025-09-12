@@ -44,15 +44,17 @@ export function handleFederalEquipmentEntryChange(
   // Update the specific entry
   updatedEntries[index] = { ...updatedEntries[index], [field]: value };
   
-  // Handle date propagation
+  // Handle date propagation - only propagate if the entry being changed is the first entry
+  // This prevents overwriting existing entries when creating retroactive entries
   if (field === 'date' && config.autoPropagateDates) {
     if (config.propagateFromFirst && index === 0) {
-      // Propagate from first entry to all others
+      // Only propagate from first entry to all others if the first entry is being changed
       updatedEntries = propagateDateToEntries(updatedEntries, 0);
-    } else if (!config.propagateFromFirst) {
-      // Propagate from first valid date
+    } else if (!config.propagateFromFirst && index === 0) {
+      // Only propagate from first valid date if the first entry is being changed
       updatedEntries = propagateFirstValidDate(updatedEntries);
     }
+    // If a non-first entry's date is being changed, don't propagate to avoid overwriting other entries
   }
   
   // Handle time calculation
@@ -82,15 +84,17 @@ export function handleFederalPersonnelEntryChange(
   // Update the specific entry
   updatedEntries[index] = { ...updatedEntries[index], [field]: value };
   
-  // Handle date propagation - only propagate to entries with names
+  // Handle date propagation - only propagate if the entry being changed is the first entry
+  // This prevents overwriting existing entries when creating retroactive entries
   if (field === 'date' && config.autoPropagateDates) {
     if (config.propagateFromFirst && index === 0) {
-      // Propagate from first entry to all others that have names
+      // Only propagate from first entry to all others that have names if the first entry is being changed
       updatedEntries = propagateDateToPersonnelEntriesWithNames(updatedEntries, 0);
-    } else if (!config.propagateFromFirst) {
-      // Propagate from first valid date to entries with names
+    } else if (!config.propagateFromFirst && index === 0) {
+      // Only propagate from first valid date to entries with names if the first entry is being changed
       updatedEntries = propagateFirstValidDateToPersonnelEntriesWithNames(updatedEntries);
     }
+    // If a non-first entry's date is being changed, don't propagate to avoid overwriting other entries
   }
   
   // Handle name field changes - if a name is added, propagate date to that entry
