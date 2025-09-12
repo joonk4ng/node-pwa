@@ -878,6 +878,9 @@ export const FederalTimeTable: React.FC = () => {
       console.log('Saving data for date:', dateToSave);
       console.log('Equipment entries to save:', equipmentEntries.length);
       console.log('Personnel entries to save:', personnelEntries.length);
+      console.log('Current selected date:', currentSelectedDate);
+      console.log('Equipment entries:', equipmentEntries);
+      console.log('Personnel entries:', personnelEntries);
       
       // Save current form data
       await saveFederalFormData(federalFormData);
@@ -888,9 +891,19 @@ export const FederalTimeTable: React.FC = () => {
           ...entry,
           date: dateToSave
         };
-        if (entryToSave.date || entryToSave.start || entryToSave.stop || entryToSave.total || entryToSave.quantity || entryToSave.type || entryToSave.remarks) {
+        // Always save entries that have a date, even if they're empty (to track the date)
+        if (entryToSave.date) {
           await saveFederalEquipmentEntry(entryToSave);
-          console.log('Saved equipment entry for date:', dateToSave);
+          console.log('Saved equipment entry for date:', dateToSave, 'with content:', {
+            start: entryToSave.start,
+            stop: entryToSave.stop,
+            total: entryToSave.total,
+            quantity: entryToSave.quantity,
+            type: entryToSave.type,
+            remarks: entryToSave.remarks
+          });
+        } else {
+          console.log('Skipped equipment entry - no date:', entryToSave);
         }
       }
       
@@ -900,9 +913,20 @@ export const FederalTimeTable: React.FC = () => {
           ...entry,
           date: dateToSave
         };
-        if (entryToSave.date || entryToSave.name || entryToSave.start1 || entryToSave.stop1 || entryToSave.start2 || entryToSave.stop2 || entryToSave.total || entryToSave.remarks) {
+        // Always save entries that have a date, even if they're empty (to track the date)
+        if (entryToSave.date) {
           await saveFederalPersonnelEntry(entryToSave);
-          console.log('Saved personnel entry for date:', dateToSave);
+          console.log('Saved personnel entry for date:', dateToSave, 'with content:', {
+            name: entryToSave.name,
+            start1: entryToSave.start1,
+            stop1: entryToSave.stop1,
+            start2: entryToSave.start2,
+            stop2: entryToSave.stop2,
+            total: entryToSave.total,
+            remarks: entryToSave.remarks
+          });
+        } else {
+          console.log('Skipped personnel entry - no date:', entryToSave);
         }
       }
       
