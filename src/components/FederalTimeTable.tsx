@@ -968,48 +968,40 @@ export const FederalTimeTable: React.FC = () => {
       // Save current form data
       await saveFederalFormData(federalFormData);
       
-      // Save equipment entries with the current selected date
+      // Save equipment entries - only save entries that belong to the current date
       for (const entry of equipmentEntries) {
-        const entryToSave = {
-          ...entry,
-          date: dateToSave
-        };
-        // Always save entries that have a date, even if they're empty (to track the date)
-        if (entryToSave.date) {
-          await saveFederalEquipmentEntry(entryToSave);
+        // Only save entries that match the current selected date
+        if (entry.date === dateToSave) {
+          await saveFederalEquipmentEntry(entry);
           console.log('Saved equipment entry for date:', dateToSave, 'with content:', {
-            start: entryToSave.start,
-            stop: entryToSave.stop,
-            total: entryToSave.total,
-            quantity: entryToSave.quantity,
-            type: entryToSave.type,
-            remarks: entryToSave.remarks
+            start: entry.start,
+            stop: entry.stop,
+            total: entry.total,
+            quantity: entry.quantity,
+            type: entry.type,
+            remarks: entry.remarks
           });
         } else {
-          console.log('Skipped equipment entry - no date:', entryToSave);
+          console.log('Skipped equipment entry - different date:', entry.date, 'vs', dateToSave);
         }
       }
       
-      // Save personnel entries with the current selected date
+      // Save personnel entries - only save entries that belong to the current date
       for (const entry of personnelEntries) {
-        const entryToSave = {
-          ...entry,
-          date: dateToSave
-        };
-        // Always save entries that have a date, even if they're empty (to track the date)
-        if (entryToSave.date) {
-          await saveFederalPersonnelEntry(entryToSave);
+        // Only save entries that match the current selected date
+        if (entry.date === dateToSave) {
+          await saveFederalPersonnelEntry(entry);
           console.log('Saved personnel entry for date:', dateToSave, 'with content:', {
-            name: entryToSave.name,
-            start1: entryToSave.start1,
-            stop1: entryToSave.stop1,
-            start2: entryToSave.start2,
-            stop2: entryToSave.stop2,
-            total: entryToSave.total,
-            remarks: entryToSave.remarks
+            name: entry.name,
+            start1: entry.start1,
+            stop1: entry.stop1,
+            start2: entry.start2,
+            stop2: entry.stop2,
+            total: entry.total,
+            remarks: entry.remarks
           });
         } else {
-          console.log('Skipped personnel entry - no date:', entryToSave);
+          console.log('Skipped personnel entry - different date:', entry.date, 'vs', dateToSave);
         }
       }
       
