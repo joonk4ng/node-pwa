@@ -73,15 +73,6 @@ export const DateCalendar: React.FC<DateCalendarProps> = ({ savedDates, onDateSe
     return `${month}/${day}/${year}`;
   };
 
-  // Utility function to convert MM/DD/YY to YYYY-MM-DD format
-  const convertMMDDYYToYYYYMMDD = (dateStr: string): string => {
-    if (dateStr.includes('/')) {
-      const [month, day, year] = dateStr.split('/');
-      const fullYear = 2000 + parseInt(year);
-      return `${fullYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-    }
-    return dateStr; // Already in YYYY-MM-DD format
-  };
 
   // handle the date click
   const handleDateClick = (date: Date) => {
