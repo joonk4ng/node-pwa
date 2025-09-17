@@ -10,11 +10,13 @@ import type { Table } from 'dexie';
 import type { PDFGenerationMetadata } from './types';
 
 // Form Type Enumeration for PDF Generation and Database Tracking
-export enum FormType {
-  EEST = 'EEST',           // Emergency Equipment Shift Ticket
-  FEDERAL = 'FEDERAL',     // Federal Equipment Time Sheet (OF297-24)
-  ODF = 'ODF'              // ODF Time Sheet (to be implemented)
-}
+export const FormType = {
+  EEST: 'EEST',           // Emergency Equipment Shift Ticket
+  FEDERAL: 'FEDERAL',     // Federal Equipment Time Sheet (OF297-24)
+  ODF: 'ODF'              // ODF Time Sheet (to be implemented)
+} as const;
+
+export type FormType = typeof FormType[keyof typeof FormType];
 
 
 // Engine Time Row
@@ -124,7 +126,7 @@ export interface FederalFormData {
   // ID
   id?: number;
   // FORM TYPE (for database tracking) - optional for backward compatibility
-  formType?: FormType.FEDERAL;
+  formType?: typeof FormType.FEDERAL;
   // AGREEMENT NUMBER
   agreementNumber: string;
   // CONTRACTOR AGENCY NAME
@@ -164,7 +166,7 @@ export interface EESTFormData {
   // ID
   id?: number;
   // FORM TYPE (for database tracking)
-  formType: FormType.EEST;
+  formType: typeof FormType.EEST;
   // AGREEMENT NUMBER
   agreementNumber: string;
   // CONTRACTOR AGENCY NAME
@@ -226,7 +228,21 @@ export interface ODFFormData {
   // ID
   id?: number;
   // FORM TYPE (for database tracking)
-  formType: FormType.ODF;
+  formType: typeof FormType.ODF;
+  // DIV/UNIT
+  divUnit: string;
+  // SHIFT
+  shift: string;
+  // OWNER/CONTRACTOR NAME
+  ownerContractor: string;
+  // CONTRACT/AGREEMENT NUMBER
+  contractNumber: string;
+  // RESOURCE REQ NO
+  resourceReqNo: string;
+  // RESOURCE TYPE
+  resourceType: string;
+  // DOUBLE SHIFTED
+  doubleShifted: string;
   // AGREEMENT NUMBER
   agreementNumber: string;
   // CONTRACTOR AGENCY NAME
@@ -237,8 +253,20 @@ export interface ODFFormData {
   incidentName: string;
   // INCIDENT NUMBER
   incidentNumber: string;
-  // Additional ODF-specific fields will be added here
-  // when the ODF form is implemented
+  // EQUIPMENT TYPE
+  equipmentType: string;
+  // EQUIPMENT MAKE/MODEL
+  equipmentMakeModel: string;
+  // OWNER ID NUMBER
+  ownerIdNumber: string;
+  // LICENSE VIN OR SERIAL
+  licenseVinSerial: string;
+  // REMARKS
+  remarks: string;
+  // REMARKS OPTIONS
+  remarksOptions: string[];
+  // CUSTOM REMARKS
+  customRemarks: string[];
 }
 
 // ODF Time Entry (to be implemented)
@@ -482,12 +510,14 @@ export async function savePDFMetadata(metadata: PDFGenerationMetadata): Promise<
 
 // Load all PDF Metadata
 export async function loadAllPDFMetadata(): Promise<PDFGenerationMetadata[]> {
-  return await engineTimeDB.pdfMetadata.orderBy('createdAt').reverse().toArray();
+  const results = await engineTimeDB.pdfMetadata.toArray();
+  return results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
 
 // Load PDF Metadata by form type
 export async function loadPDFMetadataByFormType(formType: FormType): Promise<PDFGenerationMetadata[]> {
-  return await engineTimeDB.pdfMetadata.where('formType').equals(formType).orderBy('createdAt').reverse().toArray();
+  const results = await engineTimeDB.pdfMetadata.where('formType').equals(formType).toArray();
+  return results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
 
 // Delete PDF Metadata

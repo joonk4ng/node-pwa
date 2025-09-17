@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import '../styles/components/TimeEntryTable.css';
-import type { EngineTimeRow, ODFFormData, ODFTimeEntry } from '../utils/engineTimeDB';
+import type { EngineTimeRow, ODFFormData } from '../utils/engineTimeDB';
 import { FormType } from '../utils/engineTimeDB';
 import {
   saveEngineTimeRow,
   loadAllEngineTimeRows,
   saveODFFormData,
-  loadODFFormData,
-  saveODFTimeEntry,
-  loadAllODFTimeEntries
+  loadODFFormData
 } from '../utils/engineTimeDB';
 
 import { FederalTimeTable } from './FederalTimeTable';
@@ -41,11 +39,25 @@ const TimeEntryTable: React.FC<TimeEntryTableProps> = ({ tableType = 'equipment'
   // Main form state - using ODF form structure
   const [formData, setFormData] = useState<ODFFormData>({
     formType: FormType.ODF,
+    divUnit: '',
+    shift: '',
+    ownerContractor: '',
+    contractNumber: '',
+    resourceReqNo: '',
+    resourceType: '',
+    doubleShifted: '',
     agreementNumber: '',
     contractorAgencyName: '',
     resourceOrderNumber: '',
     incidentName: '',
     incidentNumber: '',
+    equipmentType: '',
+    equipmentMakeModel: '',
+    ownerIdNumber: '',
+    licenseVinSerial: '',
+    remarks: '',
+    remarksOptions: [],
+    customRemarks: [],
   });
 
   // Remarks section state
@@ -76,9 +88,10 @@ const TimeEntryTable: React.FC<TimeEntryTableProps> = ({ tableType = 'equipment'
       setRows(filled);
     });
     // Load main form and remarks
-    loadEngineTimeForm().then((saved) => {
+    loadODFFormData().then((saved) => {
       if (saved) {
         setFormData({
+          formType: saved.formType,
           divUnit: saved.divUnit,
           shift: saved.shift,
           ownerContractor: saved.ownerContractor,
@@ -86,14 +99,18 @@ const TimeEntryTable: React.FC<TimeEntryTableProps> = ({ tableType = 'equipment'
           resourceReqNo: saved.resourceReqNo,
           resourceType: saved.resourceType,
           doubleShifted: saved.doubleShifted,
+          agreementNumber: saved.agreementNumber,
+          contractorAgencyName: saved.contractorAgencyName,
+          resourceOrderNumber: saved.resourceOrderNumber,
           incidentName: saved.incidentName,
           incidentNumber: saved.incidentNumber,
           equipmentType: saved.equipmentType,
           equipmentMakeModel: saved.equipmentMakeModel,
-          remarks: saved.remarks,
           ownerIdNumber: saved.ownerIdNumber,
           licenseVinSerial: saved.licenseVinSerial,
-          equipmentUse: 'HOURS', // fallback, not in EngineTimeForm
+          remarks: saved.remarks,
+          remarksOptions: saved.remarksOptions || [],
+          customRemarks: saved.customRemarks || []
         });
         setCheckboxStates({
           hotline: saved.remarksOptions.includes('HOTLINE'),
@@ -117,12 +134,12 @@ const TimeEntryTable: React.FC<TimeEntryTableProps> = ({ tableType = 'equipment'
       ...(checkboxStates.travel ? ['Travel'] : []),
       ...(checkboxStates.noLunch ? ['No Lunch Taken due to Uncontrolled Fire'] : []),
     ];
-    const form: EngineTimeForm = {
+    const form: ODFFormData = {
       ...formData,
       remarksOptions,
       customRemarks: customEntries,
     };
-    saveEngineTimeForm(form);
+    saveODFFormData(form);
   }, [formData, checkboxStates, customEntries]);
 
   // Handle cell change and autosave

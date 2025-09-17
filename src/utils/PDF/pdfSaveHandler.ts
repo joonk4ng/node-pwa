@@ -1,7 +1,7 @@
 // PDF Save Handler utility for saving and downloading PDFs
 import * as pdfjsLib from 'pdfjs-dist';
 import { flattenPDFToImage, createFlattenedPDF, hasSignature, canvasToBlob } from './pdfFlattening';
-import { generateExportFilename, generateFilenameDescription, type ExportInfo } from '../filenameGenerator';
+import { generateExportFilename, type ExportInfo } from '../filenameGenerator';
 import { FormType, savePDFMetadata } from '../engineTimeDB';
 import type { PDFGenerationMetadata } from '../types';
 
