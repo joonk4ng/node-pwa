@@ -7,6 +7,15 @@
 // It is used to clear all the engine time data in IndexedDB
 import Dexie from 'dexie';
 import type { Table } from 'dexie';
+import type { PDFGenerationMetadata } from './types';
+
+// Form Type Enumeration for PDF Generation and Database Tracking
+export enum FormType {
+  EEST = 'EEST',           // Emergency Equipment Shift Ticket
+  FEDERAL = 'FEDERAL',     // Federal Equipment Time Sheet (OF297-24)
+  ODF = 'ODF'              // ODF Time Sheet (to be implemented)
+}
+
 
 // Engine Time Row
 export interface EngineTimeRow {
@@ -114,6 +123,8 @@ export interface FederalPersonnelEntry {
 export interface FederalFormData {
   // ID
   id?: number;
+  // FORM TYPE (for database tracking) - optional for backward compatibility
+  formType?: FormType.FEDERAL;
   // AGREEMENT NUMBER
   agreementNumber: string;
   // CONTRACTOR AGENCY NAME
@@ -152,6 +163,8 @@ export interface FederalFormData {
 export interface EESTFormData {
   // ID
   id?: number;
+  // FORM TYPE (for database tracking)
+  formType: FormType.EEST;
   // AGREEMENT NUMBER
   agreementNumber: string;
   // CONTRACTOR AGENCY NAME
@@ -184,6 +197,8 @@ export interface EESTFormData {
   remarksOptions: string[];
   // CUSTOM REMARKS
   customRemarks: string[];
+  // SPECIAL SELECTIONS (for time entry rows)
+  specialSelections?: { [key: number]: string[] };
   // CONTRACTOR SIGNATURE
   contractorSignature?: string;
   // GOVERNMENT SIGNATURE
@@ -204,6 +219,36 @@ export interface EESTTimeEntry {
   work: string;
   // SPECIAL
   special: string;
+}
+
+// ODF Form Data (to be implemented)
+export interface ODFFormData {
+  // ID
+  id?: number;
+  // FORM TYPE (for database tracking)
+  formType: FormType.ODF;
+  // AGREEMENT NUMBER
+  agreementNumber: string;
+  // CONTRACTOR AGENCY NAME
+  contractorAgencyName: string;
+  // RESOURCE ORDER NUMBER
+  resourceOrderNumber: string;
+  // INCIDENT NAME
+  incidentName: string;
+  // INCIDENT NUMBER
+  incidentNumber: string;
+  // Additional ODF-specific fields will be added here
+  // when the ODF form is implemented
+}
+
+// ODF Time Entry (to be implemented)
+export interface ODFTimeEntry {
+  // ID
+  id?: number;
+  // DATE
+  date: string;
+  // Additional ODF-specific time entry fields will be added here
+  // when the ODF form is implemented
 }
 
 // Engine Time Change Log
@@ -236,6 +281,12 @@ class EngineTimeDB extends Dexie {
   eestForm!: Table<EESTFormData, number>;
   // EEST Time Entries
   eestTimeEntries!: Table<EESTTimeEntry, number>;
+  // ODF Form (to be implemented)
+  odfForm!: Table<ODFFormData, number>;
+  // ODF Time Entries (to be implemented)
+  odfTimeEntries!: Table<ODFTimeEntry, number>;
+  // PDF Generation Metadata
+  pdfMetadata!: Table<PDFGenerationMetadata, number>;
   // Change Log
   changeLog!: Table<EngineTimeChangeLog, number>;
 
@@ -244,7 +295,7 @@ class EngineTimeDB extends Dexie {
     // Initialize the Engine Time Database
     super('EngineTimeDB');
     // Define the stores for the Engine Time Database
-    this.version(4).stores({
+    this.version(5).stores({
       // Rows
       rows: '++id, date, name',
       // Form
@@ -259,6 +310,12 @@ class EngineTimeDB extends Dexie {
       eestForm: 'id',
       // EEST Time Entries
       eestTimeEntries: '++id, date',
+      // ODF Form (to be implemented)
+      odfForm: 'id',
+      // ODF Time Entries (to be implemented)
+      odfTimeEntries: '++id, date',
+      // PDF Generation Metadata
+      pdfMetadata: '++id, formType, incidentName, incidentNumber, dateGenerated, createdAt',
       // Change Log
       changeLog: '++id, rowId, timestamp'
     });
@@ -385,4 +442,55 @@ export async function loadAllEESTTimeEntries(): Promise<EESTTimeEntry[]> {
 // Delete an EEST Time Entry
 export async function deleteEESTTimeEntry(id: number) {
   await engineTimeDB.eestTimeEntries.delete(id);
+}
+
+// ODF Form Data functions (to be implemented)
+export async function saveODFFormData(form: ODFFormData) {
+  await engineTimeDB.odfForm.put({ ...form, id: 1 }); // singleton
+}
+
+// Load an ODF Form Data
+export async function loadODFFormData(): Promise<ODFFormData | undefined> {
+  return await engineTimeDB.odfForm.get(1);
+}
+
+// ODF Time Entry functions (to be implemented)
+export async function saveODFTimeEntry(entry: ODFTimeEntry): Promise<number> {
+  if (entry.id) {
+    await engineTimeDB.odfTimeEntries.update(entry.id, entry);
+    return entry.id;
+  } else {
+    const id = await engineTimeDB.odfTimeEntries.add(entry);
+    return id;
+  }
+}
+
+// Load all ODF Time Entries
+export async function loadAllODFTimeEntries(): Promise<ODFTimeEntry[]> {
+  return await engineTimeDB.odfTimeEntries.toArray();
+}
+
+// Delete an ODF Time Entry
+export async function deleteODFTimeEntry(id: number) {
+  await engineTimeDB.odfTimeEntries.delete(id);
+}
+
+// PDF Generation Metadata functions
+export async function savePDFMetadata(metadata: PDFGenerationMetadata): Promise<number> {
+  return await engineTimeDB.pdfMetadata.add(metadata);
+}
+
+// Load all PDF Metadata
+export async function loadAllPDFMetadata(): Promise<PDFGenerationMetadata[]> {
+  return await engineTimeDB.pdfMetadata.orderBy('createdAt').reverse().toArray();
+}
+
+// Load PDF Metadata by form type
+export async function loadPDFMetadataByFormType(formType: FormType): Promise<PDFGenerationMetadata[]> {
+  return await engineTimeDB.pdfMetadata.where('formType').equals(formType).orderBy('createdAt').reverse().toArray();
+}
+
+// Delete PDF Metadata
+export async function deletePDFMetadata(id: number) {
+  await engineTimeDB.pdfMetadata.delete(id);
 } 

@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import '../styles/components/TimeEntryTable.css';
-import type { EngineTimeRow, EngineTimeForm } from '../utils/engineTimeDB';
+import type { EngineTimeRow, ODFFormData, ODFTimeEntry } from '../utils/engineTimeDB';
+import { FormType } from '../utils/engineTimeDB';
 import {
   saveEngineTimeRow,
   loadAllEngineTimeRows,
-  saveEngineTimeForm,
-  loadEngineTimeForm
+  saveODFFormData,
+  loadODFFormData,
+  saveODFTimeEntry,
+  loadAllODFTimeEntries
 } from '../utils/engineTimeDB';
 
 import { FederalTimeTable } from './FederalTimeTable';
@@ -35,23 +38,14 @@ const TimeEntryTable: React.FC<TimeEntryTableProps> = ({ tableType = 'equipment'
   // Use the prop to determine which table to show
   const [activeTable] = useState<'equipment' | 'personnel'>(tableType);
 
-  // Main form state
-  const [formData, setFormData] = useState({
-    divUnit: '',
-    shift: '',
-    ownerContractor: '',
-    contractNumber: '',
-    resourceReqNo: '',
-    resourceType: 'GOVERNMENT',
-    doubleShifted: 'NO',
+  // Main form state - using ODF form structure
+  const [formData, setFormData] = useState<ODFFormData>({
+    formType: FormType.ODF,
+    agreementNumber: '',
+    contractorAgencyName: '',
+    resourceOrderNumber: '',
     incidentName: '',
     incidentNumber: '',
-    equipmentType: '',
-    equipmentMakeModel: '',
-    remarks: '',
-    ownerIdNumber: '',
-    licenseVinSerial: '',
-    equipmentUse: 'HOURS',
   });
 
   // Remarks section state

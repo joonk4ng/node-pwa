@@ -199,7 +199,14 @@ export function mapEESTToPDFFields(
       fields[`STARTRow${rowNum}`] = (entry.start || '').substring(0, 4);
       fields[`STOPRow${rowNum}`] = (entry.stop || '').substring(0, 4);
       fields[`WORKRow${rowNum}`] = (entry.work || '').substring(0, 10);
-      fields[`SPECIALRow${rowNum}`] = (entry.special || '').substring(0, 10);
+      
+      // Use special selections from form data if available, otherwise use entry.special
+      const specialSelections = formData.specialSelections || {};
+      const rowSpecialSelections = specialSelections[index] || [];
+      const specialText = rowSpecialSelections.length > 0 
+        ? rowSpecialSelections.join(', ') 
+        : (entry.special || '');
+      fields[`SPECIALRow${rowNum}`] = specialText.substring(0, 10);
     }
   });
   

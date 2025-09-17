@@ -1,7 +1,9 @@
 // PDF Save Handler utility for saving and downloading PDFs
 import * as pdfjsLib from 'pdfjs-dist';
 import { flattenPDFToImage, createFlattenedPDF, hasSignature, canvasToBlob } from './pdfFlattening';
-import { generateExportFilename } from '../filenameGenerator';
+import { generateExportFilename, generateFilenameDescription, type ExportInfo } from '../filenameGenerator';
+import { FormType, savePDFMetadata } from '../engineTimeDB';
+import type { PDFGenerationMetadata } from '../types';
 
 export interface CrewInfo {
   crewNumber: string;
@@ -13,6 +15,11 @@ export interface SaveOptions {
   crewInfo?: CrewInfo;
   date?: string;
   filename?: string;
+  formType?: FormType;
+  incidentName?: string;
+  incidentNumber?: string;
+  contractorAgencyName?: string;
+  isSigned?: boolean;
 }
 
 /**
@@ -23,7 +30,8 @@ export async function savePDFWithSignature(
   baseCanvas: HTMLCanvasElement,
   drawCanvas: HTMLCanvasElement,
   onSave: (pdfData: Blob, previewImage: Blob) => void,
-  options: SaveOptions = {}
+  options: SaveOptions = {},
+  pdfId?: string
 ): Promise<void> {
   try {
     console.log('🔍 PDFSaveHandler: Starting PDF save process...');
@@ -213,10 +221,28 @@ export async function savePDFWithSignature(
     // Save the flattened PDF
     onSave(flattenedPdfBlob, previewImage);
 
+    // Auto-detect form type from PDF ID if not provided
+    const enhancedOptions = { ...options };
+    if (!enhancedOptions.formType && pdfId) {
+      if (pdfId === 'eest-form') {
+        enhancedOptions.formType = FormType.EEST;
+      } else if (pdfId === 'federal-form') {
+        enhancedOptions.formType = FormType.FEDERAL;
+      } else if (pdfId === 'odf-form') {
+        enhancedOptions.formType = FormType.ODF;
+      }
+    }
+
+    // Generate filename using new naming schema
+    const filename = generateFilename(enhancedOptions, true);
+    
+    // Save PDF metadata to database
+    await savePDFMetadataToDatabase(enhancedOptions, filename, flattenedPdfBlob.size, true);
+
     // Download the flattened PDF
     await downloadPDF(flattenedPdfBlob, {
-      ...options,
-      filename: options.filename || 'signed_document_flattened.pdf'
+      ...enhancedOptions,
+      filename
     });
 
   } catch (error) {
@@ -237,19 +263,8 @@ export async function downloadPDF(
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
     
-    // Generate filename using crew info if available
-    let filename;
-    if (options.crewInfo && options.date) {
-      filename = generateExportFilename({
-        crewNumber: options.crewInfo.crewNumber,
-        fireName: options.crewInfo.fireName,
-        fireNumber: options.crewInfo.fireNumber,
-        date: options.date,
-        type: 'PDF'
-      });
-    } else {
-      filename = options.filename || 'document.pdf';
-    }
+    // Generate filename using new naming schema
+    const filename = generateFilename(options, false);
     
     console.log('🔍 PDFSaveHandler: Downloading PDF with filename:', filename);
     console.log('🔍 PDFSaveHandler: Device info:', { isIOS, isSafari, userAgent: navigator.userAgent });
@@ -327,12 +342,98 @@ export async function downloadOriginalPDF(
     const pdfBytes = await pdfDoc.getData();
     const pdfBlob = new Blob([pdfBytes], { type: 'application/pdf' });
     
+    // Generate filename using new naming schema
+    const filename = generateFilename(options, false);
+    
+    // Save PDF metadata to database
+    await savePDFMetadataToDatabase(options, filename, pdfBlob.size, false);
+
     await downloadPDF(pdfBlob, {
       ...options,
-      filename: options.filename || 'document_original.pdf'
+      filename
     });
   } catch (error) {
     console.error('Error downloading original PDF:', error);
     throw new Error('Failed to download original PDF');
+  }
+}
+
+/**
+ * Generates a filename using the new naming schema
+ */
+function generateFilename(options: SaveOptions, isSigned: boolean): string {
+  // If a custom filename is provided, use it
+  if (options.filename) {
+    return options.filename;
+  }
+
+  // Use new naming schema if form type is specified
+  if (options.formType) {
+    const exportInfo: ExportInfo = {
+      date: options.date || new Date().toISOString().split('T')[0],
+      incidentName: options.incidentName,
+      incidentNumber: options.incidentNumber,
+      contractorAgencyName: options.contractorAgencyName,
+      type: 'PDF',
+      formType: options.formType,
+      isSigned
+    };
+    
+    return generateExportFilename(exportInfo);
+  }
+
+  // Fallback to legacy naming for backward compatibility
+  if (options.crewInfo && options.date) {
+    const legacyInfo = {
+      crewNumber: options.crewInfo.crewNumber,
+      fireName: options.crewInfo.fireName,
+      fireNumber: options.crewInfo.fireNumber,
+      date: options.date,
+      type: 'PDF' as const
+    };
+    
+    return generateExportFilename({
+      ...legacyInfo,
+      formType: FormType.FEDERAL, // Default to Federal for legacy
+      isSigned
+    });
+  }
+
+  // Final fallback
+  return isSigned ? 'signed_document.pdf' : 'document.pdf';
+}
+
+/**
+ * Saves PDF generation metadata to the database
+ */
+async function savePDFMetadataToDatabase(
+  options: SaveOptions, 
+  filename: string, 
+  fileSize: number, 
+  isSigned: boolean
+): Promise<void> {
+  try {
+    if (!options.formType) {
+      console.warn('PDFSaveHandler: No form type specified, skipping metadata save');
+      return;
+    }
+
+    const metadata: PDFGenerationMetadata = {
+      formType: options.formType,
+      incidentName: options.incidentName || 'Unknown',
+      incidentNumber: options.incidentNumber || 'Unknown',
+      contractorAgencyName: options.contractorAgencyName || 'Unknown',
+      dateGenerated: options.date || new Date().toISOString().split('T')[0],
+      filename,
+      fileSize,
+      isSigned,
+      createdAt: Date.now()
+    };
+
+    await savePDFMetadata(metadata);
+    console.log('PDFSaveHandler: PDF metadata saved to database:', metadata);
+  } catch (error) {
+    console.error('PDFSaveHandler: Error saving PDF metadata:', error);
+    // Don't throw error - metadata saving failure shouldn't prevent PDF download
   }
 }

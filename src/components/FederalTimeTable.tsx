@@ -556,7 +556,46 @@ export const FederalTimeTable: React.FC = () => {
   // Handle personnel entry changes and autosave with propagation
   const handlePersonnelEntryChange = (index: number, field: keyof FederalPersonnelEntry, value: string) => {
     setPersonnelEntries(prev => {
-      const updated = handleFederalPersonnelEntryChange(prev, index, field, value, DEFAULT_PROPAGATION_CONFIG);
+      let updated = handleFederalPersonnelEntryChange(prev, index, field, value, DEFAULT_PROPAGATION_CONFIG);
+      
+      // Auto-fill from equipment entry when name is entered
+      if (field === 'name' && value && value.trim() !== '') {
+        const equipmentEntry = equipmentEntries[0]; // Use first equipment entry as source
+        if (equipmentEntry && (equipmentEntry.date || equipmentEntry.start || equipmentEntry.stop)) {
+          console.log('Auto-filling personnel entry from equipment data:', {
+            personnelIndex: index,
+            equipmentData: {
+              date: equipmentEntry.date,
+              start: equipmentEntry.start,
+              stop: equipmentEntry.stop
+            }
+          });
+          
+          // Auto-fill date from equipment entry if personnel entry doesn't have one
+          if (!updated[index].date && equipmentEntry.date) {
+            updated[index] = { ...updated[index], date: equipmentEntry.date };
+          }
+          
+          // Auto-fill start time from equipment entry if personnel entry doesn't have one
+          if (!updated[index].start1 && equipmentEntry.start) {
+            updated[index] = { ...updated[index], start1: equipmentEntry.start };
+          }
+          
+          // Auto-fill stop time from equipment entry if personnel entry doesn't have one
+          if (!updated[index].stop1 && equipmentEntry.stop) {
+            updated[index] = { ...updated[index], stop1: equipmentEntry.stop };
+          }
+          
+          // Auto-calculate total if we now have both start and stop times
+          if (updated[index].start1 && updated[index].stop1) {
+            const total = autoCalculateTotal(updated[index].start1, updated[index].stop1);
+            if (total) {
+              updated[index] = { ...updated[index], total: total };
+            }
+          }
+        }
+      }
+      
       saveFederalPersonnelEntry(updated[index]);
       return updated;
     });

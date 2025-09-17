@@ -97,13 +97,14 @@ export const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({
         pdfCanvasRef.current.canvas,
         drawingCanvasRef.current.canvas,
         onSave,
-        { crewInfo, date }
+        { crewInfo, date },
+        pdfId
       );
     } catch (error) {
       console.error('Error saving PDF:', error);
       setError('Failed to save PDF with signature.');
     }
-  }, [pdfDoc, onSave, crewInfo, date]);
+  }, [pdfDoc, onSave, crewInfo, date, pdfId]);
 
   // Handle downloading the original PDF
   const handleDownload = useCallback(async () => {

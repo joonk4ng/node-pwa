@@ -1,6 +1,7 @@
 //
 import React, { useState, useEffect } from 'react';
 import type { EESTFormData, EESTTimeEntry } from '../utils/engineTimeDB';
+import { FormType } from '../utils/engineTimeDB';
 import {
   saveEESTFormData,
   loadEESTFormData,
@@ -8,6 +9,10 @@ import {
   loadAllEESTTimeEntries
 } from '../utils/engineTimeDB';
 import { handleEESTTimeEntryChange, DEFAULT_PROPAGATION_CONFIG } from '../utils/entryPropagation';
+import { EnhancedPDFViewer } from './PDF';
+import { getPDF, storePDFWithId } from '../utils/pdfStorage';
+import { mapEESTToPDFFields, validateEESTFormData } from '../utils/fieldmapper/eestFieldMapper';
+import * as PDFLib from 'pdf-lib';
 
 
 //
@@ -21,6 +26,7 @@ const EMPTY_TIME_ENTRY: EESTTimeEntry = {
 
 //
 const EMPTY_FORM_DATA: EESTFormData = {
+  formType: FormType.EEST,
   agreementNumber: '',
   resourceOrderNumber: '',
   contractorAgencyName: '',
@@ -31,12 +37,13 @@ const EMPTY_FORM_DATA: EESTFormData = {
   equipmentModel: '',
   serialNumber: '',
   licenseNumber: '',
-  equipmentStatus: 'Contractor', // Default to Contractor to check the boxes by default
+  equipmentStatus: 'Inspected and under agreement', // Default to inspected status
   invoicePostedBy: '',
   dateSigned: '',
   remarks: '',
   remarksOptions: [],
   customRemarks: [],
+  specialSelections: {},
 
 };
 
@@ -74,6 +81,11 @@ export const EESTTimeTable: React.FC = () => {
   const [specialDropdownOpen, setSpecialDropdownOpen] = useState<number | null>(null);
   const [specialSelections, setSpecialSelections] = useState<{ [key: number]: string[] }>({});
   const [customSpecialInput, setCustomSpecialInput] = useState('');
+
+  // PDF state
+  const [showPDFViewer, setShowPDFViewer] = useState(false);
+  const [pdfId] = useState<string>('eest-form');
+  const [pdfVersion, setPdfVersion] = useState(0); // Force PDF viewer refresh
 
 
 
@@ -117,6 +129,7 @@ export const EESTTimeTable: React.FC = () => {
           noLunch: saved.remarksOptions?.includes('No Lunch Taken due to Uncontrolled Fire') || false,
         });
         setCustomEntries(saved.customRemarks || []);
+        setSpecialSelections(saved.specialSelections || {});
       } else {
         console.log('EEST: No saved form data found');
       }
@@ -134,11 +147,62 @@ export const EESTTimeTable: React.FC = () => {
         }
         setTimeEntries(paddedEntries.slice(0, 4));
       } else {
-        console.log('EEST: No saved time entries found');
+        console.log('EEST: No saved time entries found, using default empty entries');
+        // Set default empty entries when no saved entries exist
+        setTimeEntries([
+          { ...EMPTY_TIME_ENTRY },
+          { ...EMPTY_TIME_ENTRY },
+          { ...EMPTY_TIME_ENTRY },
+          { ...EMPTY_TIME_ENTRY }
+        ]);
       }
     }).catch(error => {
       console.error('EEST: Error loading time entries:', error);
+      // Set default empty entries on error
+      setTimeEntries([
+        { ...EMPTY_TIME_ENTRY },
+        { ...EMPTY_TIME_ENTRY },
+        { ...EMPTY_TIME_ENTRY },
+        { ...EMPTY_TIME_ENTRY }
+      ]);
     });
+  }, []);
+
+  // Initialize EEST PDF in storage
+  useEffect(() => {
+    const initializeEESTPDF = async () => {
+      try {
+        // Check if EEST PDF already exists
+        const existingPDF = await getPDF('eest-form');
+        if (!existingPDF) {
+          console.log('EEST: No existing PDF found, loading eest-fill.pdf...');
+          // Load the EEST PDF from public folder
+          const response = await fetch('/eest-fill.pdf');
+          console.log('EEST: Fetch response status:', response.status, response.ok);
+          if (response.ok) {
+            const pdfBlob = await response.blob();
+            console.log('EEST: PDF blob size:', pdfBlob.size, 'bytes');
+            // Store with a fixed ID for the EEST form
+            await storePDFWithId('eest-form', pdfBlob, null, {
+              filename: 'eest-fill.pdf',
+              date: new Date().toISOString(),
+              crewNumber: 'N/A',
+              fireName: 'N/A',
+              fireNumber: 'N/A'
+            });
+            console.log('EEST PDF initialized in storage');
+          } else {
+            console.error('EEST: Failed to fetch eest-fill.pdf, status:', response.status);
+          }
+        } else {
+          console.log('EEST: Existing PDF found in storage, size:', existingPDF.pdf.size, 'bytes');
+        }
+      } catch (error) {
+        console.error('Error initializing EEST PDF:', error);
+      }
+    };
+
+    initializeEESTPDF();
   }, []);
 
   // Save form data whenever it changes
@@ -154,6 +218,7 @@ export const EESTTimeTable: React.FC = () => {
       ...formData,
       remarksOptions,
       customRemarks: customEntries,
+      specialSelections,
     };
     console.log('EEST: Saving form data:', updatedFormData);
     saveEESTFormData(updatedFormData).then(() => {
@@ -161,7 +226,7 @@ export const EESTTimeTable: React.FC = () => {
     }).catch(error => {
       console.error('EEST: Error saving form data:', error);
     });
-  }, [formData, checkboxStates, customEntries]);
+  }, [formData, checkboxStates, customEntries, specialSelections]);
 
 
 
@@ -256,6 +321,142 @@ export const EESTTimeTable: React.FC = () => {
       const updated = handleEESTTimeEntryChange(prev, index, field, value, DEFAULT_PROPAGATION_CONFIG);
       return updated;
     });
+  };
+
+  // PDF handlers
+  const handleViewPDF = async () => {
+    try {
+      console.log('EEST: Starting PDF fill and sign process...');
+      
+      // Validate form data
+      const validation = validateEESTFormData(formData, timeEntries);
+      if (!validation.isValid) {
+        console.error('EEST: Form validation failed:', validation.errors);
+        alert('Please fill in required fields before signing: ' + validation.errors.join(', '));
+        return;
+      }
+
+      // Map form data to PDF fields
+      const pdfFields = mapEESTToPDFFields(formData, timeEntries);
+      console.log('EEST: Mapped PDF fields:', pdfFields);
+
+      // Get the stored PDF
+      const storedPDF = await getPDF('eest-form');
+      if (!storedPDF) {
+        console.error('EEST: No PDF found in storage');
+        alert('PDF not found. Please try again.');
+        return;
+      }
+      
+      console.log('EEST: Using PDF from storage:', {
+        filename: storedPDF.metadata?.filename,
+        size: storedPDF.pdf.size,
+        date: storedPDF.metadata?.date
+      });
+
+      // Create a new PDF with filled fields
+      const pdfDoc = await PDFLib.PDFDocument.load(await storedPDF.pdf.arrayBuffer());
+      
+      // Get the form
+      const form = pdfDoc.getForm();
+      
+      // Debug: Log all available fields in the PDF
+      console.log('EEST: Available PDF fields:');
+      const allFields = form.getFields();
+      allFields.forEach((field, index) => {
+        console.log(`${index + 1}. "${field.getName()}" (${field.constructor.name})`);
+      });
+      
+      // Fill the form fields
+      let filledFieldsCount = 0;
+      let attemptedFieldsCount = 0;
+      Object.entries(pdfFields).forEach(([fieldName, value]) => {
+        attemptedFieldsCount++;
+        
+        try {
+          const field = form.getField(fieldName);
+          if (field) {
+            if (field.constructor.name === 'PDFTextField') {
+              (field as any).setText(value);
+              filledFieldsCount++;
+              console.log(`EEST: Filled text field ${fieldName} with: "${value}"`);
+            } else if (field.constructor.name === 'PDFCheckBox') {
+              if (value === 'Yes' || value === 'On') {
+                (field as any).check();
+                filledFieldsCount++;
+                console.log(`EEST: Checked checkbox ${fieldName}`);
+              } else {
+                (field as any).uncheck();
+                filledFieldsCount++;
+                console.log(`EEST: Unchecked checkbox ${fieldName}`);
+              }
+            } else if (field.constructor.name === 'PDFDropdown') {
+              (field as any).select(value);
+              filledFieldsCount++;
+              console.log(`EEST: Selected dropdown ${fieldName} with: "${value}"`);
+            }
+          } else {
+            console.warn(`EEST: Field ${fieldName} not found in PDF`);
+          }
+        } catch (error) {
+          console.error(`EEST: Error filling field ${fieldName}:`, error);
+        }
+      });
+      
+      console.log(`EEST: Successfully filled ${filledFieldsCount} fields out of ${attemptedFieldsCount} attempted`);
+
+      // Save the filled PDF
+      const pdfBytes = await pdfDoc.save();
+      const filledPdfBlob = new Blob([pdfBytes], { type: 'application/pdf' });
+      
+      // Store the filled PDF
+      await storePDFWithId('eest-form', filledPdfBlob, null, {
+        filename: 'eest-fill-filled.pdf',
+        date: new Date().toISOString(),
+        crewNumber: formData.agreementNumber || 'N/A',
+        fireName: formData.incidentName || 'N/A',
+        fireNumber: formData.incidentNumber || 'N/A'
+      });
+
+      console.log('EEST: PDF filled successfully, opening for signing...');
+      
+      // Increment PDF version to force refresh
+      setPdfVersion(prev => prev + 1);
+      
+      // Force a refresh of the PDF viewer by closing and reopening
+      setShowPDFViewer(false);
+      
+      // Small delay to ensure the PDF is saved before reopening
+      setTimeout(() => {
+        setShowPDFViewer(true);
+      }, 500);
+      
+    } catch (error) {
+      console.error('EEST: Error filling PDF:', error);
+      alert('Error filling PDF. Please check the console for details.');
+    }
+  };
+
+  const handleClosePDF = () => {
+    setShowPDFViewer(false);
+  };
+
+  const handleSavePDF = (pdfData: Blob, _previewImage: Blob) => {
+    console.log('EEST PDF saved:', pdfData.size, 'bytes');
+    
+    // Use the new naming schema with EEST form type
+    const saveOptions = {
+      formType: FormType.EEST,
+      incidentName: formData.incidentName,
+      incidentNumber: formData.incidentNumber,
+      contractorAgencyName: formData.contractorAgencyName,
+      date: new Date().toISOString().split('T')[0],
+      isSigned: true
+    };
+    
+    // The PDF save handler will automatically use the new naming schema
+    // and save metadata to the database
+    console.log('EEST: PDF will be saved with options:', saveOptions);
   };
 
 
@@ -1340,9 +1541,9 @@ export const EESTTimeTable: React.FC = () => {
                 type="radio"
                 id="equipment-status-inspected"
                 name="equipment-status"
-                value="Inspected"
-                checked={true}
-                readOnly
+                value="Inspected and under agreement"
+                checked={formData.equipmentStatus === 'Inspected and under agreement'}
+                onChange={(e) => handleFormChange('equipmentStatus', e.target.value)}
                 style={{
                   width: '18px',
                   height: '18px'
@@ -1372,10 +1573,24 @@ export const EESTTimeTable: React.FC = () => {
             flexDirection: 'column',
             gap: '12px'
           }}>
-
-            
-            
-
+            <button
+              onClick={handleViewPDF}
+              style={{
+                padding: '12px 24px',
+                backgroundColor: '#28a745',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s ease'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#218838'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#28a745'}
+            >
+              ✏️ Fill & Sign PDF
+            </button>
           </div>
         </div>
       </div>
@@ -1483,6 +1698,62 @@ export const EESTTimeTable: React.FC = () => {
         </div>
       )}
 
+      {/* PDF Viewer Modal */}
+      {showPDFViewer && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <div style={{
+            width: '95vw',
+            height: '95vh',
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            <button
+              onClick={handleClosePDF}
+              style={{
+                position: 'absolute',
+                top: '10px',
+                right: '10px',
+                background: '#dc3545',
+                color: 'white',
+                border: 'none',
+                borderRadius: '50%',
+                width: '30px',
+                height: '30px',
+                cursor: 'pointer',
+                zIndex: 1001,
+                fontSize: '16px',
+                fontWeight: 'bold'
+              }}
+            >
+              ×
+            </button>
+            <EnhancedPDFViewer
+              key={`viewer-${pdfVersion}`}
+              pdfId={pdfId}
+              onSave={handleSavePDF}
+              crewInfo={{
+                crewNumber: formData.agreementNumber || 'N/A',
+                fireName: formData.incidentName || 'N/A',
+                fireNumber: formData.incidentNumber || 'N/A'
+              }}
+              date={new Date().toISOString().split('T')[0]}
+            />
+          </div>
+        </div>
+      )}
 
     </div>
   );
