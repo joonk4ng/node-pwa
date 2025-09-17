@@ -9,7 +9,7 @@ import {
   loadAllEESTTimeEntries
 } from '../utils/engineTimeDB';
 import { handleEESTTimeEntryChange, DEFAULT_PROPAGATION_CONFIG } from '../utils/entryPropagation';
-import { EnhancedPDFViewer } from './PDF';
+import { EESTPDFViewer } from './PDF';
 import { getPDF, storePDFWithId } from '../utils/pdfStorage';
 import { mapEESTToPDFFields, validateEESTFormData } from '../utils/fieldmapper/eestFieldMapper';
 import * as PDFLib from 'pdf-lib';
@@ -1740,7 +1740,7 @@ export const EESTTimeTable: React.FC = () => {
             >
               ×
             </button>
-            <EnhancedPDFViewer
+            <EESTPDFViewer
               key={`viewer-${pdfVersion}`}
               pdfId={pdfId}
               onSave={handleSavePDF}

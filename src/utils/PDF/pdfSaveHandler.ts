@@ -158,38 +158,73 @@ export async function savePDFWithSignature(
         const isMobile = window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         const isIPad = /iPad/.test(navigator.userAgent);
         
+        // Signature position adjustments (easily modifiable constants)
+        const SIGNATURE_ADJUSTMENTS = {
+          // Horizontal adjustments (X-axis)
+          horizontal: {
+            ipad: -39,      // iPad horizontal adjustment
+            mobile: -185,   // General mobile horizontal adjustment
+            desktop: 0      // Desktop horizontal adjustment
+          },
+          // Vertical adjustments (Y-axis) - NEW
+          vertical: {
+            ipad: 0,      // iPad vertical adjustment
+            mobile: -5,    // General mobile vertical adjustment
+            desktop: 0      // Desktop vertical adjustment
+          }
+        };
+        
         // Apply mobile-specific X-axis adjustment
         let adjustedMinX = minX;
+        let adjustedMinY = minY;
+        
         if (isMobile) {
-          let adjustment;
+          let horizontalAdjustment;
+          let verticalAdjustment;
           
           if (isIPad) {
-            // iPad-specific adjustment (easily changeable)
-            adjustment = -45;
+            // iPad-specific adjustments
+            horizontalAdjustment = SIGNATURE_ADJUSTMENTS.horizontal.ipad;
+            verticalAdjustment = SIGNATURE_ADJUSTMENTS.vertical.ipad;
           } else {
-            // General mobile device adjustment
-            adjustment = -185;
+            // General mobile device adjustments
+            horizontalAdjustment = SIGNATURE_ADJUSTMENTS.horizontal.mobile;
+            verticalAdjustment = SIGNATURE_ADJUSTMENTS.vertical.mobile;
           }
           
-          adjustedMinX = Math.max(0, minX - adjustment);
+          adjustedMinX = Math.max(0, minX - horizontalAdjustment);
+          adjustedMinY = Math.max(0, minY - verticalAdjustment);
           
-          console.log('🔍 PDFSaveHandler: Mobile device detected, applying X-axis adjustment:', {
+          console.log('🔍 PDFSaveHandler: Mobile device detected, applying signature adjustments:', {
             isIPad,
-            originalMinX: minX,
-            adjustedMinX: adjustedMinX,
-            adjustment: adjustment
+            originalPosition: { minX, minY },
+            adjustedPosition: { minX: adjustedMinX, minY: adjustedMinY },
+            adjustments: { horizontal: horizontalAdjustment, vertical: verticalAdjustment }
+          });
+        } else {
+          // Desktop adjustments (currently 0, but can be modified)
+          const horizontalAdjustment = SIGNATURE_ADJUSTMENTS.horizontal.desktop;
+          const verticalAdjustment = SIGNATURE_ADJUSTMENTS.vertical.desktop;
+          
+          adjustedMinX = Math.max(0, minX - horizontalAdjustment);
+          adjustedMinY = Math.max(0, minY - verticalAdjustment);
+          
+          console.log('🔍 PDFSaveHandler: Desktop device detected, applying signature adjustments:', {
+            originalPosition: { minX, minY },
+            adjustedPosition: { minX: adjustedMinX, minY: adjustedMinY },
+            adjustments: { horizontal: horizontalAdjustment, vertical: verticalAdjustment }
           });
         }
         
         const scaledMinX = adjustedMinX * scaleX;
-        const scaledMinY = minY * scaleY;
+        const scaledMinY = adjustedMinY * scaleY;
         const scaledSigWidth = sigWidth * scaleX;
         const scaledSigHeight = sigHeight * scaleY;
         
         console.log('🔍 PDFSaveHandler: Drawing signature at scaled position:', {
           isIPad,
           originalBounds: { minX, minY, width: sigWidth, height: sigHeight },
-          adjustedBounds: { minX: adjustedMinX, minY, width: sigWidth, height: sigHeight },
+          adjustedBounds: { minX: adjustedMinX, minY: adjustedMinY, width: sigWidth, height: sigHeight },
           scaledBounds: { x: scaledMinX, y: scaledMinY, width: scaledSigWidth, height: scaledSigHeight },
           scaleFactors: { scaleX, scaleY }
         });
