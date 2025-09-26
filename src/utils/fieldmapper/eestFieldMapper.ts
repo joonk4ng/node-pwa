@@ -70,6 +70,10 @@ export interface EESTPDFFields {
   remarksOptions: string[];
   customRemarks: string[];
   
+  // Operator and Supplies text fields
+  operatorFurnishedBy: string;
+  operatingSuppliesFurnishedBy: string;
+  
   // Signature and date fields
   invoicePostedBy: string;
   dateSigned: string;
@@ -84,23 +88,85 @@ export function mapEESTToPDFFields(
 ): Record<string, string> {
   const fields: Record<string, string> = {};
   
+  console.log('🔍 EEST Field Mapper: Starting field mapping...');
+  console.log('🔍 EEST Field Mapper: Form data received:', {
+    agreementNumber: formData.agreementNumber,
+    contractorAgencyName: formData.contractorAgencyName,
+    incidentName: formData.incidentName,
+    incidentNumber: formData.incidentNumber,
+    operatorName: formData.operatorName,
+    equipmentMake: formData.equipmentMake,
+    equipmentModel: formData.equipmentModel,
+    serialNumber: formData.serialNumber,
+    licenseNumber: formData.licenseNumber,
+    equipmentStatus: formData.equipmentStatus,
+    equipmentUse: formData.equipmentUse,
+    remarks: formData.remarks,
+    remarksOptions: formData.remarksOptions,
+    customRemarks: formData.customRemarks
+  });
+  console.log('🔍 EEST Field Mapper: Time entries received:', timeEntries);
+  
   // Auto-calculate totals for time entries before mapping
   const calculatedTimeEntries = autoCalculateEESTTimeTotals(timeEntries);
+  console.log('🔍 EEST Field Mapper: Calculated time entries:', calculatedTimeEntries);
   
   // Map form data to PDF fields using the field mapper
   // Truncate text to fit better in the PDF fields
-  fields[getEESTPDFFieldName('agreementNumber')] = (formData.agreementNumber || '').substring(0, 20);
-  fields[getEESTPDFFieldName('resourceOrderNumber')] = (formData.resourceOrderNumber || '').substring(0, 15);
-  fields[getEESTPDFFieldName('contractorAgencyName')] = (formData.contractorAgencyName || '').substring(0, 25);
-  fields[getEESTPDFFieldName('incidentName')] = (formData.incidentName || '').substring(0, 30);
-  fields[getEESTPDFFieldName('incidentNumber')] = (formData.incidentNumber || '').substring(0, 15);
-  fields[getEESTPDFFieldName('operatorName')] = (formData.operatorName || '').substring(0, 20);
+  console.log('🔍 EEST Field Mapper: Mapping header fields...');
+  
+  const agreementFieldName = getEESTPDFFieldName('agreementNumber');
+  const agreementValue = (formData.agreementNumber || '').substring(0, 20);
+  fields[agreementFieldName] = agreementValue;
+  console.log(`🔍 EEST Field Mapper: ${agreementFieldName} = "${agreementValue}"`);
+  
+  const resourceOrderFieldName = getEESTPDFFieldName('resourceOrderNumber');
+  const resourceOrderValue = (formData.resourceOrderNumber || '').substring(0, 15);
+  fields[resourceOrderFieldName] = resourceOrderValue;
+  console.log(`🔍 EEST Field Mapper: ${resourceOrderFieldName} = "${resourceOrderValue}"`);
+  
+  const contractorFieldName = getEESTPDFFieldName('contractorAgencyName');
+  const contractorValue = (formData.contractorAgencyName || '').substring(0, 25);
+  fields[contractorFieldName] = contractorValue;
+  console.log(`🔍 EEST Field Mapper: ${contractorFieldName} = "${contractorValue}"`);
+  
+  const incidentNameFieldName = getEESTPDFFieldName('incidentName');
+  const incidentNameValue = (formData.incidentName || '').substring(0, 30);
+  fields[incidentNameFieldName] = incidentNameValue;
+  console.log(`🔍 EEST Field Mapper: ${incidentNameFieldName} = "${incidentNameValue}"`);
+  
+  const incidentNumberFieldName = getEESTPDFFieldName('incidentNumber');
+  const incidentNumberValue = (formData.incidentNumber || '').substring(0, 15);
+  fields[incidentNumberFieldName] = incidentNumberValue;
+  console.log(`🔍 EEST Field Mapper: ${incidentNumberFieldName} = "${incidentNumberValue}"`);
+  
+  const operatorFieldName = getEESTPDFFieldName('operatorName');
+  const operatorValue = (formData.operatorName || '').substring(0, 20);
+  fields[operatorFieldName] = operatorValue;
+  console.log(`🔍 EEST Field Mapper: ${operatorFieldName} = "${operatorValue}"`);
   
   // Equipment fields
-  fields[getEESTPDFFieldName('equipmentMake')] = (formData.equipmentMake || '').substring(0, 15);
-  fields[getEESTPDFFieldName('equipmentModel')] = (formData.equipmentModel || '').substring(0, 15);
-  fields[getEESTPDFFieldName('serialNumber')] = (formData.serialNumber || '').substring(0, 20);
-  fields[getEESTPDFFieldName('licenseNumber')] = (formData.licenseNumber || '').substring(0, 15);
+  console.log('🔍 EEST Field Mapper: Mapping equipment fields...');
+  
+  const equipmentMakeFieldName = getEESTPDFFieldName('equipmentMake');
+  const equipmentMakeValue = (formData.equipmentMake || '').substring(0, 15);
+  fields[equipmentMakeFieldName] = equipmentMakeValue;
+  console.log(`🔍 EEST Field Mapper: ${equipmentMakeFieldName} = "${equipmentMakeValue}"`);
+  
+  const equipmentModelFieldName = getEESTPDFFieldName('equipmentModel');
+  const equipmentModelValue = (formData.equipmentModel || '').substring(0, 15);
+  fields[equipmentModelFieldName] = equipmentModelValue;
+  console.log(`🔍 EEST Field Mapper: ${equipmentModelFieldName} = "${equipmentModelValue}"`);
+  
+  const serialNumberFieldName = getEESTPDFFieldName('serialNumber');
+  const serialNumberValue = (formData.serialNumber || '').substring(0, 20);
+  fields[serialNumberFieldName] = serialNumberValue;
+  console.log(`🔍 EEST Field Mapper: ${serialNumberFieldName} = "${serialNumberValue}"`);
+  
+  const licenseNumberFieldName = getEESTPDFFieldName('licenseNumber');
+  const licenseNumberValue = (formData.licenseNumber || '').substring(0, 15);
+  fields[licenseNumberFieldName] = licenseNumberValue;
+  console.log(`🔍 EEST Field Mapper: ${licenseNumberFieldName} = "${licenseNumberValue}"`);
   
   // Equipment status checkboxes - map to appropriate status checkboxes
   // Note: equipmentStatus field mapping removed - should use checkboxes instead
@@ -159,10 +225,47 @@ export function mapEESTToPDFFields(
   }
   
   // Map crew members to remarks if provided, otherwise use other remarks
+  const remarksFieldName = getEESTPDFFieldName('remarks');
+  const customRemarksFieldName = getEESTPDFFieldName('customRemarks');
+  console.log('🔍 EEST Field Mapper: Remarks field name:', remarksFieldName);
+  console.log('🔍 EEST Field Mapper: Custom remarks field name:', customRemarksFieldName);
+  console.log('🔍 EEST Field Mapper: All remarks to map:', allRemarks);
+  console.log('🔍 EEST Field Mapper: Form data remarks:', formData.remarks);
+  console.log('🔍 EEST Field Mapper: Custom remarks (crew members):', formData.customRemarks);
+  
+  // Try mapping to both the main remarks field and the custom remarks field
   if (formData.remarks) {
-    fields[getEESTPDFFieldName('remarks')] = formData.remarks;
+    fields[remarksFieldName] = formData.remarks;
+    console.log(`🔍 EEST Field Mapper: Mapped remarks field "${remarksFieldName}" with form data remarks: "${formData.remarks}"`);
   } else if (allRemarks.length > 0) {
-    fields[getEESTPDFFieldName('remarks')] = allRemarks.join('\n');
+    const combinedRemarks = allRemarks.join('\n');
+    fields[remarksFieldName] = combinedRemarks;
+    console.log(`🔍 EEST Field Mapper: Mapped remarks field "${remarksFieldName}" with combined remarks: "${combinedRemarks}"`);
+  } else {
+    console.log('🔍 EEST Field Mapper: No remarks to map to main field');
+  }
+  
+  // Map crew members to the correct operator and supplies fields
+  if (formData.customRemarks && formData.customRemarks.length > 0) {
+    console.log(`🔍 EEST Field Mapper: Processing ${formData.customRemarks.length} crew members:`, formData.customRemarks);
+    
+    // Map crew members to operator and supplies text fields
+    const crewMembersText = formData.customRemarks.join(', '); // Use comma separation for better readability
+    
+    // Map to Operator Furnished By text field
+    const operatorFieldName = getEESTPDFFieldName('operatorFurnishedBy');
+    fields[operatorFieldName] = crewMembersText;
+    console.log(`🔍 EEST Field Mapper: Mapped operator field "${operatorFieldName}" with crew members: "${crewMembersText}"`);
+    
+    // Map to Operating Supplies Furnished By text field
+    const suppliesFieldName = getEESTPDFFieldName('operatingSuppliesFurnishedBy');
+    fields[suppliesFieldName] = crewMembersText;
+    console.log(`🔍 EEST Field Mapper: Mapped supplies field "${suppliesFieldName}" with crew members: "${crewMembersText}"`);
+    
+    console.log(`🔍 EEST Field Mapper: Crew members text length: ${crewMembersText.length} characters`);
+  } else {
+    console.log('🔍 EEST Field Mapper: No crew members (customRemarks) found in form data');
+    console.log('🔍 EEST Field Mapper: Form data customRemarks:', formData.customRemarks);
   }
   
   // Also map individual checkbox fields for compatibility
@@ -192,13 +295,31 @@ export function mapEESTToPDFFields(
   }
   
   // Map time entries to PDF fields - using calculated entries
+  console.log('🔍 EEST Field Mapper: Mapping time entries...');
   calculatedTimeEntries.forEach((entry, index) => {
     if (index < 4) { // PDF has 4 rows for time entries
       const rowNum = index + 1;
-      fields[`12 DATE MODAYRRow${rowNum}`] = (entry.date || '').substring(0, 8);
-      fields[`STARTRow${rowNum}`] = (entry.start || '').substring(0, 4);
-      fields[`STOPRow${rowNum}`] = (entry.stop || '').substring(0, 4);
-      fields[`WORKRow${rowNum}`] = (entry.work || '').substring(0, 10);
+      console.log(`🔍 EEST Field Mapper: Processing time entry row ${rowNum}:`, entry);
+      
+      const dateFieldName = `12 DATE MODAYRRow${rowNum}`;
+      const dateValue = (entry.date || '').substring(0, 8);
+      fields[dateFieldName] = dateValue;
+      console.log(`🔍 EEST Field Mapper: ${dateFieldName} = "${dateValue}"`);
+      
+      const startFieldName = `STARTRow${rowNum}`;
+      const startValue = (entry.start || '').substring(0, 4);
+      fields[startFieldName] = startValue;
+      console.log(`🔍 EEST Field Mapper: ${startFieldName} = "${startValue}"`);
+      
+      const stopFieldName = `STOPRow${rowNum}`;
+      const stopValue = (entry.stop || '').substring(0, 4);
+      fields[stopFieldName] = stopValue;
+      console.log(`🔍 EEST Field Mapper: ${stopFieldName} = "${stopValue}"`);
+      
+      const workFieldName = `WORKRow${rowNum}`;
+      const workValue = (entry.work || '').substring(0, 10);
+      fields[workFieldName] = workValue;
+      console.log(`🔍 EEST Field Mapper: ${workFieldName} = "${workValue}"`);
       
       // Use special selections from form data if available, otherwise use entry.special
       const specialSelections = formData.specialSelections || {};
@@ -206,7 +327,12 @@ export function mapEESTToPDFFields(
       const specialText = rowSpecialSelections.length > 0 
         ? rowSpecialSelections.join(', ') 
         : (entry.special || '');
-      fields[`SPECIALRow${rowNum}`] = specialText.substring(0, 10);
+      const specialFieldName = `SPECIALRow${rowNum}`;
+      const specialValue = specialText.substring(0, 10);
+      fields[specialFieldName] = specialValue;
+      console.log(`🔍 EEST Field Mapper: ${specialFieldName} = "${specialValue}"`);
+      console.log(`🔍 EEST Field Mapper: Special selections for row ${rowNum}:`, rowSpecialSelections);
+      console.log(`🔍 EEST Field Mapper: Entry special:`, entry.special);
     }
   });
   
@@ -246,11 +372,23 @@ export function getEESTPDFFieldName(field: keyof EESTPDFFields): string {
     travelCheckbox: 'Text3',
     noLunchCheckbox: 'Text4',
     
+    // Operator and Supplies text fields
+    operatorFurnishedBy: 'Text6', // Text field next to "Operator Furnished By" checkbox
+    operatingSuppliesFurnishedBy: 'Text7', // Text field next to "Operating Supplies Furnished By" checkbox
+    
     // TODO: Add remaining PDF field names
     resourceOrderNumber: 'RESOURCE ORDER #',
     // equipmentStatus: removed - should use checkboxes instead of text field
     timeEntries: 'time_entries',
-    remarks: '14 REMARKS released down time and cause problems etc',
+    // Try different possible REMARKS field names
+    remarks: '14 REMARKS released down time and cause problems etc', // Original attempt
+    // Alternative field names to try:
+    // remarks: 'REMARKS',
+    // remarks: '14 REMARKS',
+    // remarks: 'Text2', // This might be the actual field name
+    // remarks: 'Text3',
+    // remarks: 'Text4',
+    // remarks: 'Text5',
     remarksOptions: 'remarks_options',
     customRemarks: 'Text5',
     invoicePostedBy: '16 INVOICE POSTED BY Recorders Initials',
@@ -265,13 +403,56 @@ export function getEESTPDFFieldName(field: keyof EESTPDFFields): string {
  * This can be called to log all available fields in the PDF
  */
 export function debugPDFFields(form: unknown): void {
-  console.group('PDF Field Debug Info');
+  console.group('🔍 EEST PDF Field Debug Info');
   const fields = (form as { getFields(): unknown[] }).getFields();
   console.log('All available PDF fields:');
   fields.forEach((field: unknown) => {
     const fieldObj = field as { getName(): string; constructor: { name: string } };
     console.log(`- ${fieldObj.getName()} (${fieldObj.constructor.name})`);
   });
+  console.groupEnd();
+}
+
+/**
+ * Enhanced debug function to compare mapped fields with available PDF fields
+ */
+export function debugEESTFieldMapping(
+  mappedFields: Record<string, string>,
+  form: unknown
+): void {
+  console.group('🔍 EEST Field Mapping Debug');
+  
+  const availableFields = (form as { getFields(): unknown[] }).getFields();
+  const availableFieldNames = availableFields.map((field: unknown) => 
+    (field as { getName(): string }).getName()
+  );
+  
+  console.log('📋 Mapped Fields:');
+  Object.entries(mappedFields).forEach(([fieldName, value]) => {
+    const isFieldAvailable = availableFieldNames.includes(fieldName);
+    const status = isFieldAvailable ? '✅' : '❌';
+    console.log(`${status} ${fieldName} = "${value}"`);
+  });
+  
+  console.log('\n📋 Available PDF Fields:');
+  availableFieldNames.forEach(fieldName => {
+    const isMapped = fieldName in mappedFields;
+    const status = isMapped ? '✅' : '❓';
+    console.log(`${status} ${fieldName}`);
+  });
+  
+  console.log('\n📊 Summary:');
+  const mappedCount = Object.keys(mappedFields).length;
+  const availableCount = availableFieldNames.length;
+  const matchedCount = Object.keys(mappedFields).filter(name => 
+    availableFieldNames.includes(name)
+  ).length;
+  
+  console.log(`- Total mapped fields: ${mappedCount}`);
+  console.log(`- Total available fields: ${availableCount}`);
+  console.log(`- Successfully matched: ${matchedCount}`);
+  console.log(`- Unmatched mapped fields: ${mappedCount - matchedCount}`);
+  
   console.groupEnd();
 }
 

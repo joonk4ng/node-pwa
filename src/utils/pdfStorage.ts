@@ -136,4 +136,20 @@ export async function deletePDF(id: string) {
   const db = await initDB();
   await db.delete(STORE_NAME, id);
   console.log('PDF deleted successfully');
+}
+
+// Clear all PDFs from storage
+export async function clearAllPDFs() {
+  console.log('Clearing all PDFs from IndexedDB...');
+  const db = await initDB();
+  await db.clear(STORE_NAME);
+  console.log('All PDFs cleared from storage');
+}
+
+// Clear a specific PDF from storage
+export async function clearPDF(id: string) {
+  console.log('Clearing PDF from IndexedDB:', id);
+  const db = await initDB();
+  await db.delete(STORE_NAME, id);
+  console.log('PDF cleared from storage:', id);
 } 

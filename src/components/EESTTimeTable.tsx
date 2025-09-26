@@ -1,5 +1,5 @@
 //
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { EESTFormData, EESTTimeEntry } from '../utils/engineTimeDB';
 import { FormType } from '../utils/engineTimeDB';
 import {
@@ -10,8 +10,9 @@ import {
 } from '../utils/engineTimeDB';
 import { handleEESTTimeEntryChange, DEFAULT_PROPAGATION_CONFIG } from '../utils/entryPropagation';
 import { EESTPDFViewer } from './PDF';
-import { getPDF, storePDFWithId } from '../utils/pdfStorage';
+import { getPDF, storePDFWithId, clearPDF } from '../utils/pdfStorage';
 import { mapEESTToPDFFields, validateEESTFormData } from '../utils/fieldmapper/eestFieldMapper';
+import { debugEESTDatabase, testEESTDataPersistence } from '../utils/eestDBDebug';
 import * as PDFLib from 'pdf-lib';
 
 
@@ -48,6 +49,9 @@ const EMPTY_FORM_DATA: EESTFormData = {
 };
 
 export const EESTTimeTable: React.FC = () => {
+  // Track if we're in initial loading state
+  const isInitialLoad = useRef(true);
+  
   // Main form state
   const [formData, setFormData] = useState<EESTFormData>(EMPTY_FORM_DATA);
 
@@ -85,7 +89,7 @@ export const EESTTimeTable: React.FC = () => {
   // PDF state
   const [showPDFViewer, setShowPDFViewer] = useState(false);
   const [pdfId] = useState<string>('eest-form');
-  const [pdfVersion, setPdfVersion] = useState(0); // Force PDF viewer refresh
+  const [pdfRefreshKey, setPdfRefreshKey] = useState(0);
 
 
 
@@ -133,8 +137,12 @@ export const EESTTimeTable: React.FC = () => {
       } else {
         console.log('EEST: No saved form data found');
       }
+      // Mark initial load as complete
+      isInitialLoad.current = false;
     }).catch(error => {
       console.error('EEST: Error loading form data:', error);
+      // Mark initial load as complete even on error
+      isInitialLoad.current = false;
     });
 
     loadAllEESTTimeEntries().then((entries) => {
@@ -172,30 +180,28 @@ export const EESTTimeTable: React.FC = () => {
   useEffect(() => {
     const initializeEESTPDF = async () => {
       try {
-        // Check if EEST PDF already exists
-        const existingPDF = await getPDF('eest-form');
-        if (!existingPDF) {
-          console.log('EEST: No existing PDF found, loading eest-fill.pdf...');
-          // Load the EEST PDF from public folder
-          const response = await fetch('/eest-fill.pdf');
-          console.log('EEST: Fetch response status:', response.status, response.ok);
-          if (response.ok) {
-            const pdfBlob = await response.blob();
-            console.log('EEST: PDF blob size:', pdfBlob.size, 'bytes');
-            // Store with a fixed ID for the EEST form
-            await storePDFWithId('eest-form', pdfBlob, null, {
-              filename: 'eest-fill.pdf',
-              date: new Date().toISOString(),
-              crewNumber: 'N/A',
-              fireName: 'N/A',
-              fireNumber: 'N/A'
-            });
-            console.log('EEST PDF initialized in storage');
-          } else {
-            console.error('EEST: Failed to fetch eest-fill.pdf, status:', response.status);
-          }
+        // Clear any existing PDF to ensure we load the correct one
+        console.log('EEST: Clearing any existing PDF to ensure correct file is loaded...');
+        await clearPDF('eest-form');
+        
+        console.log('EEST: Loading eest-fill.pdf...');
+        // Load the EEST PDF from public folder
+        const response = await fetch('/eest-fill.pdf');
+        console.log('EEST: Fetch response status:', response.status, response.ok);
+        if (response.ok) {
+          const pdfBlob = await response.blob();
+          console.log('EEST: PDF blob size:', pdfBlob.size, 'bytes');
+          // Store with a fixed ID for the EEST form
+          await storePDFWithId('eest-form', pdfBlob, null, {
+            filename: 'eest-fill.pdf',
+            date: new Date().toISOString(),
+            crewNumber: 'N/A',
+            fireName: 'N/A',
+            fireNumber: 'N/A'
+          });
+          console.log('EEST PDF initialized in storage with eest-fill.pdf');
         } else {
-          console.log('EEST: Existing PDF found in storage, size:', existingPDF.pdf.size, 'bytes');
+          console.error('EEST: Failed to fetch eest-fill.pdf, status:', response.status);
         }
       } catch (error) {
         console.error('Error initializing EEST PDF:', error);
@@ -207,6 +213,12 @@ export const EESTTimeTable: React.FC = () => {
 
   // Save form data whenever it changes
   useEffect(() => {
+    // Skip saving during initial load
+    if (isInitialLoad.current) {
+      console.log('EEST: Skipping save - still in initial load phase');
+      return;
+    }
+
     const remarksOptions = [
       ...(checkboxStates.hotline ? ['HOTLINE'] : []),
       ...(checkboxStates.noMealsLodging ? ['Self Sufficient - No Meals Provided'] : []),
@@ -260,7 +272,12 @@ export const EESTTimeTable: React.FC = () => {
   }, [timeEntries]);
 
   const handleFormChange = (field: keyof EESTFormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    console.log(`EEST: Form field changed - ${field}: "${value}"`);
+    setFormData(prev => {
+      const updated = { ...prev, [field]: value };
+      console.log('EEST: Updated form data:', updated);
+      return updated;
+    });
   };
 
 
@@ -336,9 +353,22 @@ export const EESTTimeTable: React.FC = () => {
         return;
       }
 
-      // Map form data to PDF fields
-      const pdfFields = mapEESTToPDFFields(formData, timeEntries);
-      console.log('EEST: Mapped PDF fields:', pdfFields);
+    // Map form data to PDF fields
+    console.log('EEST: Form data being mapped:', {
+      formData,
+      timeEntries,
+      customEntries,
+      specialSelections
+    });
+    const pdfFields = mapEESTToPDFFields(formData, timeEntries);
+    console.log('EEST: Mapped PDF fields:', pdfFields);
+    
+    // Debug: Show which fields contain crew member data
+    Object.entries(pdfFields).forEach(([fieldName, value]) => {
+      if (typeof value === 'string' && value.includes('Big Boss')) {
+        console.log(`🔍 EEST Debug: Field "${fieldName}" contains crew member data: "${value}"`);
+      }
+    });
 
       // Get the stored PDF
       const storedPDF = await getPDF('eest-form');
@@ -353,6 +383,15 @@ export const EESTTimeTable: React.FC = () => {
         size: storedPDF.pdf.size,
         date: storedPDF.metadata?.date
       });
+      
+      // Debug: Verify we're using the correct PDF
+      if (storedPDF.metadata?.filename !== 'eest-fill.pdf') {
+        console.error('❌ EEST ERROR: Wrong PDF loaded! Expected eest-fill.pdf but got:', storedPDF.metadata?.filename);
+        alert('Error: Wrong PDF loaded. Please refresh the page and try again.');
+        return;
+      } else {
+        console.log('✅ EEST: Correct PDF confirmed - eest-fill.pdf');
+      }
 
       // Create a new PDF with filled fields
       const pdfDoc = await PDFLib.PDFDocument.load(await storedPDF.pdf.arrayBuffer());
@@ -376,12 +415,39 @@ export const EESTTimeTable: React.FC = () => {
         try {
           const field = form.getField(fieldName);
           if (field) {
-            if (field.constructor.name === 'PDFTextField') {
-              (field as any).setText(value);
+            // Use robust field type detection like Federal implementation
+            const hasSetText = typeof (field as any).setText === 'function';
+            const hasCheck = typeof (field as any).check === 'function';
+            const hasSelect = typeof (field as any).select === 'function';
+            const hasSetValue = typeof (field as any).setValue === 'function';
+            
+            console.log(`EEST: Field ${fieldName} - setText: ${hasSetText}, check: ${hasCheck}, select: ${hasSelect}, setValue: ${hasSetValue}`);
+            
+            if (hasSetText) {
+              // Text field
+              const textField = field as any;
+              textField.setText(value);
+              
+              // Set smaller font size for remarks fields and crew member fields to fit more text
+              if (fieldName.includes('REMARKS') || fieldName.includes('remarks') || 
+                  fieldName.includes('Text6') || fieldName.includes('Text7') ||
+                  fieldName.includes('operatorFurnishedBy') || fieldName.includes('operatingSuppliesFurnishedBy')) {
+                try {
+                  textField.updateAppearances();
+                  // Try to set a smaller font size
+                  const fontSize = 6; // Even smaller font size for remarks to fit more text
+                  textField.setFontSize(fontSize);
+                  console.log(`EEST: Set font size ${fontSize} for remarks field: ${fieldName}`);
+                } catch (fontError) {
+                  console.warn(`EEST: Could not set font size for field ${fieldName}:`, fontError);
+                }
+              }
+              
               filledFieldsCount++;
               console.log(`EEST: Filled text field ${fieldName} with: "${value}"`);
-            } else if (field.constructor.name === 'PDFCheckBox') {
-              if (value === 'Yes' || value === 'On') {
+            } else if (hasCheck) {
+              // Checkbox field
+              if (value === 'Yes' || value === 'On' || value === 'YES') {
                 (field as any).check();
                 filledFieldsCount++;
                 console.log(`EEST: Checked checkbox ${fieldName}`);
@@ -390,10 +456,25 @@ export const EESTTimeTable: React.FC = () => {
                 filledFieldsCount++;
                 console.log(`EEST: Unchecked checkbox ${fieldName}`);
               }
-            } else if (field.constructor.name === 'PDFDropdown') {
+            } else if (hasSelect) {
+              // Dropdown field
               (field as any).select(value);
               filledFieldsCount++;
               console.log(`EEST: Selected dropdown ${fieldName} with: "${value}"`);
+            } else if (hasSetValue) {
+              // Generic field with setValue method
+              (field as any).setValue(value);
+              filledFieldsCount++;
+              console.log(`EEST: Filled field ${fieldName} with: "${value}" using setValue`);
+            } else {
+              // Try to set the field value directly
+              try {
+                (field as any).value = value;
+                filledFieldsCount++;
+                console.log(`EEST: Filled field ${fieldName} with: "${value}" using direct assignment`);
+              } catch (directError) {
+                console.warn(`EEST: Field ${fieldName} found but no suitable method available. Available methods: ${Object.getOwnPropertyNames(field).join(', ')}`);
+              }
             }
           } else {
             console.warn(`EEST: Field ${fieldName} not found in PDF`);
@@ -409,7 +490,7 @@ export const EESTTimeTable: React.FC = () => {
       const pdfBytes = await pdfDoc.save();
       const filledPdfBlob = new Blob([pdfBytes], { type: 'application/pdf' });
       
-      // Store the filled PDF
+      // Store the filled PDF back to the same key (this is correct for the preview system)
       await storePDFWithId('eest-form', filledPdfBlob, null, {
         filename: 'eest-fill-filled.pdf',
         date: new Date().toISOString(),
@@ -417,19 +498,19 @@ export const EESTTimeTable: React.FC = () => {
         fireName: formData.incidentName || 'N/A',
         fireNumber: formData.incidentNumber || 'N/A'
       });
+      
+      console.log('EEST: Filled PDF stored, size:', filledPdfBlob.size, 'bytes');
 
-      console.log('EEST: PDF filled successfully, opening for signing...');
+      console.log('EEST: PDF filled successfully, opening viewer...');
       
-      // Increment PDF version to force refresh
-      setPdfVersion(prev => prev + 1);
+      // Force PDF viewer to refresh with the new filled PDF first
+      setPdfRefreshKey(prev => prev + 1);
       
-      // Force a refresh of the PDF viewer by closing and reopening
-      setShowPDFViewer(false);
-      
-      // Small delay to ensure the PDF is saved before reopening
+      // Then show the PDF viewer after a brief delay to ensure refresh is processed
       setTimeout(() => {
+        console.log('EEST: Opening PDF viewer with refreshed PDF...');
         setShowPDFViewer(true);
-      }, 500);
+      }, 200); // Brief delay to ensure refresh is processed
       
     } catch (error) {
       console.error('EEST: Error filling PDF:', error);
@@ -489,6 +570,7 @@ export const EESTTimeTable: React.FC = () => {
         width: '100%',
         boxSizing: 'border-box'
       }}>
+        
         
         {/* Header */}
         <div style={{
@@ -1591,6 +1673,31 @@ export const EESTTimeTable: React.FC = () => {
             >
               ✏️ Fill & Sign PDF
             </button>
+            
+            <button
+              onClick={async () => {
+                console.log('🔍 EEST Debug: Testing data persistence...');
+                await debugEESTDatabase();
+                const testResult = await testEESTDataPersistence();
+                console.log('🔍 EEST Debug: Persistence test result:', testResult);
+                alert(`Data persistence test: ${testResult ? 'PASSED' : 'FAILED'}. Check console for details.`);
+              }}
+              style={{
+                padding: '12px 24px',
+                backgroundColor: '#6c757d',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s ease'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#5a6268'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#6c757d'}
+            >
+              🔍 Debug Persistence
+            </button>
           </div>
         </div>
       </div>
@@ -1718,7 +1825,11 @@ export const EESTTimeTable: React.FC = () => {
             backgroundColor: 'white',
             borderRadius: '8px',
             position: 'relative',
-            overflow: 'hidden'
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center'
           }}>
             <button
               onClick={handleClosePDF}
@@ -1741,8 +1852,8 @@ export const EESTTimeTable: React.FC = () => {
               ×
             </button>
             <EESTPDFViewer
-              key={`viewer-${pdfVersion}`}
               pdfId={pdfId}
+              refreshKey={pdfRefreshKey}
               onSave={handleSavePDF}
               crewInfo={{
                 crewNumber: formData.agreementNumber || 'N/A',

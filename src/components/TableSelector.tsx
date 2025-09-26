@@ -9,7 +9,7 @@ export type TableType = 'eest' | 'federal' | 'odf';
 // interface for the table selector props
 interface TableSelectorProps {
   // active table to display
-  activeTable: TableType;
+  activeTable: TableType | null;
   // function to change the table
   onTableChange: (table: TableType) => void;
   // show settings

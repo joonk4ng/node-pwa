@@ -675,6 +675,22 @@ form {
   background: #0056b3;
 }
 
+.no-table-selected {
+  text-align: center;
+  padding: 80px 40px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  margin: 40px 20px;
+  border: 2px dashed #dee2e6;
+}
+
+.no-table-selected p {
+  color: #6c757d;
+  font-size: 20px;
+  font-weight: 500;
+  margin: 0;
+}
+
 /* Mobile-first responsive design */
 @media (max-width: 768px) {
   .app {
