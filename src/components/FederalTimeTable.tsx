@@ -726,7 +726,6 @@ export const FederalTimeTable: React.FC = () => {
   };
 
   // PDF handlers
-
   const handleViewPDF = async () => {
     try {
       console.log('Federal: Starting PDF fill and sign process...');
@@ -869,7 +868,6 @@ export const FederalTimeTable: React.FC = () => {
     setShowPDFViewer(false);
   };
 
-
   const handleSavePDF = (pdfData: Blob, _previewImage: Blob) => {
     console.log('Federal PDF saved:', pdfData.size, 'bytes');
     // You can add additional save logic here
@@ -953,7 +951,6 @@ export const FederalTimeTable: React.FC = () => {
       console.error('Error creating next day:', error);
     }
   };
-
 
   const copyDataToNextDay = async (nextDateString: string) => {
     try {
@@ -1120,8 +1117,6 @@ export const FederalTimeTable: React.FC = () => {
     }
   };
 
-
-
   return (
     <div style={{ 
       width: '100vw',
@@ -1263,123 +1258,133 @@ export const FederalTimeTable: React.FC = () => {
             gap: '16px',
             marginBottom: '24px'
           }}>            
-            {/* Agreement Number */}
+            {/* Row 1: Agreement Number & Contractor/Agency Name */}
             <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px'
+              display: 'grid',
+              gridTemplateColumns: '50% 50%',
+              gap: '16px'
             }}>
-              <label style={{
-                fontSize: '14px',
-                fontWeight: '600',
-                color: '#2c3e50'
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
               }}>
-                1. Agreement Number
-              </label>
-              <input
-                type="text"
-                value={federalFormData.agreementNumber}
-                onChange={e => handleFederalFormChange('agreementNumber', e.target.value)}
-                style={{
-                  padding: '12px',
-                  border: '1px solid #ddd',
-                  borderRadius: '6px',
-                  fontSize: '16px',
-                  backgroundColor: '#fff',
-                  color: '#333'
-                }}
-                placeholder="Enter agreement number"
-              />
-            </div>
-            
-            {/* Contractor/Agency Name */}
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px'
-            }}>
-              <label style={{
-                fontSize: '14px',
-                fontWeight: '600',
-                color: '#2c3e50'
+                <label style={{
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#2c3e50'
+                }}>
+                  1. Agreement Number
+                </label>
+                <input
+                  type="text"
+                  value={federalFormData.agreementNumber}
+                  onChange={e => handleFederalFormChange('agreementNumber', e.target.value)}
+                  style={{
+                    padding: '12px',
+                    border: '1px solid #ddd',
+                    borderRadius: '6px',
+                    fontSize: '16px',
+                    backgroundColor: '#fff',
+                    color: '#333'
+                  }}
+                  placeholder="Enter agreement number"
+                />
+              </div>
+              
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
               }}>
-                2. Contractor/Agency Name
-              </label>
-              <input
-                type="text"
-                value={federalFormData.contractorAgencyName}
-                onChange={e => handleFederalFormChange('contractorAgencyName', e.target.value)}
-                style={{
-                  padding: '12px',
-                  border: '1px solid #ddd',
-                  borderRadius: '6px',
-                  fontSize: '16px',
-                  backgroundColor: '#fff',
-                  color: '#333'
-                }}
-                placeholder="Enter contractor/agency name"
-              />
-            </div>
-
-            {/* Resource Order Number Row */}
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px'
-            }}>
-              <label style={{
-                fontSize: '14px',
-                fontWeight: '600',
-                color: '#2c3e50'
-              }}>
-                3. E-Number
-              </label>
-              <input
-                type="text"
-                value={federalFormData.resourceOrderNumber}
-                onChange={e => handleFederalFormChange('resourceOrderNumber', e.target.value)}
-                style={{
-                  padding: '12px',
-                  border: '1px solid #ddd',
-                  borderRadius: '6px',
-                  fontSize: '16px',
-                  backgroundColor: '#fff',
-                  color: '#333'
-                }}
-                placeholder="Enter resource order number"
-              />
+                <label style={{
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#2c3e50'
+                }}>
+                  2. Contractor/Agency Name
+                </label>
+                <input
+                  type="text"
+                  value={federalFormData.contractorAgencyName}
+                  onChange={e => handleFederalFormChange('contractorAgencyName', e.target.value)}
+                  style={{
+                    padding: '12px',
+                    border: '1px solid #ddd',
+                    borderRadius: '6px',
+                    fontSize: '16px',
+                    backgroundColor: '#fff',
+                    color: '#333'
+                  }}
+                  placeholder="Enter contractor/agency name"
+                />
+              </div>
             </div>
 
-            {/* Incident Name */}
+            {/* Row 2: E-Number & Incident Name */}
             <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px'
+              display: 'grid',
+              gridTemplateColumns: '50% 50%',
+              gap: '16px'
             }}>
-              <label style={{
-                fontSize: '14px',
-                fontWeight: '600',
-                color: '#2c3e50'
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
               }}>
-                4. Incident Name
-              </label>
-              <input
-                type="text"
-                value={federalFormData.incidentName}
-                onChange={e => handleFederalFormChange('incidentName', e.target.value)}
-                style={{
-                  padding: '12px',
-                  border: '1px solid #ddd',
-                  borderRadius: '6px',
-                  fontSize: '16px',
-                  backgroundColor: '#fff',
-                  color: '#333'
-                }}
-                placeholder="Enter incident name"
-              />
+                <label style={{
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#2c3e50'
+                }}>
+                  3. E-Number
+                </label>
+                <input
+                  type="text"
+                  value={federalFormData.resourceOrderNumber}
+                  onChange={e => handleFederalFormChange('resourceOrderNumber', e.target.value)}
+                  style={{
+                    padding: '12px',
+                    border: '1px solid #ddd',
+                    borderRadius: '6px',
+                    fontSize: '16px',
+                    backgroundColor: '#fff',
+                    color: '#333'
+                  }}
+                  placeholder="Enter resource order number"
+                />
+              </div>
+
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              }}>
+                <label style={{
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#2c3e50'
+                }}>
+                  4. Incident Name
+                </label>
+                <input
+                  type="text"
+                  value={federalFormData.incidentName}
+                  onChange={e => handleFederalFormChange('incidentName', e.target.value)}
+                  style={{
+                    padding: '12px',
+                    border: '1px solid #ddd',
+                    borderRadius: '6px',
+                    fontSize: '16px',
+                    backgroundColor: '#fff',
+                    color: '#333'
+                  }}
+                  placeholder="Enter incident name"
+                />
+              </div>
             </div>
             
-            {/* Incident Number */}
+            {/* Row 3: Incident Number (full width) */}
             <div style={{
               display: 'flex',
               flexDirection: 'column',
@@ -1445,120 +1450,130 @@ export const FederalTimeTable: React.FC = () => {
             gap: '16px',
             marginBottom: '24px'
           }}>
-            {/* Equipment Make/Model */}
+            {/* Row 1: Equipment Make/Model & Equipment Type */}
             <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px'
+              display: 'grid',
+              gridTemplateColumns: '50% 50%',
+              gap: '16px'
             }}>
-              <label style={{
-                fontSize: '14px',
-                fontWeight: '600',
-                color: '#2c3e50'
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
               }}>
-                7. Equipment Make/Model
-              </label>
-              <input
-                type="text"
-                value={federalFormData.equipmentMakeModel}
-                onChange={e => handleFederalFormChange('equipmentMakeModel', e.target.value)}
-                style={{
-                  padding: '12px',
-                  border: '1px solid #ddd',
-                  borderRadius: '6px',
-                  fontSize: '16px',
-                  backgroundColor: '#fff',
-                  color: '#333'
-                }}
-                placeholder="Enter make/model"
-              />
+                <label style={{
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#2c3e50'
+                }}>
+                  7. Equipment Model
+                </label>
+                <input
+                  type="text"
+                  value={federalFormData.equipmentMakeModel}
+                  onChange={e => handleFederalFormChange('equipmentMakeModel', e.target.value)}
+                  style={{
+                    padding: '12px',
+                    border: '1px solid #ddd',
+                    borderRadius: '6px',
+                    fontSize: '16px',
+                    backgroundColor: '#fff',
+                    color: '#333'
+                  }}
+                  placeholder="Enter make/model"
+                />
+              </div>
+              
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              }}>
+                <label style={{
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#2c3e50'
+                }}>
+                  8. Equipment Type
+                </label>
+                <input
+                  type="text"
+                  value={federalFormData.equipmentType}
+                  onChange={e => handleFederalFormChange('equipmentType', e.target.value)}
+                  style={{
+                    padding: '12px',
+                    border: '1px solid #ddd',
+                    borderRadius: '6px',
+                    fontSize: '16px',
+                    backgroundColor: '#fff',
+                    color: '#333'
+                  }}
+                  placeholder="Enter equipment type"
+                />
+              </div>
             </div>
             
-            {/* Equipment Type */}
+            {/* Row 2: Serial/VIN Number & License Plate */}
             <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px'
+              display: 'grid',
+              gridTemplateColumns: '50% 50%',
+              gap: '16px'
             }}>
-              <label style={{
-                fontSize: '14px',
-                fontWeight: '600',
-                color: '#2c3e50'
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
               }}>
-                8. Equipment Type
-              </label>
-              <input
-                type="text"
-                value={federalFormData.equipmentType}
-                onChange={e => handleFederalFormChange('equipmentType', e.target.value)}
-                style={{
-                  padding: '12px',
-                  border: '1px solid #ddd',
-                  borderRadius: '6px',
-                  fontSize: '16px',
-                  backgroundColor: '#fff',
-                  color: '#333'
-                }}
-                placeholder="Enter equipment type"
-              />
-            </div>
-            
-            {/* Serial/VIN Number */}
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px'
-            }}>
-              <label style={{
-                fontSize: '14px',
-                fontWeight: '600',
-                color: '#2c3e50'
+                <label style={{
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#2c3e50'
+                }}>
+                  9. VIN Number
+                </label>
+                <input
+                  type="text"
+                  value={federalFormData.serialVinNumber}
+                  onChange={e => handleFederalFormChange('serialVinNumber', e.target.value)}
+                  style={{
+                    padding: '12px',
+                    border: '1px solid #ddd',
+                    borderRadius: '6px',
+                    fontSize: '16px',
+                    backgroundColor: '#fff',
+                    color: '#333'
+                  }}
+                  placeholder="Enter serial/VIN"
+                />
+              </div>
+              
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
               }}>
-                9. Serial/VIN Number
-              </label>
-              <input
-                type="text"
-                value={federalFormData.serialVinNumber}
-                onChange={e => handleFederalFormChange('serialVinNumber', e.target.value)}
-                style={{
-                  padding: '12px',
-                  border: '1px solid #ddd',
-                  borderRadius: '6px',
-                  fontSize: '16px',
-                  backgroundColor: '#fff',
-                  color: '#333'
-                }}
-                placeholder="Enter serial/VIN"
-              />
-            </div>
-            
-            {/* License/ID Number */}
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px'
-            }}>
-              <label style={{
-                fontSize: '14px',
-                fontWeight: '600',
-                color: '#2c3e50'
-              }}>
-                10. License Plate
-              </label>
-              <input
-                type="text"
-                value={federalFormData.licenseIdNumber}
-                onChange={e => handleFederalFormChange('licenseIdNumber', e.target.value)}
-                style={{
-                  padding: '12px',
-                  border: '1px solid #ddd',
-                  borderRadius: '6px',
-                  fontSize: '16px',
-                  backgroundColor: '#fff',
-                  color: '#333'
-                }}
-                placeholder="Enter license/ID"
-              />
+                <label style={{
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#2c3e50'
+                }}>
+                  10. License Plate
+                </label>
+                <input
+                  type="text"
+                  value={federalFormData.licenseIdNumber}
+                  onChange={e => handleFederalFormChange('licenseIdNumber', e.target.value)}
+                  style={{
+                    padding: '12px',
+                    border: '1px solid #ddd',
+                    borderRadius: '6px',
+                    fontSize: '16px',
+                    backgroundColor: '#fff',
+                    color: '#333'
+                  }}
+                  placeholder="Enter license/ID"
+                />
+              </div>
             </div>
 
             {/* Transport Retained */}
@@ -1592,9 +1607,9 @@ export const FederalTimeTable: React.FC = () => {
               </select>
             </div>
             
-            {/* First/Last Ticket
+            {/* First/Last Ticket */}
             <div style={{
-              display: 'flex',
+              display: 'none',
               flexDirection: 'column',
               gap: '8px'
             }}>
@@ -1863,7 +1878,7 @@ export const FederalTimeTable: React.FC = () => {
                           onChange={e => handleTimeInput(idx, 'start', e.target.value, 'equipment')}
                           style={{
                             width: '100%',
-                            padding: '12px',
+                            padding: '8px',
                             border: `1px solid ${timeValidationErrors[`equipment-${idx}-start`] ? '#dc3545' : '#ddd'}`,
                             borderRadius: '6px',
                             fontSize: '16px',
@@ -1899,7 +1914,7 @@ export const FederalTimeTable: React.FC = () => {
                           onChange={e => handleTimeInput(idx, 'stop', e.target.value, 'equipment')}
                           style={{
                             width: '100%',
-                            padding: '12px',
+                            padding: '8px',
                             border: `1px solid ${timeValidationErrors[`equipment-${idx}-stop`] ? '#dc3545' : '#ddd'}`,
                             borderRadius: '6px',
                             fontSize: '16px',
@@ -1934,7 +1949,7 @@ export const FederalTimeTable: React.FC = () => {
                           onChange={e => handleTimeInput(idx, 'start', e.target.value, 'equipment')}
                           style={{
                             width: '100%',
-                            padding: '12px',
+                            padding: '8px',
                             border: `1px solid ${timeValidationErrors[`equipment-${idx}-start`] ? '#dc3545' : '#ddd'}`,
                             borderRadius: '6px',
                             fontSize: '16px',
@@ -1970,7 +1985,7 @@ export const FederalTimeTable: React.FC = () => {
                           onChange={e => handleTimeInput(idx, 'stop', e.target.value, 'equipment')}
                           style={{
                             width: '100%',
-                            padding: '12px',
+                            padding: '8px',
                             border: `1px solid ${timeValidationErrors[`equipment-${idx}-stop`] ? '#dc3545' : '#ddd'}`,
                             borderRadius: '6px',
                             fontSize: '16px',
@@ -2080,8 +2095,15 @@ export const FederalTimeTable: React.FC = () => {
                       </div>
                     </div>
                     
-                    {/* Remarks
+                    {/* Remarks */}
                     <div>
+                    <div style={{
+                      display: 'none',
+                      gridTemplateColumns: '1fr 1fr 1fr 1fr',
+                      gap: '8px',
+                      marginBottom: '12px'
+                    }}>
+                      
                       <label style={{
                         fontSize: '14px',
                         fontWeight: '600',
@@ -2107,7 +2129,7 @@ export const FederalTimeTable: React.FC = () => {
                         placeholder="Remarks"
                       />
                     </div>
-                    */}
+                    </div>
                   </div>
                 );
               })}
@@ -2283,7 +2305,7 @@ export const FederalTimeTable: React.FC = () => {
                           onChange={e => handlePersonnelEntryChange(idx, 'name', e.target.value)}
                           style={{
                             width: '100%',
-                            padding: '12px',
+                            padding: '8px',
                             border: '1px solid #ddd',
                             borderRadius: '6px',
                             fontSize: '16px',
@@ -2309,7 +2331,7 @@ export const FederalTimeTable: React.FC = () => {
                           onChange={e => handlePersonnelEntryChange(idx, 'remarks', e.target.value)}
                           style={{
                             width: '100%',
-                            padding: '12px',
+                            padding: '8px',
                             border: '1px solid #ddd',
                             borderRadius: '6px',
                             fontSize: '16px',
@@ -2356,7 +2378,7 @@ export const FederalTimeTable: React.FC = () => {
                             onChange={e => handleTimeInput(idx, 'start1', e.target.value, 'personnel')}
                             style={{
                               width: '100%',
-                              padding: '12px',
+                              padding: '8px',
                               border: `1px solid ${timeValidationErrors[`personnel-${idx}-start1`] ? '#dc3545' : '#ddd'}`,
                               borderRadius: '6px',
                               fontSize: '16px',
@@ -2391,7 +2413,7 @@ export const FederalTimeTable: React.FC = () => {
                             onChange={e => handleTimeInput(idx, 'stop1', e.target.value, 'personnel')}
                             style={{
                               width: '100%',
-                              padding: '12px',
+                              padding: '8px',
                               border: `1px solid ${timeValidationErrors[`personnel-${idx}-stop1`] ? '#dc3545' : '#ddd'}`,
                               borderRadius: '6px',
                               fontSize: '16px',
@@ -2448,7 +2470,7 @@ export const FederalTimeTable: React.FC = () => {
                             onChange={e => handleTimeInput(idx, 'start2', e.target.value, 'personnel')}
                             style={{
                               width: '100%',
-                              padding: '12px',
+                              padding: '8px',
                               border: `1px solid ${timeValidationErrors[`personnel-${idx}-start2`] ? '#dc3545' : '#ddd'}`,
                               borderRadius: '6px',
                               fontSize: '16px',
@@ -2483,7 +2505,7 @@ export const FederalTimeTable: React.FC = () => {
                             onChange={e => handleTimeInput(idx, 'stop2', e.target.value, 'personnel')}
                             style={{
                               width: '100%',
-                              padding: '12px',
+                              padding: '8px',
                               border: `1px solid ${timeValidationErrors[`personnel-${idx}-stop2`] ? '#dc3545' : '#ddd'}`,
                               borderRadius: '6px',
                               fontSize: '16px',
@@ -2527,7 +2549,7 @@ export const FederalTimeTable: React.FC = () => {
                           onChange={e => handlePersonnelEntryChange(idx, 'total', e.target.value)}
                           style={{
                             width: '100%',
-                            padding: '12px',
+                            padding: '8px',
                             border: '1px solid #ddd',
                             borderRadius: '6px',
                             fontSize: '16px',
@@ -2746,7 +2768,7 @@ export const FederalTimeTable: React.FC = () => {
                 value={federalFormData.remarks}
                 onChange={e => handleFederalFormChange('remarks', e.target.value)}
                 style={{
-                  padding: '12px',
+                  padding: '8px',
                   border: '1px solid #ddd',
                   borderRadius: '6px',
                   fontSize: '16px',
@@ -2857,7 +2879,7 @@ export const FederalTimeTable: React.FC = () => {
       </div>
 
 
-             {/* Calendar Modal */}
+      {/* Calendar Modal */}
        {calendarOpen && (
          <CalendarPicker
            isOpen={!!calendarOpen}
