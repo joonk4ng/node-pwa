@@ -2570,6 +2570,7 @@ export const FederalTimeTable: React.FC = () => {
             display: 'flex',
             flexDirection: 'column',
             gap: '16px',
+            marginTop: '16px',
             marginBottom: '24px'
           }}>
             <h3 style={{
@@ -2888,7 +2889,6 @@ export const FederalTimeTable: React.FC = () => {
            currentDate={getCurrentDate()}
          />
        )}
-
 
        {/* Main Calendar Modal */}
        {showMainCalendar && (
