@@ -624,6 +624,11 @@ export const FederalTimeTable: React.FC = () => {
     setPersonnelEntries(prev => {
       let updated = handleFederalPersonnelEntryChange(prev, index, field, value, DEFAULT_PROPAGATION_CONFIG);
       
+      // Auto-fill Job Title for first personnel entry
+      if (index === 0 && !updated[index].remarks) {
+        updated[index] = { ...updated[index], remarks: 'ENGB' };
+      }
+      
       // Auto-fill from equipment entry when name is entered
       if (field === 'name' && value && value.trim() !== '') {
         const equipmentEntry = equipmentEntries[0]; // Use first equipment entry as source
@@ -2327,7 +2332,7 @@ export const FederalTimeTable: React.FC = () => {
                         </label>
                         <input
                           type="text"
-                          value={entry.remarks}
+                          value={idx === 0 ? 'ENGB' : entry.remarks}
                           onChange={e => handlePersonnelEntryChange(idx, 'remarks', e.target.value)}
                           style={{
                             width: '100%',
@@ -2335,10 +2340,11 @@ export const FederalTimeTable: React.FC = () => {
                             border: '1px solid #ddd',
                             borderRadius: '6px',
                             fontSize: '16px',
-                            backgroundColor: '#fff',
+                            backgroundColor: idx === 0 ? '#f8f9fa' : '#fff',
                             color: '#333'
                           }}
                           placeholder="Job Title"
+                          readOnly={idx === 0}
                         />
                       </div>
                     </div>
