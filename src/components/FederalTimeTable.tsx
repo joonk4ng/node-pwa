@@ -274,6 +274,20 @@ export const FederalTimeTable: React.FC = () => {
   // Time validation state
   const [timeValidationErrors, setTimeValidationErrors] = useState<Record<string, string>>({});
 
+  // Add state for collapsible sections
+  const [checkboxStates, setCheckboxStates] = useState({
+    noMealsLodging: false,
+    noMeals: false,
+    travel: false,
+    noLunch: false,
+    hotline: true  // Default to true
+  });
+
+  // Add state for unsaved changes and saving status
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<number | null>(null);
+
   // Utility function to convert YYYY-MM-DD to MM/DD/YY format
   const convertYYYYMMDDToMMDDYY = (dateStr: string): string => {
     if (dateStr.includes('-') && dateStr.length === 10) {
@@ -443,6 +457,57 @@ export const FederalTimeTable: React.FC = () => {
       saveFederalFormData(updated);
       return updated;
     });
+    setHasUnsavedChanges(true);
+  };
+
+  // Handle checkbox changes for remarks section
+  const handleCheckboxChange = async (option: keyof typeof checkboxStates) => {
+    // Set the checkbox states
+    setCheckboxStates(prev => {
+      const newStates = { ...prev };
+
+      // If turning on travel, automatically uncheck hotline
+      if (option === 'travel') {
+        if (!prev.travel) {
+          newStates.hotline = false;
+        }
+        newStates.travel = !prev.travel;
+      } else if (option === 'hotline') {
+        // If turning on hotline, automatically uncheck travel
+        if (!prev.hotline) {
+          newStates.travel = false;
+        }
+        newStates.hotline = !prev.hotline;
+      } else {
+        // For other checkboxes, toggle the state
+        newStates[option] = !prev[option];
+      }
+
+      // Return the new states
+      return newStates;
+    });
+
+    // Save after checkbox change
+    try {
+      setIsSaving(true);
+
+      // Get the full date range
+      const fullDateRange = currentSelectedDate || formatToMMDDYY(new Date());
+
+      // Save the record
+      await saveDataForDate();
+
+      // If the save is complete, set the has unsaved changes to false, set the last saved to the current time, and log the save completed
+      setHasUnsavedChanges(false);
+      setLastSaved(Date.now());
+      console.log('Save completed:', { dateRange: fullDateRange });
+    } catch (error) {
+      // If there's an error, show a notification
+      console.error('Save error:', error);
+      alert('Failed to save changes. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Handle equipment entry changes and autosave with propagation
@@ -452,6 +517,7 @@ export const FederalTimeTable: React.FC = () => {
       saveFederalEquipmentEntry(updated[index]);
       return updated;
     });
+    setHasUnsavedChanges(true);
   };
 
   // Simplified time input handler - only allows exactly 4 digits
@@ -599,6 +665,7 @@ export const FederalTimeTable: React.FC = () => {
       saveFederalPersonnelEntry(updated[index]);
       return updated;
     });
+    setHasUnsavedChanges(true);
   };
 
   // Clear equipment entry
@@ -1265,7 +1332,7 @@ export const FederalTimeTable: React.FC = () => {
                 fontWeight: '600',
                 color: '#2c3e50'
               }}>
-                3. Resource Order Number
+                3. E-Number
               </label>
               <input
                 type="text"
@@ -1343,7 +1410,7 @@ export const FederalTimeTable: React.FC = () => {
             
             {/* Financial Code */}
             <div style={{
-              display: 'flex',
+              display: 'none',
               flexDirection: 'column',
               gap: '8px'
             }}>
@@ -1476,7 +1543,7 @@ export const FederalTimeTable: React.FC = () => {
                 fontWeight: '600',
                 color: '#2c3e50'
               }}>
-                10. License/ID Number
+                10. License Plate
               </label>
               <input
                 type="text"
@@ -1496,7 +1563,7 @@ export const FederalTimeTable: React.FC = () => {
 
             {/* Transport Retained */}
             <div style={{
-              display: 'flex',
+              display: 'none',
               flexDirection: 'column',
               gap: '8px'
             }}>
@@ -1525,7 +1592,7 @@ export const FederalTimeTable: React.FC = () => {
               </select>
             </div>
             
-            {/* First/Last Ticket */}
+            {/* First/Last Ticket
             <div style={{
               display: 'flex',
               flexDirection: 'column',
@@ -1555,10 +1622,9 @@ export const FederalTimeTable: React.FC = () => {
                 <option value="Demobilization">Demobilization</option>
               </select>
             </div>
-            
             {/* Rate Type */}
             <div style={{
-              display: 'flex',
+              display: 'none',
               flexDirection: 'column',
               gap: '8px'
             }}>
@@ -1584,10 +1650,9 @@ export const FederalTimeTable: React.FC = () => {
                 <option value="HOURS">Hours</option>
               </select>
             </div>
-            
             {/* Agency Representative */}
             <div style={{
-              display: 'flex',
+              display: 'none',
               flexDirection: 'column',
               gap: '8px'
             }}>
@@ -1613,7 +1678,6 @@ export const FederalTimeTable: React.FC = () => {
                 placeholder="Enter agency representative name"
               />
             </div>
-            
             {/* Incident Supervisor */}
             <div style={{
               display: 'flex',
@@ -1779,7 +1843,7 @@ export const FederalTimeTable: React.FC = () => {
                     {/* Time Fields */}
                     <div style={{
                       display: 'grid',
-                      gridTemplateColumns: '1fr 1fr',
+                      gridTemplateColumns: '1fr 1fr 1fr 1fr',
                       gap: '8px',
                       marginBottom: '12px'
                     }}>
@@ -1791,7 +1855,7 @@ export const FederalTimeTable: React.FC = () => {
                           marginBottom: '4px',
                           display: 'block'
                         }}>
-                          Start Time
+                          Start Time 1
                         </label>
                         <input
                           type="text"
@@ -1827,7 +1891,78 @@ export const FederalTimeTable: React.FC = () => {
                           marginBottom: '4px',
                           display: 'block'
                         }}>
-                          Stop Time
+                          Stop Time 1
+                        </label>
+                        <input
+                          type="text"
+                          value={entry.stop}
+                          onChange={e => handleTimeInput(idx, 'stop', e.target.value, 'equipment')}
+                          style={{
+                            width: '100%',
+                            padding: '12px',
+                            border: `1px solid ${timeValidationErrors[`equipment-${idx}-stop`] ? '#dc3545' : '#ddd'}`,
+                            borderRadius: '6px',
+                            fontSize: '16px',
+                            backgroundColor: '#fff',
+                            color: '#333'
+                          }}
+                          placeholder="HH:MM (24hr)"
+                        />
+                        {timeValidationErrors[`equipment-${idx}-stop`] && (
+                          <div style={{
+                            fontSize: '12px',
+                            color: '#dc3545',
+                            marginTop: '4px'
+                          }}>
+                            {timeValidationErrors[`equipment-${idx}-stop`]}
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <label style={{
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          color: '#2c3e50',
+                          marginBottom: '4px',
+                          display: 'block'
+                        }}>
+                          Start Time 2
+                        </label>
+                        <input
+                          type="text"
+                          value={entry.start}
+                          onChange={e => handleTimeInput(idx, 'start', e.target.value, 'equipment')}
+                          style={{
+                            width: '100%',
+                            padding: '12px',
+                            border: `1px solid ${timeValidationErrors[`equipment-${idx}-start`] ? '#dc3545' : '#ddd'}`,
+                            borderRadius: '6px',
+                            fontSize: '16px',
+                            backgroundColor: '#fff',
+                            color: '#333'
+                          }}
+                          placeholder="HH:MM (24hr)"
+                        />
+                        {timeValidationErrors[`equipment-${idx}-start`] && (
+                          <div style={{
+                            fontSize: '12px',
+                            color: '#dc3545',
+                            marginTop: '4px'
+                          }}>
+                            {timeValidationErrors[`equipment-${idx}-start`]}
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div>
+                        <label style={{
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          color: '#2c3e50',
+                          marginBottom: '4px',
+                          display: 'block'
+                        }}>
+                          Stop Time 2
                         </label>
                         <input
                           type="text"
@@ -1858,7 +1993,7 @@ export const FederalTimeTable: React.FC = () => {
                     
                     {/* Total, Quantity, Type */}
                     <div style={{
-                      display: 'grid',
+                      display: 'none',
                       gridTemplateColumns: '1fr 1fr 1fr',
                       gap: '8px',
                       marginBottom: '12px'
@@ -1945,7 +2080,7 @@ export const FederalTimeTable: React.FC = () => {
                       </div>
                     </div>
                     
-                    {/* Remarks */}
+                    {/* Remarks
                     <div>
                       <label style={{
                         fontSize: '14px',
@@ -1972,31 +2107,14 @@ export const FederalTimeTable: React.FC = () => {
                         placeholder="Remarks"
                       />
                     </div>
+                    */}
                   </div>
                 );
               })}
             </div>
           </div>
 
-          {/* Personnel Time Entries Section */}
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px',
-            marginBottom: '24px'
-          }}>
-            <h3 style={{
-              margin: '0 0 16px 0',
-              fontSize: '16px',
-              fontWeight: '600',
-              color: '#2c3e50',
-              borderBottom: '2px solid #e9ecef',
-              paddingBottom: '8px'
-            }}>
-              Personnel Time Entries
-            </h3>
-            
-            {/* Personnel Table - Mobile Friendly */}
+          {/* Personnel Time Entries Section */}          
             <div style={{
               display: 'flex',
               flexDirection: 'column',
@@ -2015,8 +2133,9 @@ export const FederalTimeTable: React.FC = () => {
                     position: 'relative'
                   }}>
                     {/* Date Badge Header */}
+                    {}
                     <div style={{
-                      display: 'flex',
+                      display: 'none',
                       alignItems: 'center',
                       gap: '8px',
                       marginBottom: '12px',
@@ -2044,16 +2163,17 @@ export const FederalTimeTable: React.FC = () => {
                         flexDirection: 'column',
                         flex: 1
                       }}>
+                      
                         <label style={{
                           fontSize: '12px',
                           fontWeight: '600',
                           color: '#2c3e50',
                           marginBottom: '4px'
                         }}>
-                          Personnel Entry #{idx + 1}
                         </label>
                         {idx === 0 ? (
                           // First entry - show date picker
+                          
                           <div style={{
                             position: 'relative'
                           }}>
@@ -2116,7 +2236,7 @@ export const FederalTimeTable: React.FC = () => {
                           </div>
                         )}
                       </div>
-                      
+
                       {/* Clear Button */}
                       <button
                         onClick={() => handleClearPersonnelEntry(idx)}
@@ -2140,38 +2260,70 @@ export const FederalTimeTable: React.FC = () => {
                       </button>
                     </div>
                     
-                    {/* Name */}
+                    {/* Name and Job Title */}
                     <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: '2fr 1fr',
+                      gap: '16px',
                       marginBottom: '16px'
                     }}>
-                      <label style={{
-                        fontSize: '14px',
-                        fontWeight: '600',
-                        color: '#2c3e50',
-                        marginBottom: '8px',
-                        display: 'block'
-                      }}>
-                        Name
-                      </label>
-                      <input
-                        type="text"
-                        value={entry.name}
-                        onChange={e => handlePersonnelEntryChange(idx, 'name', e.target.value)}
-                        style={{
-                          width: '100%',
-                          padding: '12px',
-                          border: '1px solid #ddd',
-                          borderRadius: '6px',
-                          fontSize: '16px',
-                          backgroundColor: '#fff',
-                          color: '#333'
-                        }}
-                        placeholder="Name"
-                      />
+                      <div>
+                        <label style={{
+                          fontSize: '14px',
+                          fontWeight: '600',
+                          color: '#2c3e50',
+                          marginBottom: '8px',
+                          display: 'block'
+                        }}>
+                          Name
+                        </label>
+                        <input
+                          type="text"
+                          value={entry.name}
+                          onChange={e => handlePersonnelEntryChange(idx, 'name', e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '12px',
+                            border: '1px solid #ddd',
+                            borderRadius: '6px',
+                            fontSize: '16px',
+                            backgroundColor: '#fff',
+                            color: '#333'
+                          }}
+                          placeholder="Name"
+                        />
+                      </div>
+                      <div>
+                        <label style={{
+                          fontSize: '14px',
+                          fontWeight: '600',
+                          color: '#2c3e50',
+                          marginBottom: '8px',
+                          display: 'block'
+                        }}>
+                          Job Title
+                        </label>
+                        <input
+                          type="text"
+                          value={entry.remarks}
+                          onChange={e => handlePersonnelEntryChange(idx, 'remarks', e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '12px',
+                            border: '1px solid #ddd',
+                            borderRadius: '6px',
+                            fontSize: '16px',
+                            backgroundColor: '#fff',
+                            color: '#333'
+                          }}
+                          placeholder="Job Title"
+                        />
+                      </div>
                     </div>
                     
                     {/* Time Period 1 */}
                     <div style={{
+                      display: 'none',
                       marginBottom: '16px'
                     }}>
                       <label style={{
@@ -2263,6 +2415,7 @@ export const FederalTimeTable: React.FC = () => {
                     
                     {/* Time Period 2 */}
                     <div style={{
+                      display: 'none',
                       marginBottom: '16px'
                     }}>
                       <label style={{
@@ -2352,9 +2505,9 @@ export const FederalTimeTable: React.FC = () => {
                       </div>
                     </div>
                     
-                    {/* Total and Remarks */}
+                    {/* Total */}
                     <div style={{
-                      display: 'grid',
+                      display: 'none',
                       gridTemplateColumns: '1fr 1fr',
                       gap: '12px'
                     }}>
@@ -2384,37 +2537,10 @@ export const FederalTimeTable: React.FC = () => {
                           placeholder="Total"
                         />
                       </div>
-                      <div>
-                        <label style={{
-                          fontSize: '14px',
-                          fontWeight: '600',
-                          color: '#2c3e50',
-                          marginBottom: '8px',
-                          display: 'block'
-                        }}>
-                          Remarks
-                        </label>
-                        <input
-                          type="text"
-                          value={entry.remarks}
-                          onChange={e => handlePersonnelEntryChange(idx, 'remarks', e.target.value)}
-                          style={{
-                            width: '100%',
-                            padding: '12px',
-                            border: '1px solid #ddd',
-                            borderRadius: '6px',
-                            fontSize: '16px',
-                            backgroundColor: '#fff',
-                            color: '#333'
-                          }}
-                          placeholder="Remarks"
-                        />
-                      </div>
                     </div>
                   </div>
                 );
               })}
-            </div>
           </div>
           
           {/* Remarks Section */}
@@ -2432,9 +2558,178 @@ export const FederalTimeTable: React.FC = () => {
               borderBottom: '2px solid #e9ecef',
               paddingBottom: '8px'
             }}>
-              Remarks
+              Remarks & Status
             </h3>
             
+            {/* Checkbox Options */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '12px',
+              marginBottom: '16px'
+            }}>
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 12px',
+                backgroundColor: '#f8f9fa',
+                borderRadius: '6px',
+                border: '1px solid #e9ecef',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s ease'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#e9ecef'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}>
+                <input
+                  type="checkbox"
+                  checked={checkboxStates.noMealsLodging}
+                  onChange={() => handleCheckboxChange('noMealsLodging')}
+                  style={{
+                    width: '16px',
+                    height: '16px',
+                    cursor: 'pointer'
+                  }}
+                />
+                <span style={{
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#2c3e50'
+                }}>
+                  No Meals/Lodging
+                </span>
+              </label>
+
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 12px',
+                backgroundColor: '#f8f9fa',
+                borderRadius: '6px',
+                border: '1px solid #e9ecef',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s ease'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#e9ecef'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}>
+                <input
+                  type="checkbox"
+                  checked={checkboxStates.noMeals}
+                  onChange={() => handleCheckboxChange('noMeals')}
+                  style={{
+                    width: '16px',
+                    height: '16px',
+                    cursor: 'pointer'
+                  }}
+                />
+                <span style={{
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#2c3e50'
+                }}>
+                  No Meals
+                </span>
+              </label>
+
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 12px',
+                backgroundColor: '#f8f9fa',
+                borderRadius: '6px',
+                border: '1px solid #e9ecef',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s ease'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#e9ecef'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}>
+                <input
+                  type="checkbox"
+                  checked={checkboxStates.travel}
+                  onChange={() => handleCheckboxChange('travel')}
+                  style={{
+                    width: '16px',
+                    height: '16px',
+                    cursor: 'pointer'
+                  }}
+                />
+                <span style={{
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#2c3e50'
+                }}>
+                  Travel
+                </span>
+              </label>
+
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 12px',
+                backgroundColor: '#f8f9fa',
+                borderRadius: '6px',
+                border: '1px solid #e9ecef',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s ease'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#e9ecef'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}>
+                <input
+                  type="checkbox"
+                  checked={checkboxStates.noLunch}
+                  onChange={() => handleCheckboxChange('noLunch')}
+                  style={{
+                    width: '16px',
+                    height: '16px',
+                    cursor: 'pointer'
+                  }}
+                />
+                <span style={{
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#2c3e50'
+                }}>
+                  No Lunch
+                </span>
+              </label>
+
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 12px',
+                backgroundColor: '#f8f9fa',
+                borderRadius: '6px',
+                border: '1px solid #e9ecef',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s ease'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#e9ecef'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}>
+                <input
+                  type="checkbox"
+                  checked={checkboxStates.hotline}
+                  onChange={() => handleCheckboxChange('hotline')}
+                  style={{
+                    width: '16px',
+                    height: '16px',
+                    cursor: 'pointer'
+                  }}
+                />
+                <span style={{
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#2c3e50'
+                }}>
+                  Hotline
+                </span>
+              </label>
+            </div>
+
+            {/* General Remarks Textarea */}
             <div style={{
               display: 'flex',
               flexDirection: 'column',
@@ -2475,6 +2770,54 @@ export const FederalTimeTable: React.FC = () => {
           width: '100%',
           boxSizing: 'border-box'
         }}>
+          {/* Status Indicator */}
+          {(isSaving || hasUnsavedChanges) && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              marginBottom: '16px',
+              padding: '8px 16px',
+              backgroundColor: isSaving ? '#fff3cd' : '#d1ecf1',
+              border: `1px solid ${isSaving ? '#ffeaa7' : '#bee5eb'}`,
+              borderRadius: '6px',
+              fontSize: '14px',
+              color: isSaving ? '#856404' : '#0c5460'
+            }}>
+              {isSaving ? (
+                <>
+                  <span>💾</span>
+                  <span>Saving changes...</span>
+                </>
+              ) : (
+                <>
+                  <span>⚠️</span>
+                  <span>Unsaved changes</span>
+                </>
+              )}
+            </div>
+          )}
+          
+          {lastSaved && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              marginBottom: '16px',
+              padding: '8px 16px',
+              backgroundColor: '#d4edda',
+              border: '1px solid #c3e6cb',
+              borderRadius: '6px',
+              fontSize: '12px',
+              color: '#155724'
+            }}>
+              <span>✅</span>
+              <span>Last saved: {new Date(lastSaved).toLocaleTimeString()}</span>
+            </div>
+          )}
+
           <div style={{
             display: 'flex',
             gap: '12px',
@@ -2483,21 +2826,31 @@ export const FederalTimeTable: React.FC = () => {
           }}>
             <button
               onClick={handleViewPDF}
+              disabled={isSaving}
               style={{
                 padding: '12px 24px',
-                backgroundColor: '#28a745',
+                backgroundColor: isSaving ? '#6c757d' : '#28a745',
                 color: 'white',
                 border: 'none',
                 borderRadius: '6px',
                 fontSize: '14px',
                 fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'background-color 0.2s ease'
+                cursor: isSaving ? 'not-allowed' : 'pointer',
+                transition: 'background-color 0.2s ease',
+                opacity: isSaving ? 0.6 : 1
               }}
-              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#218838'}
-              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#28a745'}
+              onMouseOver={(e) => {
+                if (!isSaving) {
+                  e.currentTarget.style.backgroundColor = '#218838';
+                }
+              }}
+              onMouseOut={(e) => {
+                if (!isSaving) {
+                  e.currentTarget.style.backgroundColor = '#28a745';
+                }
+              }}
             >
-              ✏️ Fill & Sign PDF
+              {isSaving ? '⏳ Saving...' : '✏️ Fill & Sign PDF'}
             </button>
           </div>
         </div>

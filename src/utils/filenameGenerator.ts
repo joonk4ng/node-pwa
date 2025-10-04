@@ -3,23 +3,11 @@ import { FormType } from './engineTimeDB';
 
 // Form type display names and abbreviations
 const FORM_TYPE_INFO = {
-  [FormType.EEST]: {
-    displayName: 'Emergency Equipment Shift Ticket',
-    abbreviation: 'EEST',
-    filePrefix: 'EEST',
-    prefixFirst: true  // EEST prefix goes at the beginning
-  },
   [FormType.FEDERAL]: {
     displayName: 'Federal Equipment Time Sheet',
     abbreviation: 'FED',
     filePrefix: 'OF297',
     prefixFirst: false  // OF297 prefix goes after date
-  },
-  [FormType.ODF]: {
-    displayName: 'ODF Time Sheet',
-    abbreviation: 'ODF',
-    filePrefix: 'ODF',
-    prefixFirst: true  // ODF prefix goes at the beginning
   }
 };
 
@@ -61,7 +49,7 @@ export function generateExportFilename(info: ExportInfo): string {
   } = info;
   
   // Get form type information
-  const formInfo = FORM_TYPE_INFO[formType];
+  const formInfo = FORM_TYPE_INFO[FormType.FEDERAL];
   
   // Format date to YYYY-MM-DD if it's not already
   const formattedDate = date.includes('-') ? date : new Date(date).toISOString().split('T')[0];
@@ -148,14 +136,14 @@ export function generateLegacyExportFilename(info: LegacyExportInfo): string {
  * Gets form type information for display purposes
  */
 export function getFormTypeInfo(formType: FormType) {
-  return FORM_TYPE_INFO[formType];
+  return FORM_TYPE_INFO[FormType.FEDERAL];
 }
 
 /**
  * Generates a human-readable filename description
  */
 export function generateFilenameDescription(info: ExportInfo): string {
-  const formInfo = FORM_TYPE_INFO[info.formType];
+  const formInfo = FORM_TYPE_INFO[FormType.FEDERAL];
   const signatureText = info.isSigned ? ' (Signed)' : '';
   
   return `${formInfo.displayName} - ${info.incidentName || 'Unknown Incident'}${signatureText}`;
