@@ -2147,7 +2147,7 @@ export const FederalTimeTable: React.FC = () => {
               flexDirection: 'column',
               gap: '12px'
             }}>
-              {Array.from({ length: 4 }, (_, idx) => {
+              {Array.from({ length: 3 }, (_, idx) => {
                 const entry = personnelEntries[idx] || { date: '', name: '', start1: '', stop1: '', start2: '', stop2: '', total: '', remarks: '' };
                 const rowColors = ['#e3f2fd', '#f3e5f5', '#e8f5e8', '#fff3e0'];
                 return (
