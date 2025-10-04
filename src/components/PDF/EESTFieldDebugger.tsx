@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { EESTPDFViewer } from './EESTPDFViewer';
 import { type EESTSaveOptions, testEESTPDFPopulation } from '../../utils/PDF/eestSaveHandler';
-import { type EESTFormData, type EESTTimeEntry } from '../../utils/engineTimeDB';
+import { type EESTFormData, type EESTTimeEntry, FormType } from '../../utils/engineTimeDB';
 import { mapEESTToPDFFields } from '../../utils/fieldmapper/eestFieldMapper';
 import { getPDF } from '../../utils/pdfStorage';
 import * as pdfjsLib from 'pdfjs-dist';
@@ -15,6 +15,7 @@ export const EESTFieldDebugger: React.FC = () => {
 
   // Test form data
   const testFormData: EESTFormData = {
+    formType: FormType.EEST,
     agreementNumber: 'AG-2024-001',
     resourceOrderNumber: 'RO-2024-001',
     contractorAgencyName: 'Test Contracting Co.',
@@ -26,7 +27,6 @@ export const EESTFieldDebugger: React.FC = () => {
     serialNumber: 'CAT123456789',
     licenseNumber: 'LIC789',
     equipmentStatus: 'Contractor',
-    equipmentUse: 'HRS',
     invoicePostedBy: 'JD',
     dateSigned: '2024-01-15',
     remarks: 'Test equipment in good condition',
@@ -42,8 +42,7 @@ export const EESTFieldDebugger: React.FC = () => {
       start: '0800',
       stop: '1700',
       work: '9.0',
-      special: 'None',
-      total: '9.0'
+      special: 'None'
     },
     {
       id: 2,
@@ -51,8 +50,7 @@ export const EESTFieldDebugger: React.FC = () => {
       start: '0800',
       stop: '1600',
       work: '8.0',
-      special: 'Travel',
-      total: '8.0'
+      special: 'Travel'
     }
   ];
 
@@ -280,7 +278,7 @@ export const EESTFieldDebugger: React.FC = () => {
     date: '2024-01-15'
   };
 
-  const handleSave = (pdfData: Blob, previewImage: Blob) => {
+  const handleSave = (_pdfData: Blob, _previewImage: Blob) => {
     console.log('🔍 EEST Field Debugger: PDF saved with debugging info');
     console.log('🔍 Check browser console for detailed field mapping logs');
   };

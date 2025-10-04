@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { EESTPDFViewer } from './EESTPDFViewer';
 import { type EESTSaveOptions } from '../../utils/PDF/eestSaveHandler';
-import { type EESTFormData, type EESTTimeEntry } from '../../utils/engineTimeDB';
+import { type EESTFormData, type EESTTimeEntry, FormType } from '../../utils/engineTimeDB';
 
 export const EESTSaveExample: React.FC = () => {
   const [saveOptions, setSaveOptions] = useState<EESTSaveOptions>({
@@ -15,6 +15,7 @@ export const EESTSaveExample: React.FC = () => {
 
   // Example EEST form data
   const exampleFormData: EESTFormData = {
+    formType: FormType.EEST,
     agreementNumber: 'AG-2024-001',
     resourceOrderNumber: 'RO-2024-001',
     contractorAgencyName: 'Example Contracting Co.',
@@ -26,7 +27,6 @@ export const EESTSaveExample: React.FC = () => {
     serialNumber: 'CAT123456',
     licenseNumber: 'LIC789',
     equipmentStatus: 'Contractor',
-    equipmentUse: 'HRS',
     invoicePostedBy: 'JD',
     dateSigned: new Date().toISOString().split('T')[0],
     remarks: 'Equipment in good working condition',
@@ -42,8 +42,7 @@ export const EESTSaveExample: React.FC = () => {
       start: '0800',
       stop: '1700',
       work: '9.0',
-      special: 'None',
-      total: '9.0'
+      special: 'None'
     },
     {
       id: 2,
@@ -51,8 +50,7 @@ export const EESTSaveExample: React.FC = () => {
       start: '0800',
       stop: '1600',
       work: '8.0',
-      special: 'Travel',
-      total: '8.0'
+      special: 'Travel'
     }
   ];
 

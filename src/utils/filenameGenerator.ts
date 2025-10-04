@@ -44,7 +44,6 @@ export function generateExportFilename(info: ExportInfo): string {
     incidentNumber, 
     contractorAgencyName,
     type, 
-    formType, 
     isSigned = false 
   } = info;
   
@@ -135,7 +134,7 @@ export function generateLegacyExportFilename(info: LegacyExportInfo): string {
 /**
  * Gets form type information for display purposes
  */
-export function getFormTypeInfo(formType: FormType) {
+export function getFormTypeInfo(_formType: FormType) {
   return FORM_TYPE_INFO[FormType.FEDERAL];
 }
 

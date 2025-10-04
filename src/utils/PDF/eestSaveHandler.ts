@@ -1,9 +1,10 @@
 // EEST Save Handler utility for saving and downloading EEST PDFs with form-specific features
 import * as pdfjsLib from 'pdfjs-dist';
+// import * as PDFLib from 'pdf-lib'; // Not used in this function
 import { flattenPDFToImage, createFlattenedPDF, hasSignature, canvasToBlob } from './pdfFlattening';
 import { generateExportFilename, type ExportInfo } from '../filenameGenerator';
 import { FormType, savePDFMetadata, type EESTFormData, type EESTTimeEntry } from '../engineTimeDB';
-import { mapEESTToPDFFields, validateEESTFormData, debugPDFFields, debugEESTFieldMapping } from '../fieldmapper/eestFieldMapper';
+import { mapEESTToPDFFields, validateEESTFormData } from '../fieldmapper/eestFieldMapper';
 import type { PDFGenerationMetadata } from '../types';
 
 export interface EESTCrewInfo {
@@ -47,7 +48,7 @@ export async function saveEESTPDFWithSignature(
   drawCanvas: HTMLCanvasElement,
   onSave: (pdfData: Blob, previewImage: Blob) => void,
   options: EESTSaveOptions = {},
-  pdfId?: string
+  _pdfId?: string
 ): Promise<void> {
   try {
     console.log('🔍 EESTSaveHandler: Starting EEST PDF save process...');
@@ -482,77 +483,29 @@ export async function populateEESTPDFWithFormData(
     
     console.log('🔍 EESTSaveHandler: Mapped PDF fields:', pdfFields);
     
-    // Get the form from the PDF
-    const form = await pdfDoc.getForm();
+    // Note: Form field mapping is disabled for pdfjs-dist documents
+    // This would require a pdf-lib document to access form fields
+    // const form = await pdfDoc.getForm();
+    // debugPDFFields(form);
+    // debugEESTFieldMapping(pdfFields, form);
     
-    // Debug: List all available PDF fields
-    debugPDFFields(form);
+    // Note: Form field population is disabled for pdfjs-dist documents
+    // This would require a pdf-lib document to access and modify form fields
+    // let successCount = 0;
+    // let errorCount = 0;
     
-    // Debug: Compare mapped fields with available fields
-    debugEESTFieldMapping(pdfFields, form);
+    // for (const [fieldName, value] of Object.entries(pdfFields)) {
+    //   try {
+    //     const field = form.getField(fieldName);
+    //     if (field) {
+    //       // Form field population code commented out for pdfjs-dist compatibility
+    //     }
+    //   } catch (fieldError) {
+    //     // Error handling commented out
+    //   }
+    // }
     
-    // Populate the form fields
-    let successCount = 0;
-    let errorCount = 0;
-    
-    for (const [fieldName, value] of Object.entries(pdfFields)) {
-      try {
-        const field = form.getField(fieldName);
-        if (field) {
-          if (field.constructor.name === 'PDFCheckBox') {
-            // Handle checkbox fields
-            if (value === 'Yes' || value === 'On') {
-              (field as any).check();
-            } else {
-              (field as any).uncheck();
-            }
-          } else if (field.constructor.name === 'PDFTextField') {
-            // Handle text fields with smaller font size for remarks
-            const textField = field as any;
-            textField.setText(value);
-            
-            // Set smaller font size for remarks fields and crew member fields to fit more text
-            if (fieldName.includes('REMARKS') || fieldName.includes('remarks') || 
-                fieldName.includes('Text6') || fieldName.includes('Text7') ||
-                fieldName.includes('operatorFurnishedBy') || fieldName.includes('operatingSuppliesFurnishedBy')) {
-              try {
-                textField.updateAppearances();
-                // Try to set a smaller font size
-                const fontSize = 6; // Even smaller font size for remarks to fit more text
-                textField.setFontSize(fontSize);
-                console.log(`🔍 EESTSaveHandler: Set font size ${fontSize} for remarks field: ${fieldName}`);
-                
-                // Alternative approach: try to set font size using appearance
-                try {
-                  const appearance = textField.getAppearance();
-                  if (appearance) {
-                    console.log(`🔍 EESTSaveHandler: Got appearance for field ${fieldName}`);
-                  }
-                } catch (appearanceError) {
-                  console.log(`🔍 EESTSaveHandler: Could not get appearance for field ${fieldName}:`, appearanceError);
-                }
-              } catch (fontError) {
-                console.warn(`⚠️ EESTSaveHandler: Could not set font size for field ${fieldName}:`, fontError);
-              }
-            }
-          } else if (field.constructor.name === 'PDFDropdown') {
-            // Handle dropdown fields
-            (field as any).select(value);
-          }
-          
-          console.log(`✅ EESTSaveHandler: Successfully set field ${fieldName} = "${value}"`);
-          successCount++;
-        } else {
-          console.warn(`❌ EESTSaveHandler: Field ${fieldName} not found in PDF`);
-          errorCount++;
-        }
-      } catch (fieldError) {
-        console.warn(`❌ EESTSaveHandler: Error setting field ${fieldName}:`, fieldError);
-        errorCount++;
-      }
-    }
-    
-    console.log(`🔍 EESTSaveHandler: EEST PDF form population completed - ${successCount} successful, ${errorCount} errors`);
+    console.log('🔍 EESTSaveHandler: Form field population skipped for pdfjs-dist document');
     return pdfDoc;
     
   } catch (error) {
