@@ -2879,7 +2879,7 @@ export const FederalTimeTable: React.FC = () => {
                 }
               }}
             >
-              {isSaving ? '⏳ Saving...' : '✏️ Fill & Sign PDF'}
+              {isSaving ? '⏳ Saving...' : '✏️ Sign Ticket'}
             </button>
           </div>
         </div>
