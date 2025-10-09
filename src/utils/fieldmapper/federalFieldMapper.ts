@@ -130,7 +130,7 @@ export function mapFederalToPDFFields(
     
     // Use start1/stop1 for the first time period, fallback to legacy start/stop
     const startTime = entry.start1 || entry.start || '';
-    const stopTime = entry.stop2|| entry.stop || '';
+    const stopTime = entry.stop1 || entry.stop || '';
     
     fields[`topmostSubform[0].Page1[0]._16_StartRow${rowNum}[0]`] = startTime.substring(0, 8);
     fields[`topmostSubform[0].Page1[0]._17_StopRow${rowNum}[0]`] = stopTime.substring(0, 8);

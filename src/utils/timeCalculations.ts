@@ -142,10 +142,47 @@ export function calculateTimeDifference(startTime: string, stopTime: string): Ti
 }
 
 /**
- * Calculates total hours for Federal equipment entry
+ * Calculates total hours for Federal equipment entry (handles two time periods)
  */
 export function calculateFederalEquipmentTotal(entry: FederalEquipmentEntry): TimeCalculationResult {
-  return calculateTimeDifference(entry.start, entry.stop);
+  // Try to use start1/stop1 and start2/stop2 first, fallback to legacy start/stop
+  const period1 = calculateTimeDifference(entry.start1 || entry.start, entry.stop1 || entry.stop);
+  const period2 = calculateTimeDifference(entry.start2, entry.stop2);
+
+  // If both periods are invalid, return error
+  if (!period1.isValid && !period2.isValid) {
+    return {
+      totalHours: 0,
+      formattedTotal: '0.00',
+      isValid: false,
+      error: 'At least one valid time period is required'
+    };
+  }
+
+  // Calculate total from valid periods
+  let totalHours = 0;
+  let errors: string[] = [];
+
+  if (period1.isValid) {
+    totalHours += period1.totalHours;
+  } else if (entry.start1 || entry.stop1 || entry.start || entry.stop) {
+    errors.push('Period 1: ' + (period1.error || 'Invalid time'));
+  }
+
+  if (period2.isValid) {
+    totalHours += period2.totalHours;
+  } else if (entry.start2 || entry.stop2) {
+    errors.push('Period 2: ' + (period2.error || 'Invalid time'));
+  }
+
+  const formattedTotal = totalHours.toFixed(2);
+
+  return {
+    totalHours,
+    formattedTotal,
+    isValid: totalHours > 0,
+    error: errors.length > 0 ? errors.join('; ') : undefined
+  };
 }
 
 /**
