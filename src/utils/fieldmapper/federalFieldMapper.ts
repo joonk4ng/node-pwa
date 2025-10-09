@@ -8,8 +8,12 @@ import { autoCalculateFederalEquipmentTotals, autoCalculateFederalPersonnelTotal
 // Federal Equipment Entry for PDF
 export interface FederalEquipmentEntryForPDF {
   date: string;
-  start: string;
-  stop: string;
+  start: string;      // Maps to _16_StartRow (legacy)
+  stop: string;       // Maps to _17_StopRow (legacy)
+  start1: string;     // Maps to _16_StartRow (first period)
+  stop1: string;      // Maps to _17_StopRow (first period)
+  start2: string;     // Maps to _16_StartRow (second period)
+  stop2: string;      // Maps to _17_StopRow (second period)
   total: string;      // Maps to _18_TotalRow
   quantity: string;   // Maps to _19_QuantityRow
   type: string;       // Maps to _20_TypeRow
@@ -123,28 +127,38 @@ export function mapFederalToPDFFields(
     const entry = calculatedEquipmentEntries[0]; // Only map the first equipment entry
     const rowNum = 1; // Always use row 1
     fields[`topmostSubform[0].Page1[0]._15_DateRow${rowNum}[0]`] = (entry.date || '').substring(0, 12);
-    fields[`topmostSubform[0].Page1[0]._16_StartRow${rowNum}[0]`] = (entry.start || '').substring(0, 8);
-    fields[`topmostSubform[0].Page1[0]._17_StopRow${rowNum}[0]`] = (entry.stop || '').substring(0, 8);
+    
+    // Use start1/stop1 for the first time period, fallback to legacy start/stop
+    const startTime = entry.start1 || entry.start || '';
+    const stopTime = entry.stop1 || entry.stop || '';
+    
+    fields[`topmostSubform[0].Page1[0]._16_StartRow${rowNum}[0]`] = startTime.substring(0, 8);
+    fields[`topmostSubform[0].Page1[0]._17_StopRow${rowNum}[0]`] = stopTime.substring(0, 8);
     fields[`topmostSubform[0].Page1[0]._18_TotalRow${rowNum}[0]`] = (entry.total || '').substring(0, 15);
     fields[`topmostSubform[0].Page1[0]._19_QuantityRow${rowNum}[0]`] = (entry.quantity || '').substring(0, 15);
     fields[`topmostSubform[0].Page1[0]._20_TypeRow${rowNum}[0]`] = (entry.type || '').substring(0, 20);
     fields[`topmostSubform[0].Page1[0]._21_Note_Travel_Other_remarksRow${rowNum}[0]`] = (entry.remarks || '').substring(0, 50);
   }
   
-  // Map personnel time entries to PDF fields (4 rows) - using calculated entries
-  calculatedPersonnelEntries.forEach((entry, index) => {
-    if (index < 4) { // PDF has 4 rows for personnel entries
+  // Map personnel time entries to PDF fields (4 rows) - copy from equipment entries
+  if (calculatedEquipmentEntries.length > 0) {
+    const equipmentEntry = calculatedEquipmentEntries[0]; // Use first equipment entry
+    
+    // Map to all 4 personnel rows (copying the same equipment data)
+    for (let index = 0; index < 4; index++) {
       const rowNum = index + 1;
-      fields[`topmostSubform[0].Page1[0]._22_DateRow${rowNum}[0]`] = (entry.date || '').substring(0, 12);
-      fields[`topmostSubform[0].Page1[0]._23_Operator_Name_First__LastRow${rowNum}[0]`] = (entry.name || '').substring(0, 30);
-      fields[`topmostSubform[0].Page1[0]._24_StartRow${rowNum}[0]`] = (entry.start1 || '').substring(0, 8);
-      fields[`topmostSubform[0].Page1[0]._25_StopRow${rowNum}[0]`] = (entry.stop1 || '').substring(0, 8);
-      fields[`topmostSubform[0].Page1[0]._26_StartRow${rowNum}[0]`] = (entry.start2 || '').substring(0, 8);
-      fields[`topmostSubform[0].Page1[0]._27_StopRow${rowNum}[0]`] = (entry.stop2 || '').substring(0, 8);
-      fields[`topmostSubform[0].Page1[0]._28_TotalRow${rowNum}[0]`] = (entry.total || '').substring(0, 15);
-      fields[`topmostSubform[0].Page1[0]._29_Note_Travel_Other_remarksRow${rowNum}[0]`] = (entry.remarks || '').substring(0, 50);
+      const personnelEntry = calculatedPersonnelEntries[index] || {}; // Get personnel entry for name/remarks
+      
+      fields[`topmostSubform[0].Page1[0]._22_DateRow${rowNum}[0]`] = (equipmentEntry.date || '').substring(0, 12);
+      fields[`topmostSubform[0].Page1[0]._23_Operator_Name_First__LastRow${rowNum}[0]`] = (personnelEntry.name || '').substring(0, 30);
+      fields[`topmostSubform[0].Page1[0]._24_StartRow${rowNum}[0]`] = (equipmentEntry.start1 || equipmentEntry.start || '').substring(0, 8);
+      fields[`topmostSubform[0].Page1[0]._25_StopRow${rowNum}[0]`] = (equipmentEntry.stop1 || equipmentEntry.stop || '').substring(0, 8);
+      fields[`topmostSubform[0].Page1[0]._26_StartRow${rowNum}[0]`] = (equipmentEntry.start2 || '').substring(0, 8);
+      fields[`topmostSubform[0].Page1[0]._27_StopRow${rowNum}[0]`] = (equipmentEntry.stop2 || '').substring(0, 8);
+      fields[`topmostSubform[0].Page1[0]._28_TotalRow${rowNum}[0]`] = (equipmentEntry.total || '').substring(0, 15);
+      fields[`topmostSubform[0].Page1[0]._29_Note_Travel_Other_remarksRow${rowNum}[0]`] = (personnelEntry.remarks || '').substring(0, 50);
     }
-  });
+  }
   
   console.log('Federal Field Mapper: Final fields:', fields);
   

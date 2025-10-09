@@ -568,11 +568,21 @@ export const FederalTimeTable: React.FC = () => {
         handleEquipmentEntryChange(index, field as keyof FederalEquipmentEntry, formattedTime);
         
         // Auto-calculate total if both start and stop are provided
-        if (field === 'stop') {
+        if (field === 'stop1') {
           const entry = equipmentEntries[index];
-          if (entry.start && formattedTime) {
-            const total = autoCalculateTotal(entry.start, formattedTime);
+          if (entry.start1 && formattedTime) {
+            const total = autoCalculateTotal(entry.start1, formattedTime);
             if (total) {
+              handleEquipmentEntryChange(index, 'total', total);
+            }
+          }
+        } else if (field === 'stop2') {
+          const entry = equipmentEntries[index];
+          if (entry.start2 && formattedTime) {
+            const total = autoCalculateTotal(entry.start2, formattedTime);
+            if (total) {
+              // For equipment, we might want to combine both periods or use the second period
+              // For now, just update the total field with the second period
               handleEquipmentEntryChange(index, 'total', total);
             }
           }
@@ -677,7 +687,7 @@ export const FederalTimeTable: React.FC = () => {
   const handleClearEquipmentEntry = (index: number) => {
     setEquipmentEntries(prev => {
       const updated = [...prev];
-      updated[index] = { date: '', start: '', stop: '', total: '', quantity: '', type: '', remarks: '' };
+      updated[index] = { date: '', start: '', stop: '', start1: '', stop1: '', start2: '', stop2: '', total: '', quantity: '', type: '', remarks: '' };
       saveFederalEquipmentEntry(updated[index]);
       return updated;
     });
@@ -718,6 +728,7 @@ export const FederalTimeTable: React.FC = () => {
     }
   };
 
+  // Get the current date from the calendar open
   const getCurrentDate = () => {
     if (!calendarOpen) return '';
     
@@ -1753,7 +1764,7 @@ export const FederalTimeTable: React.FC = () => {
               gap: '12px'
             }}>
               {Array.from({ length: 1 }, (_, idx) => {
-                const entry = equipmentEntries[idx] || { date: '', start: '', stop: '', total: '', quantity: '', type: '', remarks: '' };
+                const entry = equipmentEntries[idx] || { date: '', start: '', stop: '', start1: '', stop1: '', start2: '', stop2: '', total: '', quantity: '', type: '', remarks: '' };
                 const rowColors = ['#e3f2fd'];
                 return (
                   <div key={idx} style={{
@@ -1879,26 +1890,26 @@ export const FederalTimeTable: React.FC = () => {
                         </label>
                         <input
                           type="text"
-                          value={entry.start}
-                          onChange={e => handleTimeInput(idx, 'start', e.target.value, 'equipment')}
+                          value={entry.start1}
+                          onChange={e => handleTimeInput(idx, 'start1', e.target.value, 'equipment')}
                           style={{
                             width: '100%',
                             padding: '8px',
-                            border: `1px solid ${timeValidationErrors[`equipment-${idx}-start`] ? '#dc3545' : '#ddd'}`,
+                            border: `1px solid ${timeValidationErrors[`equipment-${idx}-start1`] ? '#dc3545' : '#ddd'}`,
                             borderRadius: '6px',
                             fontSize: '16px',
                             backgroundColor: '#fff',
                             color: '#333'
                           }}
-                          placeholder="HH:MM (24hr)"
+                          placeholder="0700"
                         />
-                        {timeValidationErrors[`equipment-${idx}-start`] && (
+                        {timeValidationErrors[`equipment-${idx}-start1`] && (
                           <div style={{
                             fontSize: '12px',
                             color: '#dc3545',
                             marginTop: '4px'
                           }}>
-                            {timeValidationErrors[`equipment-${idx}-start`]}
+                            {timeValidationErrors[`equipment-${idx}-start1`]}
                           </div>
                         )}
                       </div>
@@ -1915,18 +1926,18 @@ export const FederalTimeTable: React.FC = () => {
                         </label>
                         <input
                           type="text"
-                          value={entry.stop}
-                          onChange={e => handleTimeInput(idx, 'stop', e.target.value, 'equipment')}
+                          value={entry.stop1}
+                          onChange={e => handleTimeInput(idx, 'stop1', e.target.value, 'equipment')}
                           style={{
                             width: '100%',
                             padding: '8px',
-                            border: `1px solid ${timeValidationErrors[`equipment-${idx}-stop`] ? '#dc3545' : '#ddd'}`,
+                            border: `1px solid ${timeValidationErrors[`equipment-${idx}-stop1`] ? '#dc3545' : '#ddd'}`,
                             borderRadius: '6px',
                             fontSize: '16px',
                             backgroundColor: '#fff',
                             color: '#333'
                           }}
-                          placeholder="HH:MM (24hr)"
+                          placeholder="1200"
                         />
                         {timeValidationErrors[`equipment-${idx}-stop`] && (
                           <div style={{
@@ -1950,18 +1961,18 @@ export const FederalTimeTable: React.FC = () => {
                         </label>
                         <input
                           type="text"
-                          value={entry.start}
-                          onChange={e => handleTimeInput(idx, 'start', e.target.value, 'equipment')}
+                          value={entry.start2}
+                          onChange={e => handleTimeInput(idx, 'start2', e.target.value, 'equipment')}
                           style={{
                             width: '100%',
                             padding: '8px',
-                            border: `1px solid ${timeValidationErrors[`equipment-${idx}-start`] ? '#dc3545' : '#ddd'}`,
+                            border: `1px solid ${timeValidationErrors[`equipment-${idx}-start2`] ? '#dc3545' : '#ddd'}`,
                             borderRadius: '6px',
                             fontSize: '16px',
                             backgroundColor: '#fff',
                             color: '#333'
                           }}
-                          placeholder="HH:MM (24hr)"
+                          placeholder="1230"
                         />
                         {timeValidationErrors[`equipment-${idx}-start`] && (
                           <div style={{
@@ -1986,18 +1997,18 @@ export const FederalTimeTable: React.FC = () => {
                         </label>
                         <input
                           type="text"
-                          value={entry.stop}
-                          onChange={e => handleTimeInput(idx, 'stop', e.target.value, 'equipment')}
+                          value={entry.stop2}
+                          onChange={e => handleTimeInput(idx, 'stop2', e.target.value, 'equipment')}
                           style={{
                             width: '100%',
                             padding: '8px',
-                            border: `1px solid ${timeValidationErrors[`equipment-${idx}-stop`] ? '#dc3545' : '#ddd'}`,
+                            border: `1px solid ${timeValidationErrors[`equipment-${idx}-stop2`] ? '#dc3545' : '#ddd'}`,
                             borderRadius: '6px',
                             fontSize: '16px',
                             backgroundColor: '#fff',
                             color: '#333'
                           }}
-                          placeholder="HH:MM (24hr)"
+                          placeholder="1900"
                         />
                         {timeValidationErrors[`equipment-${idx}-stop`] && (
                           <div style={{

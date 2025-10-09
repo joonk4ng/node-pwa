@@ -85,10 +85,18 @@ export interface FederalEquipmentEntry {
   id?: number;
   // DATE
   date: string;
-  // START
+  // START (legacy field for backward compatibility)
   start: string;
-  // STOP
+  // STOP (legacy field for backward compatibility)
   stop: string;
+  // START1
+  start1: string;
+  // STOP1
+  stop1: string;
+  // START2
+  start2: string;
+  // STOP2
+  stop2: string;
   // TOTAL
   total: string;
   // QUANTITY
