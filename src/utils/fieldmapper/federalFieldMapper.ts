@@ -145,7 +145,7 @@ export function mapFederalToPDFFields(
     const equipmentEntry = calculatedEquipmentEntries[0]; // Use first equipment entry
     
     // Map to all 4 personnel rows (copying the same equipment data)
-    for (let index = 0; index < 4; index++) {
+    for (let index = 0; index < 3; index++) {
       const rowNum = index + 1;
       const personnelEntry = calculatedPersonnelEntries[index] || {}; // Get personnel entry for name/remarks
       
