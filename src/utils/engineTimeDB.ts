@@ -330,8 +330,9 @@ class EngineTimeDB extends Dexie {
   constructor() {
     // Initialize the Engine Time Database
     super('EngineTimeDB');
-    // Define the stores for the Engine Time Database
-    this.version(5).stores({
+    
+    // Define the stores for the Engine Time Database with migration handling
+    this.version(6).stores({
       // Rows
       rows: '++id, date, name',
       // Form
@@ -339,7 +340,7 @@ class EngineTimeDB extends Dexie {
       // Federal Equipment
       federalEquipment: '++id, date',
       // Federal Personnel
-      federalPersonnel: '++id, date, name',
+      federalPersonnel: '++id, date',
       // Federal Form
       federalForm: 'id',
       // EEST Form
@@ -354,12 +355,44 @@ class EngineTimeDB extends Dexie {
       pdfMetadata: '++id, formType, incidentName, incidentNumber, dateGenerated, createdAt',
       // Change Log
       changeLog: '++id, rowId, timestamp'
+    }).upgrade(() => {
+      // Migration from version 5 to 6: Remove name index from federalPersonnel
+      // This ensures data is preserved when the index is removed
+      console.log('Migrating database from version 5 to 6: Removing name index from federalPersonnel');
+      
+      // The data will be preserved automatically by Dexie
+      // We just need to ensure the migration completes successfully
+      return Promise.resolve();
     });
   }
 }
 
 // Export the Engine Time Database
 export const engineTimeDB = new EngineTimeDB();
+
+// Function to clear corrupted data and reset database
+export async function clearCorruptedData(): Promise<void> {
+  try {
+    console.log('Clearing potentially corrupted data...');
+    
+    // Clear all federal personnel entries that might have corrupted names
+    const allPersonnelEntries = await engineTimeDB.federalPersonnel.toArray();
+    const corruptedEntries = allPersonnelEntries.filter(entry => 
+      entry.name && entry.name.length === 1 && /^[A-Za-z]$/.test(entry.name)
+    );
+    
+    if (corruptedEntries.length > 0) {
+      console.log(`Found ${corruptedEntries.length} potentially corrupted personnel entries, clearing them...`);
+      for (const entry of corruptedEntries) {
+        await engineTimeDB.federalPersonnel.delete(entry.id!);
+      }
+    }
+    
+    console.log('Data cleanup completed');
+  } catch (error) {
+    console.error('Error clearing corrupted data:', error);
+  }
+}
 
 // Save an Engine Time Row
 export async function saveEngineTimeRow(row: EngineTimeRow) {

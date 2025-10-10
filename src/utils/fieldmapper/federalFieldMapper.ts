@@ -71,7 +71,14 @@ export interface FederalPDFFields {
 export function mapFederalToPDFFields(
   formData: FederalFormData,
   equipmentEntries: FederalEquipmentEntry[],
-  personnelEntries: FederalPersonnelEntry[]
+  personnelEntries: FederalPersonnelEntry[],
+  checkboxStates?: {
+    noMealsLodging: boolean;
+    noMeals: boolean;
+    travel: boolean;
+    noLunch: boolean;
+    hotline: boolean;
+  }
 ): Record<string, string> {
   const fields: Record<string, string> = {};
   
@@ -106,7 +113,10 @@ export function mapFederalToPDFFields(
   // Personnel fields
   const agencyRepField = getFederalPDFFieldName('agencyRepresentative');
   const incidentSupField = getFederalPDFFieldName('incidentSupervisor');
-  const agencyRepValue = (formData.agencyRepresentative || '').substring(0, 50);
+  
+  // Auto-fill Agency Representative from first personnel name if not already set
+  const firstPersonnelName = calculatedPersonnelEntries.find(entry => entry.name && entry.name.trim() !== '')?.name || '';
+  const agencyRepValue = (formData.agencyRepresentative || firstPersonnelName).substring(0, 50);
   const incidentSupValue = (formData.incidentSupervisor || '').substring(0, 50);
   
   fields[agencyRepField] = agencyRepValue;
@@ -114,9 +124,27 @@ export function mapFederalToPDFFields(
   
   console.log('Federal Field Mapper: Agency Representative field:', agencyRepField, 'value:', agencyRepValue);
   console.log('Federal Field Mapper: Incident Supervisor field:', incidentSupField, 'value:', incidentSupValue);
+  console.log('Federal Field Mapper: First personnel name found:', firstPersonnelName);
+  console.log('Federal Field Mapper: Form data agency rep:', formData.agencyRepresentative);
   
-  // Remarks field - Now enabled
-  fields[getFederalPDFFieldName('remarks')] = (formData.remarks || '').substring(0, 200);
+  // Remarks field - Combine checkbox remarks with manual remarks for PDF
+  const checkboxRemarks = [];
+  if (checkboxStates) {
+    if (checkboxStates.noMealsLodging) checkboxRemarks.push('No Meals/Lodging');
+    if (checkboxStates.noMeals) checkboxRemarks.push('No Meals');
+    if (checkboxStates.travel) checkboxRemarks.push('Travel');
+    if (checkboxStates.noLunch) checkboxRemarks.push('No Lunch');
+    if (checkboxStates.hotline) checkboxRemarks.push('Hotline');
+  }
+  
+  // Combine checkbox remarks with manual remarks for PDF
+  const manualRemarks = formData.remarks || '';
+  const allRemarks = [...checkboxRemarks];
+  if (manualRemarks) {
+    allRemarks.push(manualRemarks);
+  }
+  
+  fields[getFederalPDFFieldName('remarks')] = allRemarks.join(', ').substring(0, 200);
   
   // General remarks field for equipment breakdown/operating issues
   // Note: We need to find the correct field name for this from the debug output
@@ -130,7 +158,7 @@ export function mapFederalToPDFFields(
     
     // Use start1/stop1 for the first time period, fallback to legacy start/stop
     const startTime = entry.start1 || entry.start || '';
-    const stopTime = entry.stop1 || entry.stop || '';
+    const stopTime = entry.stop2 || entry.stop || '';
     
     fields[`topmostSubform[0].Page1[0]._16_StartRow${rowNum}[0]`] = startTime.substring(0, 8);
     fields[`topmostSubform[0].Page1[0]._17_StopRow${rowNum}[0]`] = stopTime.substring(0, 8);

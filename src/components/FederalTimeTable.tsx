@@ -9,11 +9,12 @@ import {
   loadAllFederalPersonnelEntries,
   deleteFederalPersonnelEntry,
   saveFederalFormData,
-  loadFederalFormData
+  loadFederalFormData,
+  clearCorruptedData
 } from '../utils/engineTimeDB';
 import { EnhancedPDFViewer } from './PDF';
 import { getPDF, storePDFWithId } from '../utils/pdfStorage';
-import { mapFederalToPDFFields, validateFederalFormData } from '../utils/fieldmapper/federalFieldMapper';
+import { mapFederalToPDFFields, validateFederalFormData, getFederalPDFFieldName } from '../utils/fieldmapper/federalFieldMapper';
 import { handleFederalEquipmentEntryChange, handleFederalPersonnelEntryChange, DEFAULT_PROPAGATION_CONFIG } from '../utils/entryPropagation';
 import { DateCalendar } from './DateCalendar';
 import { validateTimeInput, autoCalculateTotal } from '../utils/timevalidation';
@@ -298,6 +299,18 @@ export const FederalTimeTable: React.FC = () => {
     return dateStr; // Already in MM/DD/YY format
   };
 
+  // Utility function to generate remarks text from checkbox states
+  const generateRemarksFromCheckboxes = (states: typeof checkboxStates): string[] => {
+    const remarks = [];
+    if (states.noMealsLodging) remarks.push('No Meals/Lodging');
+    if (states.noMeals) remarks.push('No Meals');
+    if (states.travel) remarks.push('Travel');
+    if (states.noLunch) remarks.push('No Lunch');
+    if (states.hotline) remarks.push('Hotline');
+    return remarks;
+  };
+
+
   // Migration function to convert old date formats to new format
   const migrateDateFormats = async () => {
     try {
@@ -340,13 +353,39 @@ export const FederalTimeTable: React.FC = () => {
   // Load Federal data from IndexedDB on mount
   useEffect(() => {
     const initializeData = async () => {
-      // First, migrate any old date formats
+      // First, clear any corrupted data from previous database issues
+      await clearCorruptedData();
+      
+      // Then, migrate any old date formats
       await migrateDateFormats();
       
       // Load form data
       const saved = await loadFederalFormData();
       if (saved) {
         setFederalFormData(saved);
+        
+        // Initialize checkbox states based on existing remarks
+        if (saved.remarks) {
+          const remarks = saved.remarks.split(', ');
+          setCheckboxStates({
+            noMealsLodging: remarks.includes('No Meals/Lodging'),
+            noMeals: remarks.includes('No Meals'),
+            travel: remarks.includes('Travel'),
+            noLunch: remarks.includes('No Lunch'),
+            hotline: remarks.includes('Hotline')
+          });
+        } else {
+          // If no saved remarks, ensure default state (Hotline = true)
+          setCheckboxStates({
+            noMealsLodging: false,
+            noMeals: false,
+            travel: false,
+            noLunch: false,
+            hotline: true  // Default to true
+          });
+          
+          // Don't update form data - keep UI clean, checkbox remarks go to PDF only
+        }
       }
 
       // Load all equipment and personnel entries
@@ -453,7 +492,16 @@ export const FederalTimeTable: React.FC = () => {
   // Handle Federal form data changes and autosave
   const handleFederalFormChange = (field: keyof FederalFormData, value: string) => {
     setFederalFormData(prev => {
-      const updated = { ...prev, [field]: value };
+      let updated = { ...prev, [field]: value };
+      
+      // Special handling for remarks field - only store manual remarks in UI
+      if (field === 'remarks') {
+        // For the UI, only store the manual text (what the user typed)
+        // Checkbox remarks will be added separately for PDF generation
+        updated.remarks = value;
+        console.log('Form change - Manual remarks only:', updated.remarks);
+      }
+      
       saveFederalFormData(updated);
       return updated;
     });
@@ -482,6 +530,11 @@ export const FederalTimeTable: React.FC = () => {
         // For other checkboxes, toggle the state
         newStates[option] = !prev[option];
       }
+
+      // Don't update the form data remarks field - keep UI clean
+      // Checkbox remarks will be added during PDF generation
+      const selectedRemarks = generateRemarksFromCheckboxes(newStates);
+      console.log('Checkbox change - Selected remarks (for PDF only):', selectedRemarks);
 
       // Return the new states
       return newStates;
@@ -755,8 +808,11 @@ export const FederalTimeTable: React.FC = () => {
       }
 
       // Map form data to PDF fields
-      const pdfFields = mapFederalToPDFFields(federalFormData, equipmentEntries, personnelEntries);
+      const pdfFields = mapFederalToPDFFields(federalFormData, equipmentEntries, personnelEntries, checkboxStates);
       console.log('Federal: Mapped PDF fields:', pdfFields);
+      console.log('Federal: Current form data remarks:', federalFormData.remarks);
+      console.log('Federal: Checkbox states:', checkboxStates);
+      console.log('Federal: PDF remarks field value:', pdfFields[getFederalPDFFieldName('remarks')]);
 
       // Get the stored PDF
       const storedPDF = await getPDF('federal-form');
@@ -2781,6 +2837,14 @@ export const FederalTimeTable: React.FC = () => {
                 color: '#2c3e50'
               }}>
                 General Remarks
+                <span style={{
+                  fontSize: '12px',
+                  fontWeight: '400',
+                  color: '#666',
+                  marginLeft: '8px'
+                }}>
+                  (Manual text only - checkboxes appear on PDF)
+                </span>
               </label>
               <textarea
                 value={federalFormData.remarks}
