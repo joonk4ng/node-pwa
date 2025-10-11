@@ -3470,6 +3470,7 @@ export const FederalTimeTable: React.FC = () => {
               🔗 Share Link
             </button>
             
+            {/* Debug PDF Fields Button, hidden for now */}
             <button
               onClick={debugPDFFields}
               style={{
@@ -3481,7 +3482,8 @@ export const FederalTimeTable: React.FC = () => {
                 fontSize: '14px',
                 fontWeight: '600',
                 cursor: 'pointer',
-                transition: 'background-color 0.2s ease'
+                transition: 'background-color 0.2s ease',
+                display: 'none'
               }}
               onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#1e7e34'}
               onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#28a745'}
@@ -3489,6 +3491,7 @@ export const FederalTimeTable: React.FC = () => {
               🔍 Debug PDF Fields
             </button>
             
+            {/* Debug Original PDF Button, hidden for now */}
             <button
               onClick={debugOriginalPDF}
               style={{
@@ -3500,7 +3503,8 @@ export const FederalTimeTable: React.FC = () => {
                 fontSize: '14px',
                 fontWeight: '600',
                 cursor: 'pointer',
-                transition: 'background-color 0.2s ease'
+                transition: 'background-color 0.2s ease',
+                display: 'none'
               }}
               onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#e0a800'}
               onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#ffc107'}
