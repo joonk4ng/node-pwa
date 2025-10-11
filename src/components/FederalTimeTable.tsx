@@ -422,13 +422,6 @@ export const FederalTimeTable: React.FC = () => {
         }, 1000);
       }
 
-      // Load all equipment and personnel entries
-      const equipmentEntries = await loadAllFederalEquipmentEntries();
-      const personnelEntries = await loadAllFederalPersonnelEntries();
-      
-      setEquipmentEntries(equipmentEntries);
-      setPersonnelEntries(personnelEntries);
-      
       // Set today's date as default if no date is selected
       if (!currentSelectedDate) {
         const today = formatToMMDDYY(new Date());
@@ -860,8 +853,16 @@ export const FederalTimeTable: React.FC = () => {
       }
 
       // Map form data to PDF fields
+      console.log('🔍 DEBUG: Equipment entries being mapped:', equipmentEntries);
+      console.log('🔍 DEBUG: Personnel entries being mapped:', personnelEntries);
       const pdfFields = mapFederalToPDFFields(federalFormData, equipmentEntries, personnelEntries, checkboxStates);
       console.log('Federal: Mapped PDF fields:', pdfFields);
+      
+      // Debug time-related fields specifically
+      const timeFields = Object.entries(pdfFields).filter(([key]) => 
+        key.includes('DateRow') || key.includes('StartRow') || key.includes('StopRow') || key.includes('TotalRow')
+      );
+      console.log('🔍 DEBUG: Time-related fields being mapped:', timeFields);
       console.log('Federal: Current form data remarks:', federalFormData.remarks);
       console.log('Federal: Checkbox states:', checkboxStates);
       console.log('Federal: PDF remarks field value:', pdfFields[getFederalPDFFieldName('remarks')]);
@@ -915,6 +916,11 @@ export const FederalTimeTable: React.FC = () => {
       Object.entries(pdfFields).forEach(([fieldName, value]) => {
         attemptedFieldsCount++;
         console.log(`🔍 DEBUG: Attempting field "${fieldName}" with value "${value}"`);
+        
+        // Special debugging for time-related fields
+        if (fieldName.includes('DateRow') || fieldName.includes('StartRow') || fieldName.includes('StopRow') || fieldName.includes('TotalRow')) {
+          console.log(`🔍 DEBUG: TIME FIELD - ${fieldName} = "${value}"`);
+        }
         
         try {
           const field = form.getField(fieldName);
@@ -1565,7 +1571,7 @@ export const FederalTimeTable: React.FC = () => {
 
   const loadDataForDate = async (dateRange: string) => {
     try {
-      console.log('Loading data for date range:', dateRange);
+      console.log('🔍 Loading data for date range:', dateRange);
       
       // Load form data (singleton)
       const formData = await loadFederalFormData();
@@ -1581,12 +1587,16 @@ export const FederalTimeTable: React.FC = () => {
 
       // Load equipment entries for the specific date
       const allEquipmentEntries = await loadAllFederalEquipmentEntries();
+      console.log('🔍 All equipment entries from IndexedDB:', allEquipmentEntries);
       const dateEquipmentEntries = allEquipmentEntries.filter(entry => entry.date === dateRange);
+      console.log('🔍 Filtered equipment entries for date', dateRange, ':', dateEquipmentEntries);
       setEquipmentEntries(dateEquipmentEntries);
 
       // Load personnel entries for the specific date
       const allPersonnelEntries = await loadAllFederalPersonnelEntries();
+      console.log('🔍 All personnel entries from IndexedDB:', allPersonnelEntries);
       const datePersonnelEntries = allPersonnelEntries.filter(entry => entry.date === dateRange);
+      console.log('🔍 Filtered personnel entries for date', dateRange, ':', datePersonnelEntries);
       setPersonnelEntries(datePersonnelEntries);
     } catch (error) {
       console.error('Error loading data for date:', error);
@@ -1682,15 +1692,15 @@ export const FederalTimeTable: React.FC = () => {
           opacity: 1 !important;
         }
       `}</style>
-      <div style={{ 
-        width: '100vw',
-        maxWidth: '100vw',
-        minHeight: '100vh',
-        backgroundColor: '#f5f5f5',
-        padding: '16px',
-        boxSizing: 'border-box',
-        overflowX: 'hidden',
-        position: 'relative',
+    <div style={{ 
+      width: '100vw',
+      maxWidth: '100vw',
+      minHeight: '100vh',
+      backgroundColor: '#f5f5f5',
+      padding: '16px',
+      boxSizing: 'border-box',
+      overflowX: 'hidden',
+      position: 'relative',
       left: '50%',
       transform: 'translateX(-50%)'
     }}>
@@ -3462,7 +3472,8 @@ export const FederalTimeTable: React.FC = () => {
                 fontSize: '14px',
                 fontWeight: '600',
                 cursor: 'pointer',
-                transition: 'background-color 0.2s ease'
+                transition: 'background-color 0.2s ease',
+                display: 'none'
               }}
               onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#0056b3'}
               onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#007bff'}
@@ -3470,21 +3481,20 @@ export const FederalTimeTable: React.FC = () => {
               🔗 Share Link
             </button>
             
-            {/* Debug PDF Fields Button, hidden for now */}
-            <button
-              onClick={debugPDFFields}
-              style={{
-                padding: '12px 24px',
-                backgroundColor: '#28a745',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                fontSize: '14px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'background-color 0.2s ease',
-                display: 'none'
-              }}
+             {/* Debug PDF Fields Button - temporarily visible for troubleshooting */}
+             <button
+               onClick={debugPDFFields}
+               style={{
+                 padding: '12px 24px',
+                 backgroundColor: '#28a745',
+                 color: 'white',
+                 border: 'none',
+                 borderRadius: '6px',
+                 fontSize: '14px',
+                 fontWeight: '600',
+                 cursor: 'pointer',
+                 transition: 'background-color 0.2s ease'
+               }}
               onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#1e7e34'}
               onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#28a745'}
             >
@@ -3553,7 +3563,7 @@ export const FederalTimeTable: React.FC = () => {
               >
                 🔄 Refresh
               </button>
-            </div>
+        </div>
             
             {storedPDFs.length > 0 ? (
               <div style={{
@@ -3849,7 +3859,7 @@ export const FederalTimeTable: React.FC = () => {
                 }}
                 title="PDF Preview"
               />
-            </div>
+    </div>
             <div style={{
               marginTop: '16px',
               display: 'flex',
