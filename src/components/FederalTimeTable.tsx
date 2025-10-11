@@ -3493,7 +3493,8 @@ export const FederalTimeTable: React.FC = () => {
                  fontSize: '14px',
                  fontWeight: '600',
                  cursor: 'pointer',
-                 transition: 'background-color 0.2s ease'
+                 transition: 'background-color 0.2s ease',
+                 display: 'none'
                }}
               onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#1e7e34'}
               onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#28a745'}
