@@ -167,6 +167,14 @@ export interface FederalFormData {
   incidentSupervisor: string;
   // REMARKS
   remarks: string;
+  // CHECKBOX STATES (for persistent storage)
+  checkboxStates?: {
+    noMealsLodging: boolean;
+    noMeals: boolean;
+    travel: boolean;
+    noLunch: boolean;
+    hotline: boolean;
+  };
 }
 
 // EEST Form Data

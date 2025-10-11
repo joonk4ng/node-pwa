@@ -13,11 +13,12 @@ import {
   clearCorruptedData
 } from '../utils/engineTimeDB';
 import { EnhancedPDFViewer } from './PDF';
-import { getPDF, storePDFWithId } from '../utils/pdfStorage';
+import { getPDF, storePDFWithId, listPDFs } from '../utils/pdfStorage';
 import { mapFederalToPDFFields, validateFederalFormData, getFederalPDFFieldName } from '../utils/fieldmapper/federalFieldMapper';
 import { handleFederalEquipmentEntryChange, handleFederalPersonnelEntryChange, DEFAULT_PROPAGATION_CONFIG } from '../utils/entryPropagation';
 import { DateCalendar } from './DateCalendar';
 import { validateTimeInput, autoCalculateTotal } from '../utils/timevalidation';
+import { parsePayloadFromURL, createShareableLink, clearURLParameters, type FederalPayload } from '../utils/payloadSystem';
 import * as PDFLib from 'pdf-lib';
 
 // Simple Calendar Component
@@ -247,6 +248,13 @@ export const FederalTimeTable: React.FC = () => {
     agencyRepresentative: '',
     incidentSupervisor: '',
     remarks: '',
+    checkboxStates: {
+      noMealsLodging: false,
+      noMeals: false,
+      travel: false,
+      noLunch: false,
+      hotline: true  // Default to true
+    }
   });
 
   // Equipment entries state
@@ -288,6 +296,11 @@ export const FederalTimeTable: React.FC = () => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<number | null>(null);
+
+  // Add state for stored PDFs and preview
+  const [storedPDFs, setStoredPDFs] = useState<any[]>([]);
+  const [showPDFPreview, setShowPDFPreview] = useState(false);
+  const [previewPDF, setPreviewPDF] = useState<{ pdf: Blob; preview: Blob | null; metadata: any } | null>(null);
 
   // Utility function to convert YYYY-MM-DD to MM/DD/YY format
   const convertYYYYMMDDToMMDDYY = (dateStr: string): string => {
@@ -364,28 +377,49 @@ export const FederalTimeTable: React.FC = () => {
       if (saved) {
         setFederalFormData(saved);
         
-        // Initialize checkbox states based on existing remarks
+        // Initialize checkbox states from saved data or defaults
+        if (saved.checkboxStates) {
+          // Use saved checkbox states from IndexedDB
+          setCheckboxStates(saved.checkboxStates);
+          console.log('Loaded checkbox states from IndexedDB:', saved.checkboxStates);
+        } else {
+          // Fallback: Initialize checkbox states based on existing remarks (legacy support)
         if (saved.remarks) {
           const remarks = saved.remarks.split(', ');
-          setCheckboxStates({
+            const legacyCheckboxStates = {
             noMealsLodging: remarks.includes('No Meals/Lodging'),
             noMeals: remarks.includes('No Meals'),
             travel: remarks.includes('Travel'),
             noLunch: remarks.includes('No Lunch'),
             hotline: remarks.includes('Hotline')
-          });
+            };
+            setCheckboxStates(legacyCheckboxStates);
+            console.log('Loaded checkbox states from legacy remarks:', legacyCheckboxStates);
         } else {
-          // If no saved remarks, ensure default state (Hotline = true)
-          setCheckboxStates({
+            // If no saved data, use default state (Hotline = true)
+            const defaultCheckboxStates = {
             noMealsLodging: false,
             noMeals: false,
             travel: false,
             noLunch: false,
             hotline: true  // Default to true
-          });
-          
-          // Don't update form data - keep UI clean, checkbox remarks go to PDF only
+            };
+            setCheckboxStates(defaultCheckboxStates);
+            console.log('Using default checkbox states:', defaultCheckboxStates);
+          }
         }
+      }
+      
+      // Check for payload in URL parameters and apply after form data is loaded
+      const payload = parsePayloadFromURL();
+      if (Object.keys(payload).length > 0) {
+        console.log('Payload found in URL, applying to form after data load...');
+        await applyPayloadToForm(payload);
+        
+        // Clear URL parameters after applying payload
+        setTimeout(() => {
+          clearURLParameters();
+        }, 1000);
       }
 
       // Load all equipment and personnel entries
@@ -487,7 +521,17 @@ export const FederalTimeTable: React.FC = () => {
     };
 
     initializeFederalPDF();
+    
+    // Load stored PDFs
+    loadStoredPDFs();
   }, []);
+
+  // Reload stored PDFs when the selected date changes
+  useEffect(() => {
+    if (currentSelectedDate) {
+      loadStoredPDFs();
+    }
+  }, [currentSelectedDate]);
 
   // Handle Federal form data changes and autosave
   const handleFederalFormChange = (field: keyof FederalFormData, value: string) => {
@@ -510,39 +554,47 @@ export const FederalTimeTable: React.FC = () => {
 
   // Handle checkbox changes for remarks section
   const handleCheckboxChange = async (option: keyof typeof checkboxStates) => {
-    // Set the checkbox states
-    setCheckboxStates(prev => {
-      const newStates = { ...prev };
+    // Calculate new checkbox states
+    const newStates = { ...checkboxStates };
 
       // If turning on travel, automatically uncheck hotline
       if (option === 'travel') {
-        if (!prev.travel) {
+      if (!checkboxStates.travel) {
           newStates.hotline = false;
         }
-        newStates.travel = !prev.travel;
+      newStates.travel = !checkboxStates.travel;
       } else if (option === 'hotline') {
         // If turning on hotline, automatically uncheck travel
-        if (!prev.hotline) {
+      if (!checkboxStates.hotline) {
           newStates.travel = false;
         }
-        newStates.hotline = !prev.hotline;
+      newStates.hotline = !checkboxStates.hotline;
       } else {
         // For other checkboxes, toggle the state
-        newStates[option] = !prev[option];
+      newStates[option] = !checkboxStates[option];
       }
+
+    // Set the checkbox states in UI
+    setCheckboxStates(newStates);
 
       // Don't update the form data remarks field - keep UI clean
       // Checkbox remarks will be added during PDF generation
       const selectedRemarks = generateRemarksFromCheckboxes(newStates);
       console.log('Checkbox change - Selected remarks (for PDF only):', selectedRemarks);
 
-      // Return the new states
-      return newStates;
-    });
-
-    // Save after checkbox change
+    // Save checkbox states to IndexedDB immediately
     try {
       setIsSaving(true);
+      
+      // Update form data with new checkbox states
+      const updatedFormData = {
+        ...federalFormData,
+        checkboxStates: newStates
+      };
+      
+      await saveFederalFormData(updatedFormData);
+      setFederalFormData(updatedFormData);
+      console.log('Checkbox states saved to IndexedDB:', newStates);
 
       // Get the full date range
       const fullDateRange = currentSelectedDate || formatToMMDDYY(new Date());
@@ -828,25 +880,46 @@ export const FederalTimeTable: React.FC = () => {
       // Get the form
       const form = pdfDoc.getForm();
       
+      // DEBUG: Extract all field names from the PDF
+      console.log('🔍 DEBUG: Extracting all field names from Federal PDF...');
+      const fields = form.getFields();
+      console.log('🔍 DEBUG: Total fields found:', fields.length);
+      console.log('🔍 DEBUG: All field names:');
+      fields.forEach((field, index) => {
+        const fieldName = field.getName();
+        const fieldType = field.constructor.name;
+        console.log(`${index + 1}. "${fieldName}" (${fieldType})`);
+      });
+      
+      // Look for specific fields we're trying to map
+      console.log('🔍 DEBUG: Looking for specific fields...');
+      const searchTerms = ['Agreement', 'Contractor', 'Resource', 'Incident', 'Equipment', 'Serial', 'License', 'Agency', 'Supervisor', 'Remarks'];
+      const matchingFields = fields.filter(field => {
+        const fieldName = field.getName();
+        return searchTerms.some(term => fieldName.includes(term));
+      });
+      
+      if (matchingFields.length > 0) {
+        console.log('🔍 DEBUG: Fields matching search terms:');
+        matchingFields.forEach(field => {
+          console.log(`- "${field.getName()}" (${field.constructor.name})`);
+        });
+      } else {
+        console.log('🔍 DEBUG: No fields found matching search terms');
+      }
+      
       // Fill the form fields
       let filledFieldsCount = 0;
       let attemptedFieldsCount = 0;
+      console.log('🔍 DEBUG: Attempting to fill fields...');
       Object.entries(pdfFields).forEach(([fieldName, value]) => {
         attemptedFieldsCount++;
-        
-        // Special debugging for Agency Representative and Incident Supervisor fields
-        if (fieldName.includes('Agency_Representative') || fieldName.includes('Incident_Supervisor')) {
-          console.log(`Federal: DEBUG - Attempting to fill ${fieldName} with value: "${value}"`);
-        }
-        
-        // Special debugging for Hours field
-        if (fieldName.includes('_14_Hours')) {
-          console.log(`Federal: DEBUG - Attempting to fill Hours field ${fieldName} with value: "${value}"`);
-        }
+        console.log(`🔍 DEBUG: Attempting field "${fieldName}" with value "${value}"`);
         
         try {
           const field = form.getField(fieldName);
           if (field) {
+            console.log(`🔍 DEBUG: Field "${fieldName}" found, type: ${field.constructor.name}`);
             // More robust field type detection that works in production builds
             const hasSetText = typeof (field as any).setText === 'function';
             const hasCheck = typeof (field as any).check === 'function';
@@ -940,9 +1013,413 @@ export const FederalTimeTable: React.FC = () => {
     setShowPDFViewer(false);
   };
 
-  const handleSavePDF = (pdfData: Blob, _previewImage: Blob) => {
+  // Load stored PDFs from IndexedDB (filtered by current date)
+  const loadStoredPDFs = async () => {
+    try {
+      const pdfs = await listPDFs();
+      // Filter for Federal PDFs only
+      const federalPDFs = pdfs.filter(pdf => pdf.id.startsWith('federal-signed-'));
+      
+      // Get current selected date
+      const currentDate = currentSelectedDate || formatToMMDDYY(new Date());
+      
+      // Filter PDFs by current date
+      const dateFilteredPDFs = federalPDFs.filter(pdf => {
+        // Check if the PDF's date matches the current selected date
+        return pdf.metadata.date === currentDate;
+      });
+      
+      setStoredPDFs(dateFilteredPDFs);
+      console.log(`Loaded stored Federal PDFs for date ${currentDate}:`, dateFilteredPDFs.length);
+    } catch (error) {
+      console.error('Error loading stored PDFs:', error);
+    }
+  };
+
+  // Handle PDF preview
+  const handlePreviewPDF = async (pdfId: string) => {
+    try {
+      const pdfData = await getPDF(pdfId);
+      if (pdfData) {
+        setPreviewPDF(pdfData);
+        setShowPDFPreview(true);
+      } else {
+        alert('PDF not found in storage.');
+      }
+    } catch (error) {
+      console.error('Error loading PDF for preview:', error);
+      alert('Error loading PDF for preview.');
+    }
+  };
+
+  // Close PDF preview
+  const handleClosePDFPreview = () => {
+    setShowPDFPreview(false);
+    setPreviewPDF(null);
+  };
+
+  // Apply payload data to form
+  const applyPayloadToForm = async (payload: FederalPayload) => {
+    console.log('Applying payload to form:', payload);
+    
+    // Apply form data with individual state updates to ensure they take effect
+    if (payload.agreementNumber) {
+      console.log('Setting agreementNumber:', payload.agreementNumber);
+      setFederalFormData(prev => ({ ...prev, agreementNumber: payload.agreementNumber! }));
+    }
+    if (payload.contractorAgencyName) {
+      console.log('Setting contractorAgencyName:', payload.contractorAgencyName);
+      setFederalFormData(prev => ({ ...prev, contractorAgencyName: payload.contractorAgencyName! }));
+    }
+    if (payload.resourceOrderNumber) {
+      console.log('Setting resourceOrderNumber:', payload.resourceOrderNumber);
+      setFederalFormData(prev => ({ ...prev, resourceOrderNumber: payload.resourceOrderNumber! }));
+    }
+    if (payload.incidentName) {
+      console.log('Setting incidentName:', payload.incidentName);
+      setFederalFormData(prev => ({ ...prev, incidentName: payload.incidentName! }));
+    }
+    if (payload.incidentNumber) {
+      console.log('Setting incidentNumber:', payload.incidentNumber);
+      setFederalFormData(prev => ({ ...prev, incidentNumber: payload.incidentNumber! }));
+    }
+    if (payload.financialCode) {
+      console.log('Setting financialCode:', payload.financialCode);
+      setFederalFormData(prev => ({ ...prev, financialCode: payload.financialCode! }));
+    }
+    if (payload.equipmentMakeModel) {
+      console.log('Setting equipmentMakeModel:', payload.equipmentMakeModel);
+      setFederalFormData(prev => ({ ...prev, equipmentMakeModel: payload.equipmentMakeModel! }));
+    }
+    if (payload.equipmentType) {
+      console.log('Setting equipmentType:', payload.equipmentType);
+      setFederalFormData(prev => ({ ...prev, equipmentType: payload.equipmentType! }));
+    }
+    if (payload.serialVinNumber) {
+      console.log('Setting serialVinNumber:', payload.serialVinNumber);
+      setFederalFormData(prev => ({ ...prev, serialVinNumber: payload.serialVinNumber! }));
+    }
+    if (payload.licenseIdNumber) {
+      console.log('Setting licenseIdNumber:', payload.licenseIdNumber);
+      setFederalFormData(prev => ({ ...prev, licenseIdNumber: payload.licenseIdNumber! }));
+    }
+    if (payload.transportRetained) {
+      console.log('Setting transportRetained:', payload.transportRetained);
+      setFederalFormData(prev => ({ ...prev, transportRetained: payload.transportRetained! }));
+    }
+    if (payload.isFirstLastTicket) {
+      console.log('Setting isFirstLastTicket:', payload.isFirstLastTicket);
+      setFederalFormData(prev => ({ ...prev, isFirstLastTicket: payload.isFirstLastTicket! }));
+    }
+    if (payload.rateType) {
+      console.log('Setting rateType:', payload.rateType);
+      setFederalFormData(prev => ({ ...prev, rateType: payload.rateType! }));
+    }
+    if (payload.agencyRepresentative) {
+      console.log('Setting agencyRepresentative:', payload.agencyRepresentative);
+      setFederalFormData(prev => ({ ...prev, agencyRepresentative: payload.agencyRepresentative! }));
+    }
+    if (payload.incidentSupervisor) {
+      console.log('Setting incidentSupervisor:', payload.incidentSupervisor);
+      setFederalFormData(prev => ({ ...prev, incidentSupervisor: payload.incidentSupervisor! }));
+    }
+    if (payload.remarks) {
+      console.log('Setting remarks:', payload.remarks);
+      setFederalFormData(prev => ({ ...prev, remarks: payload.remarks! }));
+    }
+    
+    // Apply checkbox states
+    if (payload.noMealsLodging !== undefined) {
+      console.log('Setting noMealsLodging:', payload.noMealsLodging);
+      setCheckboxStates(prev => ({ ...prev, noMealsLodging: payload.noMealsLodging! }));
+    }
+    if (payload.noMeals !== undefined) {
+      console.log('Setting noMeals:', payload.noMeals);
+      setCheckboxStates(prev => ({ ...prev, noMeals: payload.noMeals! }));
+    }
+    if (payload.travel !== undefined) {
+      console.log('Setting travel:', payload.travel);
+      setCheckboxStates(prev => ({ ...prev, travel: payload.travel! }));
+    }
+    if (payload.noLunch !== undefined) {
+      console.log('Setting noLunch:', payload.noLunch);
+      setCheckboxStates(prev => ({ ...prev, noLunch: payload.noLunch! }));
+    }
+    if (payload.hotline !== undefined) {
+      console.log('Setting hotline:', payload.hotline);
+      setCheckboxStates(prev => ({ ...prev, hotline: payload.hotline! }));
+    }
+    
+    // Apply date
+    if (payload.date) {
+      console.log('Setting date:', payload.date);
+      setCurrentSelectedDate(payload.date);
+    }
+    
+    // Apply equipment entries
+    if (payload.equipmentEntries && payload.equipmentEntries.length > 0) {
+      console.log('Setting equipment entries:', payload.equipmentEntries);
+      const equipmentEntries = payload.equipmentEntries.map(entry => ({
+        date: entry.date || '',
+        start: entry.start || '',
+        stop: entry.stop || '',
+        start1: entry.start1 || '',
+        stop1: entry.stop1 || '',
+        start2: entry.start2 || '',
+        stop2: entry.stop2 || '',
+        total: entry.total || '',
+        quantity: entry.quantity || '',
+        type: entry.type || '',
+        remarks: entry.remarks || ''
+      }));
+      console.log('Mapped equipment entries:', equipmentEntries);
+      setEquipmentEntries(equipmentEntries);
+    }
+    
+    // Apply personnel entries
+    if (payload.personnelEntries && payload.personnelEntries.length > 0) {
+      console.log('Setting personnel entries:', payload.personnelEntries);
+      const personnelEntries = payload.personnelEntries.map(entry => ({
+        date: entry.date || '',
+        name: entry.name || '',
+        start1: entry.start1 || '',
+        stop1: entry.stop1 || '',
+        start2: entry.start2 || '',
+        stop2: entry.stop2 || '',
+        total: entry.total || '',
+        remarks: entry.remarks || ''
+      }));
+      console.log('Mapped personnel entries:', personnelEntries);
+      setPersonnelEntries(personnelEntries);
+      
+      // Save personnel entries to IndexedDB
+      for (const entry of personnelEntries) {
+        await saveFederalPersonnelEntry(entry);
+      }
+    }
+    
+    // Save equipment entries to IndexedDB
+    if (payload.equipmentEntries && payload.equipmentEntries.length > 0) {
+      const equipmentEntries = payload.equipmentEntries.map(entry => ({
+        date: entry.date || '',
+        start: entry.start || '',
+        stop: entry.stop || '',
+        start1: entry.start1 || '',
+        stop1: entry.stop1 || '',
+        start2: entry.start2 || '',
+        stop2: entry.stop2 || '',
+        total: entry.total || '',
+        quantity: entry.quantity || '',
+        type: entry.type || '',
+        remarks: entry.remarks || ''
+      }));
+      
+      for (const entry of equipmentEntries) {
+        await saveFederalEquipmentEntry(entry);
+      }
+    }
+    
+    console.log('Payload applied successfully');
+  };
+
+  // Debug function to check original PDF from public folder
+  const debugOriginalPDF = async () => {
+    try {
+      console.log('🔍 DEBUG: Checking original PDF from public folder...');
+      const response = await fetch('/OF297-24.pdf');
+      if (!response.ok) {
+        console.error('Failed to fetch original PDF:', response.status);
+        alert('Failed to fetch original PDF from public folder.');
+        return;
+      }
+
+      const pdfBlob = await response.blob();
+      console.log('🔍 DEBUG: Original PDF fetched:', {
+        size: pdfBlob.size,
+        type: pdfBlob.type
+      });
+
+      const pdfDoc = await PDFLib.PDFDocument.load(await pdfBlob.arrayBuffer());
+      console.log('🔍 DEBUG: Original PDF loaded:', {
+        pageCount: pdfDoc.getPageCount(),
+        title: pdfDoc.getTitle(),
+        author: pdfDoc.getAuthor()
+      });
+
+      const form = pdfDoc.getForm();
+      
+      // Check if this is an XFA form
+      try {
+        const formType = (form as any).getFormType?.();
+        console.log('🔍 DEBUG: Original PDF form type:', formType);
+        if (formType === 'XFA') {
+          console.log('🔍 DEBUG: Original PDF is also XFA format!');
+          alert('The original PDF is also in XFA format.\n\nYou need to convert it to AcroForm format in Adobe Acrobat:\n1. Open PDF in Acrobat\n2. Tools → Prepare Form\n3. More → Convert to AcroForm\n4. Save the PDF');
+          return;
+        }
+      } catch (error) {
+        console.log('🔍 DEBUG: Could not determine original PDF form type:', error);
+      }
+      
+      const fields = form.getFields();
+      console.log('🔍 DEBUG: Original PDF fields found:', fields.length);
+      if (fields.length > 0) {
+        console.log('🔍 DEBUG: Original PDF field names:');
+        fields.forEach((field, index) => {
+          const fieldName = field.getName();
+          const fieldType = field.constructor.name;
+          console.log(`${index + 1}. "${fieldName}" (${fieldType})`);
+        });
+        alert(`Original PDF has ${fields.length} form fields!\n\nThis means your resized PDF lost its form fields.\nCheck console for field names.`);
+      } else {
+        alert('Original PDF also has no form fields. This is unexpected.');
+      }
+      
+    } catch (error) {
+      console.error('Error checking original PDF:', error);
+      alert('Error checking original PDF. Check console for details.');
+    }
+  };
+
+  // Debug function to extract PDF field names
+  const debugPDFFields = async () => {
+    try {
+      console.log('🔍 DEBUG: Starting PDF field extraction...');
+      const storedPDF = await getPDF('federal-form');
+      if (!storedPDF) {
+        console.error('Federal: No PDF found in storage');
+        alert('PDF not found. Please try again.');
+        return;
+      }
+
+      console.log('🔍 DEBUG: PDF found in storage:', {
+        id: storedPDF.id,
+        filename: storedPDF.metadata.filename,
+        size: storedPDF.pdf.size,
+        type: storedPDF.pdf.type
+      });
+
+      const pdfDoc = await PDFLib.PDFDocument.load(await storedPDF.pdf.arrayBuffer());
+      console.log('🔍 DEBUG: PDF loaded successfully:', {
+        pageCount: pdfDoc.getPageCount(),
+        title: pdfDoc.getTitle(),
+        author: pdfDoc.getAuthor(),
+        subject: pdfDoc.getSubject()
+      });
+
+      const form = pdfDoc.getForm();
+      console.log('🔍 DEBUG: Form object created:', form);
+      
+      // Check if this is an XFA form
+      try {
+        const formType = (form as any).getFormType?.();
+        console.log('🔍 DEBUG: Form type:', formType);
+        if (formType === 'XFA') {
+          console.log('🔍 DEBUG: This is an XFA form! PDF-lib cannot handle XFA forms.');
+          alert('This PDF is in XFA format, which PDF-lib cannot handle.\n\nYou need to convert it to AcroForm format in Adobe Acrobat:\n1. Open PDF in Acrobat\n2. Tools → Prepare Form\n3. More → Convert to AcroForm\n4. Save the PDF');
+          return;
+        }
+      } catch (error) {
+        console.log('🔍 DEBUG: Could not determine form type:', error);
+      }
+      
+      const fields = form.getFields();
+      console.log('🔍 DEBUG: Fields array:', fields);
+      console.log('🔍 DEBUG: Total fields found:', fields.length);
+      
+      if (fields.length === 0) {
+        console.log('🔍 DEBUG: No form fields found. This could mean:');
+        console.log('1. The PDF has no form fields (static PDF)');
+        console.log('2. The PDF was flattened during resizing');
+        console.log('3. The PDF is corrupted');
+        
+        // Try to get more info about the PDF structure
+        const pages = pdfDoc.getPages();
+        console.log('🔍 DEBUG: PDF pages:', pages.length);
+        pages.forEach((page, index) => {
+          console.log(`Page ${index + 1}:`, {
+            width: page.getWidth(),
+            height: page.getHeight(),
+            rotation: page.getRotation()
+          });
+        });
+        
+        alert(`No form fields found in PDF!\n\nThis usually means:\n1. PDF has no form fields (static PDF)\n2. PDF was flattened during resizing\n3. PDF is corrupted\n\nCheck console for more details.`);
+        return;
+      }
+      
+      console.log('🔍 DEBUG: All field names:');
+      fields.forEach((field, index) => {
+        const fieldName = field.getName();
+        const fieldType = field.constructor.name;
+        console.log(`${index + 1}. "${fieldName}" (${fieldType})`);
+      });
+      
+      // Also log to alert for easy copying
+      const fieldNames = fields.map(field => field.getName()).join('\n');
+      alert(`Found ${fields.length} fields. Check console for details.\n\nFirst 10 fields:\n${fieldNames.split('\n').slice(0, 10).join('\n')}`);
+      
+    } catch (error) {
+      console.error('Error extracting PDF fields:', error);
+      alert('Error extracting PDF fields. Check console for details.');
+    }
+  };
+
+  // Generate shareable link
+  const generateShareableLink = () => {
+    const baseURL = window.location.origin + window.location.pathname;
+    const shareableLink = createShareableLink(
+      baseURL,
+      federalFormData,
+      checkboxStates,
+      equipmentEntries,
+      personnelEntries,
+      currentSelectedDate
+    );
+    
+    // Copy to clipboard
+    navigator.clipboard.writeText(shareableLink).then(() => {
+      alert('Shareable link copied to clipboard!');
+    }).catch(() => {
+      // Fallback: show the link in a prompt
+      prompt('Shareable link (copy this):', shareableLink);
+    });
+  };
+
+  const handleSavePDF = async (pdfData: Blob, previewImage: Blob) => {
+    try {
     console.log('Federal PDF saved:', pdfData.size, 'bytes');
-    // You can add additional save logic here
+      
+      // Generate metadata for the stored PDF
+      const currentDate = currentSelectedDate || formatToMMDDYY(new Date());
+      const metadata = {
+        filename: `Federal_${federalFormData.incidentName || 'Unknown'}_${federalFormData.incidentNumber || 'Unknown'}_${currentDate}.pdf`,
+        date: currentDate, // This will be used for filtering by date
+        crewNumber: federalFormData.agreementNumber || 'N/A',
+        fireName: federalFormData.incidentName || 'N/A',
+        fireNumber: federalFormData.incidentNumber || 'N/A'
+      };
+
+      // Store the PDF in IndexedDB with date-based ID (will override existing PDF for same date)
+      const pdfId = await storePDFWithId(
+        `federal-signed-${currentDate}`, // Date-based ID - will override existing PDF for same date
+        pdfData,
+        previewImage,
+        metadata
+      );
+
+      console.log('Federal PDF stored in IndexedDB with ID:', pdfId);
+      
+      // Refresh the list of stored PDFs
+      await loadStoredPDFs();
+      
+      // Show success message
+      alert('PDF saved and stored successfully! (Replaced any existing PDF for this date)');
+      
+    } catch (error) {
+      console.error('Error storing PDF in IndexedDB:', error);
+      alert('PDF was saved but failed to store in database. Please try again.');
+    }
   };
 
   // Main calendar handlers
@@ -1094,6 +1571,12 @@ export const FederalTimeTable: React.FC = () => {
       const formData = await loadFederalFormData();
       if (formData) {
         setFederalFormData(formData);
+        
+        // Load checkbox states from form data
+        if (formData.checkboxStates) {
+          setCheckboxStates(formData.checkboxStates);
+          console.log('Loaded checkbox states for date:', dateRange, formData.checkboxStates);
+        }
       }
 
       // Load equipment entries for the specific date
@@ -1190,15 +1673,24 @@ export const FederalTimeTable: React.FC = () => {
   };
 
   return (
-    <div style={{ 
-      width: '100vw',
-      maxWidth: '100vw',
-      minHeight: '100vh',
-      backgroundColor: '#f5f5f5',
-      padding: '16px',
-      boxSizing: 'border-box',
-      overflowX: 'hidden',
-      position: 'relative',
+    <>
+      <style>{`
+        .preview-overlay {
+          opacity: 0 !important;
+        }
+        div:hover .preview-overlay {
+          opacity: 1 !important;
+        }
+      `}</style>
+      <div style={{ 
+        width: '100vw',
+        maxWidth: '100vw',
+        minHeight: '100vh',
+        backgroundColor: '#f5f5f5',
+        padding: '16px',
+        boxSizing: 'border-box',
+        overflowX: 'hidden',
+        position: 'relative',
       left: '50%',
       transform: 'translateX(-50%)'
     }}>
@@ -2837,11 +3329,13 @@ export const FederalTimeTable: React.FC = () => {
                 color: '#2c3e50'
               }}>
                 General Remarks
+                {/* For testing purposes, disclaimer hidden */}
                 <span style={{
                   fontSize: '12px',
                   fontWeight: '400',
                   color: '#666',
-                  marginLeft: '8px'
+                  marginLeft: '8px',
+                  display: 'none'
                 }}>
                   (Manual text only - checkboxes appear on PDF)
                 </span>
@@ -2956,6 +3450,252 @@ export const FederalTimeTable: React.FC = () => {
             >
               {isSaving ? '⏳ Saving...' : '✏️ Sign Ticket'}
             </button>
+            
+            <button
+              onClick={generateShareableLink}
+              style={{
+                padding: '12px 24px',
+                backgroundColor: '#007bff',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s ease'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#0056b3'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#007bff'}
+            >
+              🔗 Share Link
+            </button>
+            
+            <button
+              onClick={debugPDFFields}
+              style={{
+                padding: '12px 24px',
+                backgroundColor: '#28a745',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s ease'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#1e7e34'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#28a745'}
+            >
+              🔍 Debug PDF Fields
+            </button>
+            
+            <button
+              onClick={debugOriginalPDF}
+              style={{
+                padding: '12px 24px',
+                backgroundColor: '#ffc107',
+                color: 'black',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s ease'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#e0a800'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#ffc107'}
+            >
+              🔍 Check Original PDF
+            </button>
+          </div>
+
+          {/* Stored PDFs Section */}
+          <div style={{
+            marginTop: '24px',
+            padding: '16px',
+            backgroundColor: '#f8f9fa',
+            borderRadius: '8px',
+            border: '1px solid #e9ecef'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '16px'
+            }}>
+              <h3 style={{
+                margin: 0,
+                fontSize: '16px',
+                fontWeight: '600',
+                color: '#2c3e50'
+              }}>
+                📄 Stored PDF for {currentSelectedDate || formatToMMDDYY(new Date())} ({storedPDFs.length > 0 ? '1' : '0'})
+              </h3>
+              <button
+                onClick={loadStoredPDFs}
+                style={{
+                  padding: '6px 12px',
+                  backgroundColor: '#007bff',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s ease'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#0056b3'}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#007bff'}
+              >
+                🔄 Refresh
+              </button>
+            </div>
+            
+            {storedPDFs.length > 0 ? (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                gap: '12px'
+              }}>
+                {storedPDFs.map((pdf) => (
+                  <div 
+                    key={pdf.id} 
+                    onClick={() => handlePreviewPDF(pdf.id)}
+                    style={{
+                      padding: '12px',
+                      backgroundColor: 'white',
+                      borderRadius: '6px',
+                      border: '1px solid #dee2e6',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      position: 'relative'
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.borderColor = '#007bff';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 123, 255, 0.2)';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.borderColor = '#dee2e6';
+                      e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'flex-start',
+                      marginBottom: '8px'
+                    }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{
+                          fontSize: '14px',
+                          fontWeight: '600',
+                          color: '#2c3e50',
+                          marginBottom: '4px'
+                        }}>
+                          {pdf.metadata.filename}
+                        </div>
+                        <div style={{
+                          fontSize: '12px',
+                          color: '#6c757d',
+                          marginBottom: '2px'
+                        }}>
+                          Date: {pdf.metadata.date}
+                        </div>
+                        <div style={{
+                          fontSize: '12px',
+                          color: '#6c757d'
+                        }}>
+                          Incident: {pdf.metadata.fireName}
+                        </div>
+                      </div>
+                      {pdf.preview && (
+                        <div style={{
+                          width: '60px',
+                          height: '40px',
+                          backgroundColor: '#f8f9fa',
+                          borderRadius: '4px',
+                          border: '1px solid #dee2e6',
+                          overflow: 'hidden',
+                          marginLeft: '8px'
+                        }}>
+                          <img
+                            src={URL.createObjectURL(pdf.preview)}
+                            alt="PDF Preview"
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover'
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Click hint overlay */}
+                    <div style={{
+                      position: 'absolute',
+                      top: '0',
+                      left: '0',
+                      right: '0',
+                      bottom: '0',
+                      backgroundColor: 'rgba(0, 123, 255, 0.05)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      opacity: '0',
+                      transition: 'opacity 0.2s ease',
+                      pointerEvents: 'none',
+                      borderRadius: '6px'
+                    }}
+                    className="preview-overlay"
+                    >
+                      <div style={{
+                        backgroundColor: 'rgba(0, 123, 255, 0.9)',
+                        color: 'white',
+                        padding: '6px 12px',
+                        borderRadius: '16px',
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px'
+                      }}>
+                        👁️ Click to Preview
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{
+                textAlign: 'center',
+                padding: '32px 16px',
+                color: '#6c757d',
+                fontSize: '14px'
+              }}>
+                <div style={{
+                  fontSize: '48px',
+                  marginBottom: '16px',
+                  opacity: 0.5
+                }}>
+                  📄
+                </div>
+                <div style={{
+                  fontWeight: '500',
+                  marginBottom: '8px'
+                }}>
+                  No PDF stored for {currentSelectedDate || formatToMMDDYY(new Date())}
+                </div>
+                <div style={{
+                  fontSize: '12px',
+                  opacity: 0.8
+                }}>
+                  Sign and save a PDF to see it here (will replace any existing PDF for this date)
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -3043,6 +3783,117 @@ export const FederalTimeTable: React.FC = () => {
            </div>
          </div>
        )}
+
+      {/* PDF Preview Modal */}
+      {showPDFPreview && previewPDF && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            padding: '20px',
+            maxWidth: '90vw',
+            maxHeight: '90vh',
+            overflow: 'auto',
+            position: 'relative'
+          }}>
+            <button
+              onClick={handleClosePDFPreview}
+              style={{
+                position: 'absolute',
+                top: '10px',
+                right: '15px',
+                background: 'none',
+                border: 'none',
+                fontSize: '24px',
+                cursor: 'pointer',
+                color: '#666',
+                zIndex: 2001
+              }}
+            >
+              ×
+            </button>
+            <h3 style={{
+              margin: '0 0 16px 0',
+              fontSize: '18px',
+              fontWeight: '600',
+              color: '#2c3e50'
+            }}>
+              PDF Preview: {previewPDF.metadata.filename}
+            </h3>
+            <div style={{
+              border: '1px solid #dee2e6',
+              borderRadius: '4px',
+              overflow: 'hidden'
+            }}>
+              <iframe
+                src={URL.createObjectURL(previewPDF.pdf)}
+                style={{
+                  width: '100%',
+                  height: '70vh',
+                  border: 'none'
+                }}
+                title="PDF Preview"
+              />
+            </div>
+            <div style={{
+              marginTop: '16px',
+              display: 'flex',
+              gap: '12px',
+              justifyContent: 'center'
+            }}>
+              <button
+                onClick={() => {
+                  const link = document.createElement('a');
+                  link.href = URL.createObjectURL(previewPDF.pdf);
+                  link.download = previewPDF.metadata.filename;
+                  link.click();
+                }}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#28a745',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer'
+                }}
+              >
+                📥 Download PDF
+              </button>
+              <button
+                onClick={handleClosePDFPreview}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#6c757d',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer'
+                }}
+              >
+                ✕ Close
+              </button>
+            </div>
+           </div>
+         </div>
+       )}
     </div>
+    </>
   );
-}; 
+};
+
+export default FederalTimeTable; 
