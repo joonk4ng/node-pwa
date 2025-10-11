@@ -232,7 +232,22 @@ export function validatePayload(payload: FederalPayload): { isValid: boolean; er
   const errors: string[] = [];
   
   // Basic validation - check for required fields if needed
-  // Add specific validation rules here
+  if (!payload.agreementNumber) {
+    errors.push('Agreement number is required');
+  }
+  
+  if (!payload.contractorAgencyName) {
+    errors.push('Contractor/Agency name is required');
+  }
+  
+  if (!payload.date) {
+    errors.push('Date is required');
+  }
+  
+  // Validate date format (MM/DD/YY)
+  if (payload.date && !/^\d{2}\/\d{2}\/\d{2}$/.test(payload.date)) {
+    errors.push('Date must be in MM/DD/YY format');
+  }
   
   return {
     isValid: errors.length === 0,
