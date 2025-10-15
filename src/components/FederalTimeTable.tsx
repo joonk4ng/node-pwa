@@ -421,7 +421,7 @@ export const FederalTimeTable: React.FC = () => {
           clearURLParameters();
         }, 1000);
       }
-
+      
       // Set today's date as default if no date is selected
       if (!currentSelectedDate) {
         const today = formatToMMDDYY(new Date());
@@ -3759,11 +3759,14 @@ export const FederalTimeTable: React.FC = () => {
              borderRadius: '12px',
              padding: '20px',
              width: '95vw',
-             height: '95vh',
+             height: 'auto', // Changed from fixed height to auto
+             minHeight: '400px', // Minimum height for usability
              maxWidth: '1200px',
-             maxHeight: '800px',
+             maxHeight: '95vh', // Allow it to grow up to viewport height
              overflow: 'auto',
-             boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)'
+             boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)',
+             display: 'flex',
+             flexDirection: 'column'
            }}>
              <button
                onClick={handleClosePDF}

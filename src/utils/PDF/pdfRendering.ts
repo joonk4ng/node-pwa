@@ -3,12 +3,18 @@ import * as pdfjsLib from 'pdfjs-dist';
 import { pdfOptions } from './pdfFlattening';
 
 /**
- * Renders a PDF page to a canvas with optimal scaling
+ * Renders a PDF page to a canvas with flexible sizing
  */
 export const renderPDFToCanvas = async (
   pdfDoc: pdfjsLib.PDFDocumentProxy,
   canvas: HTMLCanvasElement,
-  container?: HTMLElement
+  container?: HTMLElement,
+  options?: {
+    scale?: number;
+    maxWidth?: number;
+    maxHeight?: number;
+    maintainAspectRatio?: boolean;
+  }
 ): Promise<void> => {
   const page = await pdfDoc.getPage(1); // Always render first page
   
@@ -22,26 +28,62 @@ export const renderPDFToCanvas = async (
   }
 
   // Get the PDF's original dimensions
-  const viewport = page.getViewport({ scale: 1.0 });
+  const originalViewport = page.getViewport({ scale: 1.0 });
+  console.log('🔍 PDF Rendering: Original PDF dimensions:', originalViewport.width, 'x', originalViewport.height);
   
-  // Calculate optimal scale based on container size
-  if (container) {
-    const containerWidth = container.clientWidth;
-    const containerHeight = container.clientHeight;
-    const scale = Math.min(
-      containerWidth / viewport.width,
-      containerHeight / viewport.height
-    );
-    viewport.scale = scale;
+  // Determine the scale to use
+  let scale = options?.scale || 1.0;
+  
+  // If no specific scale is provided, use flexible sizing
+  if (!options?.scale) {
+    if (container) {
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
+      
+      // Calculate scale to fit within container while maintaining aspect ratio
+      const scaleX = containerWidth / originalViewport.width;
+      const scaleY = containerHeight / originalViewport.height;
+      
+      // Use the smaller scale to ensure PDF fits within container
+      scale = Math.min(scaleX, scaleY);
+      
+      // Apply max width/height constraints if provided
+      if (options?.maxWidth) {
+        const maxScaleX = options.maxWidth / originalViewport.width;
+        scale = Math.min(scale, maxScaleX);
+      }
+      if (options?.maxHeight) {
+        const maxScaleY = options.maxHeight / originalViewport.height;
+        scale = Math.min(scale, maxScaleY);
+      }
+      
+      console.log('🔍 PDF Rendering: Container-based scale calculation:', {
+        containerSize: `${containerWidth}x${containerHeight}`,
+        originalSize: `${originalViewport.width}x${originalViewport.height}`,
+        calculatedScale: scale
+      });
+    } else {
+      // No container - use natural size (1:1 scale)
+      scale = 1.0;
+      console.log('🔍 PDF Rendering: Using natural size (scale: 1.0)');
+    }
   }
   
-  // Set canvas sizes to match viewport
-  canvas.height = viewport.height;
-  canvas.width = viewport.width;
+  // Create viewport with calculated scale
+  const viewport = page.getViewport({ scale });
   
-  // Ensure canvas style matches internal size for consistent coordinate mapping
+  // Set canvas internal dimensions to match scaled viewport
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  
+  // Set canvas display size to match internal size (1:1 pixel ratio for crisp rendering)
   canvas.style.width = `${viewport.width}px`;
   canvas.style.height = `${viewport.height}px`;
+  
+  // Remove any max-width/height constraints to allow natural sizing
+  canvas.style.maxWidth = 'none';
+  canvas.style.maxHeight = 'none';
+  canvas.style.objectFit = 'none';
 
   // Clear canvas with white background
   context.fillStyle = 'white';
@@ -55,6 +97,8 @@ export const renderPDFToCanvas = async (
   });
   
   await renderTask.promise;
+  
+  console.log('🔍 PDF Rendering: Canvas rendered with dimensions:', canvas.width, 'x', canvas.height);
 };
 
 /**

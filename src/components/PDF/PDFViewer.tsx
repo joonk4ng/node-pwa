@@ -132,11 +132,29 @@ export const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({
       className={`enhanced-pdf-viewer ${className || ''}`} 
       style={{
         ...style,
-        overflow: isDrawingMode ? 'hidden' : 'auto'
+        overflow: isDrawingMode ? 'hidden' : 'auto',
+        // Make container flexible to accommodate PDF's natural size
+        width: '100%',
+        height: 'auto',
+        minHeight: '400px', // Minimum height for usability
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center'
       }} 
       ref={containerRef}
     >
-      <div className="canvas-container">
+      <div 
+        className="canvas-container"
+        style={{
+          // Flexible container that adapts to PDF size
+          width: '100%',
+          height: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          position: 'relative'
+        }}
+      >
         {error && <div className="error-message">{error}</div>}
         {isLoading && <div className="loading">Loading PDF...</div>}
         

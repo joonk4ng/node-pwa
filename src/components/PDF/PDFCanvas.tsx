@@ -31,12 +31,18 @@ export const PDFCanvas = forwardRef<PDFCanvasRef, PDFCanvasProps>(({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pdfDocRef = useRef<pdfjsLib.PDFDocumentProxy | null>(null);
 
-  // Render PDF to canvas
+  // Render PDF to canvas with flexible sizing
   const renderPDF = useCallback(async () => {
     if (!canvasRef.current || !pdfDocRef.current) return;
 
     try {
-      await renderPDFToCanvas(pdfDocRef.current, canvasRef.current);
+      // Get the container element for flexible sizing
+      const container = canvasRef.current.parentElement;
+      
+      // Use flexible rendering - let the PDF determine its natural size
+      await renderPDFToCanvas(pdfDocRef.current, canvasRef.current, container, {
+        maintainAspectRatio: true
+      });
     } catch (error) {
       console.error('Error rendering PDF:', error);
       onError?.('Failed to render PDF');
