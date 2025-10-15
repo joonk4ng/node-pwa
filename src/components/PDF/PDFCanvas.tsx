@@ -37,7 +37,7 @@ export const PDFCanvas = forwardRef<PDFCanvasRef, PDFCanvasProps>(({
 
     try {
       // Get the container element for flexible sizing
-      const container = canvasRef.current.parentElement;
+      const container = canvasRef.current.parentElement || undefined;
       
       // Use flexible rendering - let the PDF determine its natural size
       await renderPDFToCanvas(pdfDocRef.current, canvasRef.current, container, {
