@@ -11,10 +11,11 @@ export interface UsePDFDrawingOptions {
   readOnly?: boolean;
   canvasRef?: React.RefObject<HTMLCanvasElement | null>;
   isDrawingMode?: boolean;
+  zoomLevel?: number;
 }
 
 export const usePDFDrawing = (options: UsePDFDrawingOptions = {}) => {
-  const { readOnly = false, canvasRef, isDrawingMode = false } = options;
+  const { readOnly = false, canvasRef, isDrawingMode = false, zoomLevel = 1.0 } = options;
   
   const [isDrawing, setIsDrawing] = useState(false);
   const lastPosRef = useRef<{ x: number; y: number } | null>(null);
@@ -25,7 +26,7 @@ export const usePDFDrawing = (options: UsePDFDrawingOptions = {}) => {
   const isChrome = /Chrome/.test(navigator.userAgent);
   const isChromeIOS = isIOS && isChrome;
 
-  // Get touch position for the draw canvas with proper scaling
+  // Get touch position using precise coordinate mapping with known page size
   const getTouchPos = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
     if (!drawCanvasRef.current) return { x: 0, y: 0 };
     
@@ -36,107 +37,87 @@ export const usePDFDrawing = (options: UsePDFDrawingOptions = {}) => {
     const rect = drawCanvasRef.current.getBoundingClientRect();
     
     // Calculate position relative to canvas
-    const clientX = touch.clientX - rect.left;
-    const clientY = touch.clientY - rect.top;
+    const relativeX = touch.clientX - rect.left;
+    const relativeY = touch.clientY - rect.top;
     
-    // Scale coordinates to match canvas internal size
+    // Map to canvas internal coordinates
+    // The drawing canvas internal size matches PDF canvas internal size
+    // Scale from display coordinates to internal coordinates
     const scaleX = drawCanvasRef.current.width / rect.width;
     const scaleY = drawCanvasRef.current.height / rect.height;
+    const canvasX = relativeX * scaleX;
+    const canvasY = relativeY * scaleY;
     
-    const pos = {
-      x: clientX * scaleX,
-      y: clientY * scaleY
-    };
-    
-    // Debug: Check if there's a PDF canvas to compare positioning
-    const container = drawCanvasRef.current.parentElement;
-    const pdfCanvas = container?.querySelector('.pdf-canvas') as HTMLCanvasElement;
-    let pdfRect = null;
-    if (pdfCanvas) {
-      pdfRect = pdfCanvas.getBoundingClientRect();
-    }
-    
-    console.log('🔍 usePDFDrawing: Touch position (scaled mapping)', {
+    console.log('🔍 usePDFDrawing: Touch position (canvas mapping)', {
       eventType: e.type,
       clientPos: { x: touch.clientX, y: touch.clientY },
       rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+      relativePos: { x: relativeX, y: relativeY },
       canvasSize: { width: drawCanvasRef.current.width, height: drawCanvasRef.current.height },
       scale: { x: scaleX, y: scaleY },
-      finalPos: pos,
-      canvasStyle: {
-        left: drawCanvasRef.current.style.left,
-        top: drawCanvasRef.current.style.top,
-        position: drawCanvasRef.current.style.position
-      },
-      // Debug: Check if the canvas is positioned correctly
-      canvasPosition: {
-        actualLeft: rect.left,
-        actualTop: rect.top,
-        styleLeft: drawCanvasRef.current.style.left,
-        styleTop: drawCanvasRef.current.style.top
-      },
-      // Debug: Compare with PDF canvas position
-      pdfCanvasPosition: pdfRect ? {
-        left: pdfRect.left,
-        top: pdfRect.top,
-        width: pdfRect.width,
-        height: pdfRect.height
-      } : null,
-      // Debug: Calculate offset between drawing canvas and PDF canvas
-      offsetFromPDF: pdfRect ? {
-        x: rect.left - pdfRect.left,
-        y: rect.top - pdfRect.top
-      } : null
+      canvasPos: { x: canvasX, y: canvasY }
     });
     
-    return pos;
+    return { x: canvasX, y: canvasY };
   }, []);
 
-  // Get mouse position for the draw canvas with proper scaling
+  // Get mouse position using canvas coordinate mapping
   const getMousePos = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!drawCanvasRef.current) return { x: 0, y: 0 };
+    
     const rect = drawCanvasRef.current.getBoundingClientRect();
     
     // Calculate position relative to canvas
-    const clientX = e.clientX - rect.left;
-    const clientY = e.clientY - rect.top;
+    const relativeX = e.clientX - rect.left;
+    const relativeY = e.clientY - rect.top;
     
-    // Scale coordinates to match canvas internal size
+    // Map to canvas internal coordinates
+    // The drawing canvas internal size matches PDF canvas internal size
+    // Scale from display coordinates to internal coordinates
     const scaleX = drawCanvasRef.current.width / rect.width;
     const scaleY = drawCanvasRef.current.height / rect.height;
+    const canvasX = relativeX * scaleX;
+    const canvasY = relativeY * scaleY;
     
-    const pos = {
-      x: clientX * scaleX,
-      y: clientY * scaleY
-    };
-    
-    console.log('🔍 usePDFDrawing: Mouse position (scaled mapping)', {
+    console.log('🔍 usePDFDrawing: Mouse position (canvas mapping)', {
       clientPos: { x: e.clientX, y: e.clientY },
       rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+      relativePos: { x: relativeX, y: relativeY },
       canvasSize: { width: drawCanvasRef.current.width, height: drawCanvasRef.current.height },
       scale: { x: scaleX, y: scaleY },
-      finalPos: pos
+      canvasPos: { x: canvasX, y: canvasY }
     });
     
-    return pos;
+    return { x: canvasX, y: canvasY };
   }, []);
 
-  // Ensure drawing context is properly configured
+  // Ensure drawing context is properly configured for precise drawing
   const ensureDrawingContext = useCallback(() => {
     if (!drawCanvasRef.current) return false;
     
     const ctx = drawCanvasRef.current.getContext('2d');
     if (!ctx) return false;
     
-    // Configure the context for drawing
+    // Configure the context for high-quality drawing
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    ctx.lineWidth = 2;
+    // Use a consistent line width that works well for signatures
+    ctx.lineWidth = 3;
     ctx.strokeStyle = '#000000';
     ctx.globalCompositeOperation = 'source-over';
     
+    // Enable image smoothing for better quality
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    
+    console.log('🔍 usePDFDrawing: Drawing context configured', {
+      lineWidth: ctx.lineWidth,
+      zoomLevel,
+      canvasSize: { width: drawCanvasRef.current.width, height: drawCanvasRef.current.height }
+    });
+    
     return true;
-  }, []);
+  }, [zoomLevel]);
 
   // Start drawing
   const startDrawing = useCallback((e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
@@ -171,14 +152,6 @@ export const usePDFDrawing = (options: UsePDFDrawingOptions = {}) => {
     }
     
     console.log('🔍 usePDFDrawing: Starting to draw at position', pos);
-    
-    // Test: Draw a simple dot to see if drawing is working
-    const ctx = drawCanvasRef.current.getContext('2d');
-    if (ctx) {
-      ctx.fillStyle = '#ff0000';
-      ctx.fillRect(pos.x - 2, pos.y - 2, 4, 4);
-      console.log('🔍 usePDFDrawing: Drew test dot at', pos);
-    }
     
     lastPosRef.current = pos;
     setIsDrawing(true);
@@ -218,20 +191,19 @@ export const usePDFDrawing = (options: UsePDFDrawingOptions = {}) => {
       return;
     }
     
-    // Ensure context is properly configured
+    // Ensure context is properly configured for current zoom level
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 3;
     ctx.strokeStyle = '#000000';
     ctx.globalCompositeOperation = 'source-over';
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
 
-    console.log('🔍 usePDFDrawing: Drawing line from', lastPosRef.current, 'to', currentPos);
+    console.log('🔍 usePDFDrawing: Drawing line from', lastPosRef.current, 'to', currentPos, 'lineWidth:', ctx.lineWidth);
 
     // Begin the path
     ctx.beginPath();
-    ctx.strokeStyle = '#000000'; // Default black color
-    ctx.lineWidth = 2; // Default line width
-    ctx.lineCap = 'round';
     ctx.moveTo(lastPosRef.current.x, lastPosRef.current.y);
     ctx.lineTo(currentPos.x, currentPos.y);
     ctx.stroke();

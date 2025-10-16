@@ -109,12 +109,6 @@ export async function savePDFWithSignature(
         });
       }
       
-      // Calculate scale factors from base canvas internal size to flattened PDF size
-      const scaleX = flattenedPdfImage.width / baseCanvasInternalWidth;
-      const scaleY = flattenedPdfImage.height / baseCanvasInternalHeight;
-      
-      console.log('🔍 PDFSaveHandler: Signature scale factors:', { scaleX, scaleY });
-      
       // Debug: Check the signature content on the drawing canvas
       const drawCtx = drawCanvas.getContext('2d');
       let minX = drawCanvas.width, maxX = 0, minY = drawCanvas.height, maxY = 0;
@@ -145,14 +139,18 @@ export async function savePDFWithSignature(
         });
       }
       
+      // Calculate scale factors from base canvas internal size to flattened PDF size
+      const scaleX = flattenedPdfImage.width / baseCanvasInternalWidth;
+      const scaleY = flattenedPdfImage.height / baseCanvasInternalHeight;
+      
+      console.log('🔍 PDFSaveHandler: Signature scale factors:', { scaleX, scaleY });
+      
       // Draw the signature using its internal dimensions, scaled to match the flattened PDF
       // Instead of drawing the entire canvas, only draw the signature area
       if (minX !== drawCanvas.width && maxX !== 0 && minY !== drawCanvas.height && maxY !== 0) {
         // Calculate the signature bounds in the high-resolution coordinate system
         const sigWidth = maxX - minX;
         const sigHeight = maxY - minY;
-        const scaleX = flattenedPdfImage.width / baseCanvasInternalWidth;
-        const scaleY = flattenedPdfImage.height / baseCanvasInternalHeight;
         
         // Detect mobile devices and iPads for coordinate adjustment
         const isMobile = window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);

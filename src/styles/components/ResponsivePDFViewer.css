@@ -1,0 +1,266 @@
+/* Responsive PDF Viewer Styles */
+.enhanced-pdf-viewer-wrapper {
+  width: 100%;
+  height: auto;
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  gap: 10px;
+}
+
+/* Full-screen modal styles */
+.fullscreen-modal {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 99999 !important;
+  background-color: white !important;
+  overflow: hidden !important;
+  pointer-events: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Ensure body doesn't scroll when modal is open */
+body.modal-open {
+  overflow: hidden !important;
+  position: fixed !important;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Ensure no other elements interfere with the modal */
+body.modal-open * {
+  overflow: hidden !important;
+}
+
+.fullscreen-modal .enhanced-pdf-viewer-wrapper {
+  height: 100% !important;
+  min-height: 100% !important;
+  width: 100% !important;
+}
+
+.fullscreen-modal .enhanced-pdf-viewer {
+  height: 100% !important;
+  min-height: 100% !important;
+  width: 100% !important;
+  overflow: auto !important;
+}
+
+.fullscreen-modal .canvas-container {
+  height: 100% !important;
+  min-height: 100% !important;
+  width: 100% !important;
+  padding: 20px !important;
+  box-sizing: border-box !important;
+}
+
+.enhanced-pdf-viewer {
+  width: 100%;
+  height: auto;
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  overflow: auto;
+}
+
+.enhanced-pdf-viewer .canvas-container {
+  width: 100%;
+  height: auto;
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.enhanced-pdf-viewer .pdf-canvas {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.enhanced-pdf-viewer .draw-canvas {
+  position: absolute;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  pointer-events: auto;
+  z-index: 10;
+}
+
+/* External Controls Styles */
+.zoom-controls-external {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.drawing-controls-external {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.page-info-external {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  .enhanced-pdf-viewer-wrapper {
+    gap: 8px;
+  }
+  
+  .enhanced-pdf-viewer {
+    min-height: 300px;
+  }
+  
+  .enhanced-pdf-viewer .canvas-container {
+    padding: 10px;
+    min-height: 300px;
+  }
+  
+  .enhanced-pdf-viewer .pdf-canvas {
+    border-radius: 4px;
+  }
+  
+  /* Adjust external controls for mobile */
+  .zoom-controls-external {
+    padding: 12px;
+    margin-bottom: 8px;
+  }
+  
+  .zoom-controls-external button {
+    padding: 6px 10px;
+    font-size: 11px;
+    min-width: 50px;
+  }
+  
+  .drawing-controls-external {
+    padding: 12px;
+    margin-bottom: 8px;
+  }
+  
+  .drawing-controls-external button {
+    padding: 8px 16px;
+    font-size: 13px;
+    min-width: 100px;
+  }
+  
+  .page-info-external {
+    padding: 8px;
+    font-size: 11px;
+  }
+}
+
+/* Tablet adjustments */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .enhanced-pdf-viewer .canvas-container {
+    padding: 15px;
+  }
+}
+
+/* Large screen optimizations */
+@media (min-width: 1025px) {
+  .enhanced-pdf-viewer .canvas-container {
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+}
+
+/* High DPI display adjustments */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .enhanced-pdf-viewer .pdf-canvas {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+}
+
+/* Action Buttons - External */
+.action-buttons-external {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.action-buttons-external button {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.action-buttons-external button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.action-buttons-external button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Mobile adjustments for action buttons */
+@media (max-width: 768px) {
+  .action-buttons-external {
+    gap: 8px;
+    padding: 0 8px;
+  }
+  
+  .action-buttons-external button {
+    padding: 10px 12px;
+    font-size: 13px;
+    gap: 6px;
+  }
+  
+  .action-buttons-external button span:first-child {
+    font-size: 16px;
+  }
+}
+
+/* Print styles */
+@media print {
+  .enhanced-pdf-viewer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+  
+  .enhanced-pdf-viewer .canvas-container {
+    padding: 0;
+    min-height: auto;
+  }
+  
+  .enhanced-pdf-viewer .pdf-canvas {
+    max-width: none;
+    max-height: none;
+    border: none;
+    box-shadow: none;
+  }
+  
+  .enhanced-pdf-viewer .draw-canvas {
+    display: none;
+  }
+  
+  /* Hide all controls when printing */
+  .enhanced-pdf-viewer > div:not(.canvas-container) {
+    display: none !important;
+  }
+  
+  /* Hide bottom action buttons when printing */
+  .bottom-action-buttons {
+    display: none !important;
+  }
+}

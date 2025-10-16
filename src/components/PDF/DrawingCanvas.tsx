@@ -7,6 +7,7 @@ export interface DrawingCanvasProps {
   className?: string;
   style?: React.CSSProperties;
   pdfCanvasRef?: React.RefObject<{ canvas: HTMLCanvasElement | null } | null>;
+  zoomLevel?: number;
 }
 
 export interface DrawingCanvasRef {
@@ -19,11 +20,12 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   isDrawingMode,
   className,
   style,
-  pdfCanvasRef
+  pdfCanvasRef,
+  zoomLevel = 1.0
 }, ref) => {
   const drawCanvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Use the drawing hook
+  // Use the drawing hook with zoom level
   const {
     startDrawing,
     draw,
@@ -31,7 +33,8 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
     clearDrawing
   } = usePDFDrawing({
     canvasRef: drawCanvasRef,
-    isDrawingMode: isDrawingMode
+    isDrawingMode: isDrawingMode,
+    zoomLevel: zoomLevel
   });
 
   // Check if canvas has drawing content
@@ -87,37 +90,19 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
             drawCanvasRef.current.style.width = `${pdfRect.width}px`;
             drawCanvasRef.current.style.height = `${pdfRect.height}px`;
             
-            // Position the drawing canvas to match the PDF canvas position exactly
-            // Calculate the offset from the container to the PDF canvas
-            const pdfOffsetX = pdfRect.left - containerRect.left;
-            const pdfOffsetY = pdfRect.top - containerRect.top;
-            
-            // Ensure the drawing canvas is positioned absolutely and matches the PDF canvas exactly
+            // Position the drawing canvas directly on top of the PDF canvas
+            // Use a simpler approach - position relative to the PDF canvas itself
             drawCanvasRef.current.style.position = 'absolute';
-            drawCanvasRef.current.style.left = `${pdfOffsetX}px`;
-            drawCanvasRef.current.style.top = `${pdfOffsetY}px`;
+            drawCanvasRef.current.style.left = '0px';
+            drawCanvasRef.current.style.top = '0px';
             drawCanvasRef.current.style.zIndex = '10';
             
             // Reset any transform that might be affecting positioning
             drawCanvasRef.current.style.transform = 'none';
             drawCanvasRef.current.style.transformOrigin = 'initial';
             
-            // Verify the positioning is correct by checking the actual position
-            const drawRect = drawCanvasRef.current.getBoundingClientRect();
-            const positionMatch = Math.abs(drawRect.left - pdfRect.left) < 1 && Math.abs(drawRect.top - pdfRect.top) < 1;
-            
-            // If positioning doesn't match, try to correct it
-            if (!positionMatch) {
-              console.warn('🔍 DrawingCanvas: Position mismatch detected, attempting correction...');
-              // Force the position to match exactly
-              drawCanvasRef.current.style.left = `${pdfOffsetX}px`;
-              drawCanvasRef.current.style.top = `${pdfOffsetY}px`;
-              
-              // Re-check position after correction
-              const correctedRect = drawCanvasRef.current.getBoundingClientRect();
-              const correctedMatch = Math.abs(correctedRect.left - pdfRect.left) < 1 && Math.abs(correctedRect.top - pdfRect.top) < 1;
-              console.log('🔍 DrawingCanvas: Position after correction:', correctedMatch);
-            }
+            // Since both canvases are in the same container, they should align perfectly
+            // The PDF canvas and drawing canvas will have the same position within their shared container
             
             // Set up the drawing canvas context
             const drawCtx = drawCanvasRef.current.getContext('2d');
@@ -131,22 +116,18 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
             
             console.log('🔍 DrawingCanvas: Enhanced canvas setup', {
               pdfCanvas: { width: pdfCanvas.width, height: pdfCanvas.height },
-              pdfRect: { width: pdfRect.width, height: pdfRect.height, left: pdfRect.left, top: pdfRect.top },
-              containerRect: { left: containerRect.left, top: containerRect.top },
-              offset: { x: pdfOffsetX, y: pdfOffsetY },
+              pdfRect: { width: pdfRect.width, height: pdfRect.height },
               drawingCanvas: { 
                 width: drawCanvasRef.current.width, 
                 height: drawCanvasRef.current.height,
                 styleWidth: drawCanvasRef.current.style.width,
                 styleHeight: drawCanvasRef.current.style.height,
-                styleLeft: drawCanvasRef.current.style.left,
-                styleTop: drawCanvasRef.current.style.top,
-                actualLeft: drawRect.left,
-                actualTop: drawRect.top
+                position: 'absolute',
+                left: '0px',
+                top: '0px'
               },
               devicePixelRatio,
-              isAligned: drawCanvasRef.current.width === pdfCanvas.width && drawCanvasRef.current.height === pdfCanvas.height,
-              positionMatch
+              isAligned: drawCanvasRef.current.width === pdfCanvas.width && drawCanvasRef.current.height === pdfCanvas.height
             });
           }
         }

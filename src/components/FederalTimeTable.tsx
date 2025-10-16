@@ -1,5 +1,6 @@
 // Federal Time Table
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { FederalEquipmentEntry, FederalPersonnelEntry, FederalFormData } from '../utils/engineTimeDB';
 import {
   saveFederalEquipmentEntry,
@@ -12,12 +13,12 @@ import {
   loadFederalFormData,
   clearCorruptedData
 } from '../utils/engineTimeDB';
-import { EnhancedPDFViewer } from './PDF';
 import { getPDF, storePDFWithId, listPDFs } from '../utils/pdfStorage';
 import { mapFederalToPDFFields, validateFederalFormData, getFederalPDFFieldName } from '../utils/fieldmapper/federalFieldMapper';
 import { handleFederalEquipmentEntryChange, handleFederalPersonnelEntryChange, DEFAULT_PROPAGATION_CONFIG } from '../utils/entryPropagation';
 import { DateCalendar } from './DateCalendar';
 import { validateTimeInput, autoCalculateTotal } from '../utils/timevalidation';
+import '../styles/components/ResponsivePDFViewer.css';
 import { parsePayloadFromURL, createShareableLink, clearURLParameters, type FederalPayload } from '../utils/payloadSystem';
 import * as PDFLib from 'pdf-lib';
 
@@ -230,6 +231,8 @@ const CalendarPicker: React.FC<{
 };
 
 export const FederalTimeTable: React.FC = () => {
+  const navigate = useNavigate();
+  
   // Federal form data state
   const [federalFormData, setFederalFormData] = useState<FederalFormData>({
     agreementNumber: '',
@@ -270,10 +273,6 @@ export const FederalTimeTable: React.FC = () => {
     index: number;
   } | null>(null);
 
-  // PDF state
-  const [showPDFViewer, setShowPDFViewer] = useState(false);
-  const [pdfId] = useState<string>('federal-form');
-  const [pdfVersion, setPdfVersion] = useState(0); // Force PDF viewer refresh
 
   // Main calendar state
   const [showMainCalendar, setShowMainCalendar] = useState(false);
@@ -996,18 +995,18 @@ export const FederalTimeTable: React.FC = () => {
         fireNumber: federalFormData.incidentNumber || 'N/A'
       });
 
-      console.log('Federal: PDF filled successfully, opening for signing...');
+      console.log('Federal: PDF filled successfully, navigating to signing page...');
       
-      // Increment PDF version to force refresh
-      setPdfVersion(prev => prev + 1);
+      // Navigate to PDF signing page with parameters
+      const params = new URLSearchParams({
+        pdfId: 'federal-form',
+        crewNumber: federalFormData.agreementNumber || 'N/A',
+        fireName: federalFormData.incidentName || 'N/A',
+        fireNumber: federalFormData.incidentNumber || 'N/A',
+        date: new Date().toLocaleDateString()
+      });
       
-      // Force a refresh of the PDF viewer by closing and reopening
-      setShowPDFViewer(false);
-      
-      // Small delay to ensure the PDF is saved before reopening
-      setTimeout(() => {
-        setShowPDFViewer(true);
-      }, 500);
+      navigate(`/pdf-signing?${params.toString()}`);
       
     } catch (error) {
       console.error('Federal: Error filling PDF:', error);
@@ -1015,9 +1014,6 @@ export const FederalTimeTable: React.FC = () => {
     }
   };
 
-  const handleClosePDF = () => {
-    setShowPDFViewer(false);
-  };
 
   // Load stored PDFs from IndexedDB (filtered by current date)
   const loadStoredPDFs = async () => {
@@ -1392,41 +1388,6 @@ export const FederalTimeTable: React.FC = () => {
     });
   };
 
-  const handleSavePDF = async (pdfData: Blob, previewImage: Blob) => {
-    try {
-    console.log('Federal PDF saved:', pdfData.size, 'bytes');
-      
-      // Generate metadata for the stored PDF
-      const currentDate = currentSelectedDate || formatToMMDDYY(new Date());
-      const metadata = {
-        filename: `Federal_${federalFormData.incidentName || 'Unknown'}_${federalFormData.incidentNumber || 'Unknown'}_${currentDate}.pdf`,
-        date: currentDate, // This will be used for filtering by date
-        crewNumber: federalFormData.agreementNumber || 'N/A',
-        fireName: federalFormData.incidentName || 'N/A',
-        fireNumber: federalFormData.incidentNumber || 'N/A'
-      };
-
-      // Store the PDF in IndexedDB with date-based ID (will override existing PDF for same date)
-      const pdfId = await storePDFWithId(
-        `federal-signed-${currentDate}`, // Date-based ID - will override existing PDF for same date
-        pdfData,
-        previewImage,
-        metadata
-      );
-
-      console.log('Federal PDF stored in IndexedDB with ID:', pdfId);
-      
-      // Refresh the list of stored PDFs
-      await loadStoredPDFs();
-      
-      // Show success message
-      alert('PDF saved and stored successfully! (Replaced any existing PDF for this date)');
-      
-    } catch (error) {
-      console.error('Error storing PDF in IndexedDB:', error);
-      alert('PDF was saved but failed to store in database. Please try again.');
-    }
-  };
 
   // Main calendar handlers
   const handleMainCalendarOpen = () => {
@@ -1590,14 +1551,51 @@ export const FederalTimeTable: React.FC = () => {
       console.log('🔍 All equipment entries from IndexedDB:', allEquipmentEntries);
       const dateEquipmentEntries = allEquipmentEntries.filter(entry => entry.date === dateRange);
       console.log('🔍 Filtered equipment entries for date', dateRange, ':', dateEquipmentEntries);
-      setEquipmentEntries(dateEquipmentEntries);
+      
+      // If no equipment entries exist for this date, create a default entry with preset times
+      if (dateEquipmentEntries.length === 0) {
+        const defaultEquipmentEntry: FederalEquipmentEntry = {
+          date: dateRange,
+          start: '', // Legacy field
+          stop: '', // Legacy field
+          start1: '0700', // Default start time 1
+          stop1: '1200',  // Default stop time 1
+          start2: '1230', // Default start time 2
+          stop2: '1900',  // Default stop time 2
+          total: '', // Will be calculated automatically
+          quantity: '',
+          type: '',
+          remarks: ''
+        };
+        console.log('🔍 Created default equipment entry with preset times:', defaultEquipmentEntry);
+        setEquipmentEntries([defaultEquipmentEntry]);
+      } else {
+        setEquipmentEntries(dateEquipmentEntries);
+      }
 
       // Load personnel entries for the specific date
       const allPersonnelEntries = await loadAllFederalPersonnelEntries();
       console.log('🔍 All personnel entries from IndexedDB:', allPersonnelEntries);
       const datePersonnelEntries = allPersonnelEntries.filter(entry => entry.date === dateRange);
       console.log('🔍 Filtered personnel entries for date', dateRange, ':', datePersonnelEntries);
-      setPersonnelEntries(datePersonnelEntries);
+      
+      // If no personnel entries exist for this date, create a default entry with preset times
+      if (datePersonnelEntries.length === 0) {
+        const defaultPersonnelEntry: FederalPersonnelEntry = {
+          date: dateRange,
+          name: '',
+          start1: '0700', // Default start time 1
+          stop1: '1200',  // Default stop time 1
+          start2: '1230', // Default start time 2
+          stop2: '1900',  // Default stop time 2
+          total: '', // Will be calculated automatically
+          remarks: ''
+        };
+        console.log('🔍 Created default personnel entry with preset times:', defaultPersonnelEntry);
+        setPersonnelEntries([defaultPersonnelEntry]);
+      } else {
+        setPersonnelEntries(datePersonnelEntries);
+      }
     } catch (error) {
       console.error('Error loading data for date:', error);
     }
@@ -1692,6 +1690,7 @@ export const FederalTimeTable: React.FC = () => {
           opacity: 1 !important;
         }
       `}</style>
+
     <div style={{ 
       width: '100vw',
       maxWidth: '100vw',
@@ -3735,72 +3734,6 @@ export const FederalTimeTable: React.FC = () => {
          />
        )}
 
-       {/* PDF Viewer Modal */}
-       {showPDFViewer && (
-         <div style={{
-           position: 'fixed',
-           top: 0,
-           left: 0,
-           right: 0,
-           bottom: 0,
-           backgroundColor: 'rgba(0, 0, 0, 0.8)',
-           zIndex: 1000,
-           display: 'flex',
-           alignItems: 'center',
-           justifyContent: 'center',
-           padding: '20px'
-         }}>
-           <div style={{
-             position: 'fixed',
-             top: '50%',
-             left: '50%',
-             transform: 'translate(-50%, -50%)',
-             backgroundColor: 'white',
-             borderRadius: '12px',
-             padding: '20px',
-             width: '95vw',
-             height: 'auto', // Changed from fixed height to auto
-             minHeight: '400px', // Minimum height for usability
-             maxWidth: '1200px',
-             maxHeight: '95vh', // Allow it to grow up to viewport height
-             overflow: 'auto',
-             boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)',
-             display: 'flex',
-             flexDirection: 'column'
-           }}>
-             <button
-               onClick={handleClosePDF}
-               style={{
-                 position: 'absolute',
-                 top: '10px',
-                 right: '10px',
-                 background: '#dc3545',
-                 color: 'white',
-                 border: 'none',
-                 borderRadius: '50%',
-                 width: '30px',
-                 height: '30px',
-                 cursor: 'pointer',
-                 fontSize: '16px',
-                 zIndex: 1001
-               }}
-             >
-               ×
-             </button>
-             <EnhancedPDFViewer
-               key={`viewer-${pdfVersion}`}
-               pdfId={pdfId}
-               onSave={handleSavePDF}
-               crewInfo={{
-                 crewNumber: federalFormData.agreementNumber || 'N/A',
-                 fireName: federalFormData.incidentName || 'N/A',
-                 fireNumber: federalFormData.incidentNumber || 'N/A'
-               }}
-               date={new Date().toLocaleDateString()}
-             />
-           </div>
-         </div>
-       )}
 
       {/* PDF Preview Modal */}
       {showPDFPreview && previewPDF && (
