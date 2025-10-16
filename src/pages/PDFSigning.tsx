@@ -3,6 +3,14 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { EnhancedPDFViewer } from '../components/PDF';
 import { getPDF, storePDFWithId } from '../utils/pdfStorage';
 
+// Utility function to convert Date to MM/DD/YY format (same as Federal form)
+const formatToMMDDYY = (date: Date): string => {
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  const year = date.getFullYear().toString().slice(-2);
+  return `${month}/${day}/${year}`;
+};
+
 const PDFSigning: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -52,33 +60,47 @@ const PDFSigning: React.FC = () => {
   const handleSave = async (pdfData: Blob, previewImage: Blob) => {
     try {
       console.log('🔍 PDFSigning: Saving signed PDF to gallery...');
+      console.log('🔍 PDFSigning: Date from URL:', date);
+      console.log('🔍 PDFSigning: Formatted date:', date || formatToMMDDYY(new Date()));
       
-      // Generate a unique ID for the signed PDF
-      const signedPdfId = `federal-signed-${crewInfo?.crewNumber || 'unknown'}-${crewInfo?.fireName || 'unknown'}-${crewInfo?.fireNumber || 'unknown'}-${new Date().toISOString().split('T')[0]}`;
+      const saveDate = date || formatToMMDDYY(new Date());
+      console.log('🔍 PDFSigning: Using save date:', saveDate);
       
-      // Store the signed PDF in the gallery
+      // Create meaningful names for the PDF
+      const crewNumber = crewInfo?.crewNumber && crewInfo.crewNumber !== 'N/A' ? crewInfo.crewNumber : 'Crew';
+      const fireName = crewInfo?.fireName && crewInfo.fireName !== 'N/A' ? crewInfo.fireName.replace(/[^a-zA-Z0-9]/g, '-') : 'Fire';
+      const fireNumber = crewInfo?.fireNumber && crewInfo.fireNumber !== 'N/A' ? crewInfo.fireNumber : 'Number';
+      
+      // Use a consistent ID for the signed PDF (one per date)
+      const signedPdfId = `federal-signed-${saveDate.replace(/\//g, '-')}`;
+      
+      // Create a descriptive filename
+      const filename = `Federal-Form-Signed-${crewNumber}-${fireName}-${saveDate.replace(/\//g, '-')}.pdf`;
+      
+      // Store the signed PDF in the gallery (this will replace any existing PDF for this date)
       await storePDFWithId(signedPdfId, pdfData, previewImage, {
-        filename: `signed-federal-form-${crewInfo?.crewNumber || 'unknown'}-${new Date().toISOString().split('T')[0]}.pdf`,
-        date: date || new Date().toLocaleDateString(),
-        crewNumber: crewInfo?.crewNumber || 'Unknown',
-        fireName: crewInfo?.fireName || 'Unknown',
-        fireNumber: crewInfo?.fireNumber || 'Unknown'
+        filename: filename,
+        date: saveDate,
+        crewNumber: crewInfo?.crewNumber || 'N/A',
+        fireName: crewInfo?.fireName || 'N/A',
+        fireNumber: crewInfo?.fireNumber || 'N/A'
       });
       
       console.log('🔍 PDFSigning: PDF saved to gallery with ID:', signedPdfId);
+      console.log('🔍 PDFSigning: PDF saved with date:', saveDate);
       
       // Also create a download link for immediate access
       const url = URL.createObjectURL(pdfData);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `signed-federal-form-${crewInfo?.crewNumber || 'unknown'}-${new Date().toISOString().split('T')[0]}.pdf`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
       // Show success message
-      alert('PDF signed and saved to gallery successfully!');
+      alert('PDF signed and saved to gallery successfully! (Replaced any existing PDF for this date)');
       
       // Navigate back to main page
       navigate('/');

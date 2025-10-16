@@ -525,6 +525,33 @@ export const FederalTimeTable: React.FC = () => {
     }
   }, [currentSelectedDate]);
 
+  // Reload stored PDFs when component becomes visible (e.g., returning from PDF signing)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && currentSelectedDate) {
+        console.log('🔍 Component became visible, refreshing stored PDFs...');
+        loadStoredPDFs();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Also refresh when window gains focus (alternative to visibility change)
+    const handleFocus = () => {
+      if (currentSelectedDate) {
+        console.log('🔍 Window gained focus, refreshing stored PDFs...');
+        loadStoredPDFs();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [currentSelectedDate]);
+
   // Handle Federal form data changes and autosave
   const handleFederalFormChange = (field: keyof FederalFormData, value: string) => {
     setFederalFormData(prev => {
@@ -1003,7 +1030,7 @@ export const FederalTimeTable: React.FC = () => {
         crewNumber: federalFormData.agreementNumber || 'N/A',
         fireName: federalFormData.incidentName || 'N/A',
         fireNumber: federalFormData.incidentNumber || 'N/A',
-        date: new Date().toLocaleDateString()
+        date: currentSelectedDate || formatToMMDDYY(new Date())
       });
       
       navigate(`/pdf-signing?${params.toString()}`);
@@ -1018,19 +1045,26 @@ export const FederalTimeTable: React.FC = () => {
   // Load stored PDFs from IndexedDB (filtered by current date)
   const loadStoredPDFs = async () => {
     try {
+      console.log('🔍 Loading stored PDFs...');
       const pdfs = await listPDFs();
+      console.log('🔍 All PDFs from IndexedDB:', pdfs);
+      
       // Filter for Federal PDFs only
       const federalPDFs = pdfs.filter(pdf => pdf.id.startsWith('federal-signed-'));
+      console.log('🔍 Federal PDFs:', federalPDFs);
       
       // Get current selected date
       const currentDate = currentSelectedDate || formatToMMDDYY(new Date());
+      console.log('🔍 Current selected date:', currentDate);
       
       // Filter PDFs by current date
       const dateFilteredPDFs = federalPDFs.filter(pdf => {
+        console.log('🔍 Comparing PDF date:', pdf.metadata.date, 'with current date:', currentDate);
         // Check if the PDF's date matches the current selected date
         return pdf.metadata.date === currentDate;
       });
       
+      console.log('🔍 Date filtered PDFs:', dateFilteredPDFs);
       setStoredPDFs(dateFilteredPDFs);
       console.log(`Loaded stored Federal PDFs for date ${currentDate}:`, dateFilteredPDFs.length);
     } catch (error) {
