@@ -189,13 +189,13 @@ export async function saveEESTPDFWithSignature(
           // Horizontal adjustments (X-axis) - EEST forms may need different positioning
           horizontal: {
             ipad: 0,        // iPad horizontal adjustment for EEST
-            mobile: 100,      // General mobile horizontal adjustment for EEST
+            mobile: 900,      // General mobile horizontal adjustment for EEST
             desktop: 0      // Desktop horizontal adjustment for EEST
           },
           // Vertical adjustments (Y-axis) - EEST forms may need different positioning
           vertical: {
             ipad: 0,        // iPad vertical adjustment for EEST
-            mobile: 100,      // General mobile vertical adjustment for EEST
+            mobile: 900,      // General mobile vertical adjustment for EEST
             desktop: 0      // Desktop vertical adjustment for EEST
           }
         };
