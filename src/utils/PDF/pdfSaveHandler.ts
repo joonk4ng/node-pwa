@@ -227,12 +227,25 @@ export async function savePDFWithSignature(
           scaleFactors: { scaleX, scaleY }
         });
         
-        // Draw only the signature area, scaled to high resolution
+        // Draw the entire signature canvas to preserve internal spacing, then apply position adjustments
+        // This preserves the exact spacing between strokes/letters
+        highResCtx.save();
+        
+        // Apply position adjustments by translating the canvas
+        highResCtx.translate(
+          (adjustedMinX - minX) * scaleX,  // X adjustment in high-res coordinates
+          (adjustedMinY - minY) * scaleY   // Y adjustment in high-res coordinates
+        );
+        
+        // Draw the entire signature canvas scaled to high resolution
+        // This preserves all internal spacing and relationships
         highResCtx.drawImage(
           drawCanvas,
-          minX, minY, sigWidth, sigHeight,  // Source: signature area only (use original bounds)
-          scaledMinX, scaledMinY, scaledSigWidth, scaledSigHeight  // Destination: adjusted scaled signature area
+          0, 0, drawCanvasInternalWidth, drawCanvasInternalHeight,  // Source: full signature canvas
+          0, 0, flattenedPdfImage.width, flattenedPdfImage.height  // Destination: full high-res area
         );
+        
+        highResCtx.restore();
       } else {
         // Fallback: draw the entire canvas if bounds detection failed
         console.warn('🔍 PDFSaveHandler: Signature bounds detection failed, drawing entire canvas');
