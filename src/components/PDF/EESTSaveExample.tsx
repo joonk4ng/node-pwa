@@ -83,7 +83,7 @@ export const EESTSaveExample: React.FC = () => {
             <input
               type="text"
               value={saveOptions.incidentName || ''}
-              onChange={(e) => setSaveOptions(prev => ({ ...prev, incidentName: e.target.value }))}
+              onChange={(e) => setSaveOptions((prev: EESTSaveOptions) => ({ ...prev, incidentName: e.target.value }))}
               style={{ marginLeft: '10px', padding: '5px' }}
             />
           </label>
@@ -93,7 +93,7 @@ export const EESTSaveExample: React.FC = () => {
             <input
               type="text"
               value={saveOptions.incidentNumber || ''}
-              onChange={(e) => setSaveOptions(prev => ({ ...prev, incidentNumber: e.target.value }))}
+              onChange={(e) => setSaveOptions((prev: EESTSaveOptions) => ({ ...prev, incidentNumber: e.target.value }))}
               style={{ marginLeft: '10px', padding: '5px' }}
             />
           </label>
@@ -103,7 +103,7 @@ export const EESTSaveExample: React.FC = () => {
             <input
               type="text"
               value={saveOptions.contractorAgencyName || ''}
-              onChange={(e) => setSaveOptions(prev => ({ ...prev, contractorAgencyName: e.target.value }))}
+              onChange={(e) => setSaveOptions((prev: EESTSaveOptions) => ({ ...prev, contractorAgencyName: e.target.value }))}
               style={{ marginLeft: '10px', padding: '5px' }}
             />
           </label>
