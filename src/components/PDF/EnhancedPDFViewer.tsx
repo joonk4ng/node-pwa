@@ -3,7 +3,6 @@ import React, { useRef, useState, useCallback, forwardRef, useImperativeHandle }
 import * as pdfjsLib from 'pdfjs-dist';
 import { PDFCanvas, type PDFCanvasRef } from './PDFCanvas';
 import { DrawingCanvas, type DrawingCanvasRef } from './DrawingCanvas';
-import { SignatureAdjustmentControls } from './SignatureAdjustmentControls';
 import { savePDFWithSignature, downloadOriginalPDF } from '../../utils/PDF/pdfSaveHandler';
 import { PDF_PAGE_SIZE } from '../../utils/PDF/pdfConstants';
 import '../../styles/components/PDFViewer.css';
@@ -55,7 +54,6 @@ export const EnhancedPDFViewer = forwardRef<EnhancedPDFViewerRef, EnhancedPDFVie
   const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
   const [currentZoom, setCurrentZoom] = useState<number>(2.0); // Fixed at 200%
   const [isDrawingMode, setIsDrawingMode] = useState(false);
-  const [signatureAdjustments, setSignatureAdjustments] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   // Handle PDF loading
   const handlePDFLoaded = useCallback((loadedPdfDoc: pdfjsLib.PDFDocumentProxy) => {
@@ -123,18 +121,14 @@ export const EnhancedPDFViewer = forwardRef<EnhancedPDFViewerRef, EnhancedPDFVie
         pdfCanvasRef.current.canvas,
         drawingCanvasRef.current.canvas,
         onSave,
-        { 
-          crewInfo, 
-          date, 
-          signatureAdjustments: signatureAdjustments.x !== 0 || signatureAdjustments.y !== 0 ? signatureAdjustments : undefined
-        },
+        { crewInfo, date },
         pdfId
       );
     } catch (error) {
       console.error('Error saving PDF:', error);
       setError('Failed to save PDF with signature.');
     }
-  }, [pdfDoc, onSave, crewInfo, date, pdfId, currentZoom, signatureAdjustments]);
+  }, [pdfDoc, onSave, crewInfo, date, pdfId, currentZoom]);
 
   // Handle downloading the original PDF
   const handleDownload = useCallback(async () => {
@@ -268,17 +262,6 @@ export const EnhancedPDFViewer = forwardRef<EnhancedPDFViewerRef, EnhancedPDFVie
         </div>
       )}
 
-      {/* Signature Adjustment Controls */}
-      {!readOnly && (
-        <SignatureAdjustmentControls
-          onAdjustmentsChange={setSignatureAdjustments}
-          style={{
-            width: '100%',
-            maxWidth: '800px',
-            marginBottom: '10px'
-          }}
-        />
-      )}
 
       {/* PDF Container */}
       <div 

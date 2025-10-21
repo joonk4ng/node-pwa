@@ -20,11 +20,6 @@ export interface SaveOptions {
   incidentNumber?: string;
   contractorAgencyName?: string;
   isSigned?: boolean;
-  // Manual signature position adjustments
-  signatureAdjustments?: {
-    x?: number; // Horizontal adjustment (positive = move right, negative = move left)
-    y?: number; // Vertical adjustment (positive = move down, negative = move up)
-  };
 }
 
 /**
@@ -165,36 +160,23 @@ export async function savePDFWithSignature(
         const SIGNATURE_ADJUSTMENTS = {
           // Horizontal adjustments (X-axis)
           horizontal: {
-            ipad: -39,      // iPad horizontal adjustment
-            mobile: -185,   // General mobile horizontal adjustment
+            ipad: 0,        // iPad horizontal adjustment
+            mobile: 0,      // General mobile horizontal adjustment
             desktop: 0      // Desktop horizontal adjustment
           },
           // Vertical adjustments (Y-axis) - NEW
           vertical: {
-            ipad: 0,      // iPad vertical adjustment
-            mobile: -5,    // General mobile vertical adjustment
+            ipad: 0,        // iPad vertical adjustment
+            mobile: 0,      // General mobile vertical adjustment
             desktop: 0      // Desktop vertical adjustment
           }
         };
         
-        // Apply signature position adjustments
+        // Apply mobile-specific X-axis adjustment
         let adjustedMinX = minX;
         let adjustedMinY = minY;
         
-        // Check for manual adjustments first
-        if (options.signatureAdjustments) {
-          const manualX = options.signatureAdjustments.x || 0;
-          const manualY = options.signatureAdjustments.y || 0;
-          
-          adjustedMinX = Math.max(0, minX - manualX);
-          adjustedMinY = Math.max(0, minY - manualY);
-          
-          console.log('🔍 PDFSaveHandler: Manual signature adjustments applied:', {
-            originalPosition: { minX, minY },
-            adjustedPosition: { minX: adjustedMinX, minY: adjustedMinY },
-            manualAdjustments: { x: manualX, y: manualY }
-          });
-        } else if (isMobile) {
+        if (isMobile) {
           let horizontalAdjustment;
           let verticalAdjustment;
           
