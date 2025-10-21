@@ -20,6 +20,11 @@ export interface SaveOptions {
   incidentNumber?: string;
   contractorAgencyName?: string;
   isSigned?: boolean;
+  // Manual signature position adjustments
+  signatureAdjustments?: {
+    x?: number; // Horizontal adjustment (positive = move right, negative = move left)
+    y?: number; // Vertical adjustment (positive = move down, negative = move up)
+  };
 }
 
 /**
@@ -172,11 +177,24 @@ export async function savePDFWithSignature(
           }
         };
         
-        // Apply mobile-specific X-axis adjustment
+        // Apply signature position adjustments
         let adjustedMinX = minX;
         let adjustedMinY = minY;
         
-        if (isMobile) {
+        // Check for manual adjustments first
+        if (options.signatureAdjustments) {
+          const manualX = options.signatureAdjustments.x || 0;
+          const manualY = options.signatureAdjustments.y || 0;
+          
+          adjustedMinX = Math.max(0, minX - manualX);
+          adjustedMinY = Math.max(0, minY - manualY);
+          
+          console.log('🔍 PDFSaveHandler: Manual signature adjustments applied:', {
+            originalPosition: { minX, minY },
+            adjustedPosition: { minX: adjustedMinX, minY: adjustedMinY },
+            manualAdjustments: { x: manualX, y: manualY }
+          });
+        } else if (isMobile) {
           let horizontalAdjustment;
           let verticalAdjustment;
           

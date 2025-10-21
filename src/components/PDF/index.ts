@@ -9,6 +9,7 @@ export { default as PDFPreviewViewer } from './PDFPreviewViewer';
 export { PDFCanvas } from './PDFCanvas';
 export { DrawingCanvas } from './DrawingCanvas';
 export { ZoomControls } from './ZoomControls';
+export { SignatureAdjustmentControls } from './SignatureAdjustmentControls';
 
 // Re-export the default EnhancedPDFViewer for backward compatibility
 export { default } from './EnhancedPDFViewer';
