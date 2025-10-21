@@ -75,7 +75,7 @@ const PDFSigning: React.FC = () => {
       const signedPdfId = `federal-signed-${saveDate.replace(/\//g, '-')}`;
       
       // Create a descriptive filename
-      const filename = `Federal-Form-Signed-${crewNumber}-${fireName}-${saveDate.replace(/\//g, '-')}.pdf`;
+      const filename = `Federal-Form-Signed-${crewNumber}-${fireName}-${fireNumber}-${saveDate.replace(/\//g, '-')}.pdf`;
       
       // Store the signed PDF in the gallery (this will replace any existing PDF for this date)
       await storePDFWithId(signedPdfId, pdfData, previewImage, {
