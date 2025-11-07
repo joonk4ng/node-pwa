@@ -179,13 +179,13 @@ export async function savePDFWithSignature(
           // Horizontal adjustments (X-axis)
           horizontal: {
             ipad: 0,        // iPad horizontal adjustment
-            mobile: 440,      // General mobile horizontal adjustment
+            mobile: 540,      // General mobile horizontal adjustment
             desktop: 0      // Desktop horizontal adjustment
           },
           // Vertical adjustments (Y-axis) - NEW
           vertical: {
             ipad: 0,        // iPad vertical adjustment
-            mobile: -133,      // General mobile vertical adjustment
+            mobile: -143,      // General mobile vertical adjustment
             desktop: 0      // Desktop vertical adjustment
           }
         };
