@@ -278,7 +278,7 @@ export const EnhancedPDFViewer = forwardRef<EnhancedPDFViewerRef, EnhancedPDFVie
         <div 
           className="canvas-container"
           style={{
-            width: 'max-content',
+            width: '100%',
             height: 'auto',
             minHeight: '400px',
             display: 'flex',
@@ -301,7 +301,7 @@ export const EnhancedPDFViewer = forwardRef<EnhancedPDFViewerRef, EnhancedPDFVie
             onPDFLoaded={handlePDFLoaded}
             onError={handlePDFError}
             onLoadingChange={handleLoadingChange}
-            zoomLevel={2.5}
+            zoomLevel={1.5}
             fitType="page"
           />
           
