@@ -177,10 +177,21 @@ export const PDFCanvas = forwardRef<PDFCanvasRef, PDFCanvasProps>(({
       canvas.style.width = `${displayWidth}px`;
       canvas.style.height = `${displayHeight}px`;
       
-      // Add responsive constraints
-      canvas.style.maxWidth = '100%';
-      canvas.style.maxHeight = '100%';
-      canvas.style.objectFit = 'contain';
+      // When an explicit zoom level is set, remove CSS constraints to preserve exact size
+      // This ensures consistent rendering between dev and production
+      // Only apply responsive constraints for auto-fit mode
+      if (currentZoom === 0) {
+        // Auto-fit mode: allow CSS to scale down if needed
+        canvas.style.maxWidth = '100%';
+        canvas.style.maxHeight = '100%';
+        canvas.style.objectFit = 'contain';
+      } else {
+        // Explicit zoom: preserve exact size, allow overflow for scrolling
+        // Use setProperty with !important to override CSS class rules
+        canvas.style.setProperty('max-width', 'none', 'important');
+        canvas.style.setProperty('max-height', 'none', 'important');
+        canvas.style.setProperty('object-fit', 'none', 'important');
+      }
 
       // Clear canvas with white background
       context.fillStyle = 'white';
