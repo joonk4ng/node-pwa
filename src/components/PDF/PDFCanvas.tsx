@@ -130,25 +130,19 @@ export const PDFCanvas = forwardRef<PDFCanvasRef, PDFCanvasProps>(({
        // Calculate responsive canvas dimensions using actual PDF dimensions
        const devicePixelRatio = window.devicePixelRatio || 1;
        
-       // When a specific zoom level is provided (not auto-fit), preserve it exactly
-       // This ensures consistent rendering between dev and production
-       // Only apply container scaling for auto-fit mode
+       // Calculate display dimensions that fit the container
+       // Account for padding in available space
        const maxDisplayWidth = container.clientWidth - horizontalPadding;
        const maxDisplayHeight = container.clientHeight - verticalPadding;
-       let containerScale = 1.0;
        
-       if (currentZoom === 0) {
-         // Auto-fit mode: calculate scale to fit container
-         const scaleX = maxDisplayWidth / (baseWidth * finalZoom);
-         const scaleY = maxDisplayHeight / (baseHeight * finalZoom);
-         // Only apply scaling if it's less than 0.9 (10% reduction threshold)
-         const rawContainerScale = Math.min(scaleX, scaleY, 1.0);
-         containerScale = rawContainerScale < 0.9 ? rawContainerScale : 1.0;
-       } else {
-         // Explicit zoom level: preserve it exactly, don't scale down
-         // This ensures dev and production render at the same zoom level
-         containerScale = 1.0;
-       }
+       // Calculate scale to fit container while maintaining aspect ratio
+       // Scale down less aggressively - only scale if PDF is significantly larger than container
+       const scaleX = maxDisplayWidth / (baseWidth * finalZoom);
+       const scaleY = maxDisplayHeight / (baseHeight * finalZoom);
+       // Only apply scaling if it's less than 0.9 (10% reduction threshold)
+       // This prevents unnecessary scaling for small size differences
+       const rawContainerScale = Math.min(scaleX, scaleY, 1.0);
+       const containerScale = rawContainerScale < 0.9 ? rawContainerScale : 1.0;
        
        // Final display dimensions
        const displayWidth = Math.round(baseWidth * finalZoom * containerScale);
@@ -165,8 +159,7 @@ export const PDFCanvas = forwardRef<PDFCanvasRef, PDFCanvasProps>(({
         maxDisplaySize: { width: maxDisplayWidth, height: maxDisplayHeight },
         containerScale,
         finalDisplaySize: { width: displayWidth, height: displayHeight },
-        canvasSize: { width: canvasWidth, height: canvasHeight },
-        isExplicitZoom: currentZoom !== 0
+        canvasSize: { width: canvasWidth, height: canvasHeight }
       });
 
       // Set canvas internal dimensions
@@ -177,21 +170,10 @@ export const PDFCanvas = forwardRef<PDFCanvasRef, PDFCanvasProps>(({
       canvas.style.width = `${displayWidth}px`;
       canvas.style.height = `${displayHeight}px`;
       
-      // When an explicit zoom level is set, remove CSS constraints to preserve exact size
-      // This ensures consistent rendering between dev and production
-      // Only apply responsive constraints for auto-fit mode
-      if (currentZoom === 0) {
-        // Auto-fit mode: allow CSS to scale down if needed
-        canvas.style.maxWidth = '100%';
-        canvas.style.maxHeight = '100%';
-        canvas.style.objectFit = 'contain';
-      } else {
-        // Explicit zoom: preserve exact size, allow overflow for scrolling
-        // Use setProperty with !important to override CSS class rules
-        canvas.style.setProperty('max-width', 'none', 'important');
-        canvas.style.setProperty('max-height', 'none', 'important');
-        canvas.style.setProperty('object-fit', 'none', 'important');
-      }
+      // Add responsive constraints
+      canvas.style.maxWidth = '100%';
+      canvas.style.maxHeight = '100%';
+      canvas.style.objectFit = 'contain';
 
       // Clear canvas with white background
       context.fillStyle = 'white';
