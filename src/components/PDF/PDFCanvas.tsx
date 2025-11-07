@@ -136,19 +136,13 @@ export const PDFCanvas = forwardRef<PDFCanvasRef, PDFCanvasProps>(({
        const maxDisplayHeight = container.clientHeight - verticalPadding;
        
        // Calculate scale to fit container while maintaining aspect ratio
-       // IMPORTANT: When a specific zoom level is set (not auto-fit), preserve it exactly
-       // Don't apply container scaling - this ensures consistent rendering across dev/production
-       let containerScale = 1.0;
-       
-       // Only apply container scaling in auto-fit mode (when currentZoom === 0)
-       if (currentZoom === 0) {
-         const scaleX = maxDisplayWidth / (baseWidth * finalZoom);
-         const scaleY = maxDisplayHeight / (baseHeight * finalZoom);
-         // Only apply scaling if it's less than 0.9 (10% reduction threshold)
-         const rawContainerScale = Math.min(scaleX, scaleY, 1.0);
-         containerScale = rawContainerScale < 0.9 ? rawContainerScale : 1.0;
-       }
-       // When zoom is explicitly set (1.5x), always use 1.0 to preserve exact zoom level
+       // Scale down less aggressively - only scale if PDF is significantly larger than container
+       const scaleX = maxDisplayWidth / (baseWidth * finalZoom);
+       const scaleY = maxDisplayHeight / (baseHeight * finalZoom);
+       // Only apply scaling if it's less than 0.9 (10% reduction threshold)
+       // This prevents unnecessary scaling for small size differences
+       const rawContainerScale = Math.min(scaleX, scaleY, 1.0);
+       const containerScale = rawContainerScale < 0.9 ? rawContainerScale : 1.0;
        
        // Final display dimensions
        const displayWidth = Math.round(baseWidth * finalZoom * containerScale);
@@ -162,12 +156,10 @@ export const PDFCanvas = forwardRef<PDFCanvasRef, PDFCanvasProps>(({
         actualPageSize: { width: baseWidth, height: baseHeight },
         zoom: finalZoom,
         containerSize: { width: container.clientWidth, height: container.clientHeight },
-        containerBoundingRect: { width: container.getBoundingClientRect().width, height: container.getBoundingClientRect().height },
         maxDisplaySize: { width: maxDisplayWidth, height: maxDisplayHeight },
         containerScale,
         finalDisplaySize: { width: displayWidth, height: displayHeight },
-        canvasSize: { width: canvasWidth, height: canvasHeight },
-        environment: import.meta.env.MODE || 'production'
+        canvasSize: { width: canvasWidth, height: canvasHeight }
       });
 
       // Set canvas internal dimensions

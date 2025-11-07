@@ -278,7 +278,7 @@ export const EnhancedPDFViewer = forwardRef<EnhancedPDFViewerRef, EnhancedPDFVie
         <div 
           className="canvas-container"
           style={{
-            width: '100%',
+            width: 'max-content',
             height: 'auto',
             minHeight: '400px',
             display: 'flex',
