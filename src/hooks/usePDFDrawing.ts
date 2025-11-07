@@ -45,8 +45,30 @@ export const usePDFDrawing = (options: UsePDFDrawingOptions = {}) => {
     // Scale from display coordinates to internal coordinates
     const scaleX = drawCanvasRef.current.width / rect.width;
     const scaleY = drawCanvasRef.current.height / rect.height;
+    // VALIDATION: Check if coordinates are within canvas bounds
+    if (relativeX < 0 || relativeX > rect.width || relativeY < 0 || relativeY > rect.height) {
+      console.warn('⚠️ usePDFDrawing: Touch position outside canvas bounds', {
+        relativeX,
+        relativeY,
+        canvasSize: { width: rect.width, height: rect.height },
+        clientPos: { x: touch.clientX, y: touch.clientY },
+        rect: { left: rect.left, top: rect.top }
+      });
+    }
+    
     const canvasX = relativeX * scaleX;
     const canvasY = relativeY * scaleY;
+    
+    // VALIDATION: Ensure internal coordinates are within canvas bounds
+    if (canvasX < 0 || canvasX > drawCanvasRef.current.width || 
+        canvasY < 0 || canvasY > drawCanvasRef.current.height) {
+      console.warn('⚠️ usePDFDrawing: Calculated touch canvas position outside bounds', {
+        canvasX,
+        canvasY,
+        canvasSize: { width: drawCanvasRef.current.width, height: drawCanvasRef.current.height },
+        scale: { x: scaleX, y: scaleY }
+      });
+    }
     
     console.log('🔍 usePDFDrawing: Touch position (canvas mapping)', {
       eventType: e.type,
@@ -55,7 +77,8 @@ export const usePDFDrawing = (options: UsePDFDrawingOptions = {}) => {
       relativePos: { x: relativeX, y: relativeY },
       canvasSize: { width: drawCanvasRef.current.width, height: drawCanvasRef.current.height },
       scale: { x: scaleX, y: scaleY },
-      canvasPos: { x: canvasX, y: canvasY }
+      canvasPos: { x: canvasX, y: canvasY },
+      scrollPosition: { x: window.scrollX, y: window.scrollY }
     });
     
     return { x: canvasX, y: canvasY };
@@ -67,9 +90,21 @@ export const usePDFDrawing = (options: UsePDFDrawingOptions = {}) => {
     
     const rect = drawCanvasRef.current.getBoundingClientRect();
     
-    // Calculate position relative to canvas
+    // VALIDATION: Ensure coordinates are always relative to canvas, not viewport
+    // Calculate position relative to canvas (this accounts for scroll position automatically)
     const relativeX = e.clientX - rect.left;
     const relativeY = e.clientY - rect.top;
+    
+    // VALIDATION: Check if coordinates are within canvas bounds
+    if (relativeX < 0 || relativeX > rect.width || relativeY < 0 || relativeY > rect.height) {
+      console.warn('⚠️ usePDFDrawing: Mouse position outside canvas bounds', {
+        relativeX,
+        relativeY,
+        canvasSize: { width: rect.width, height: rect.height },
+        clientPos: { x: e.clientX, y: e.clientY },
+        rect: { left: rect.left, top: rect.top }
+      });
+    }
     
     // Map to canvas internal coordinates
     // The drawing canvas internal size matches PDF canvas internal size
@@ -79,13 +114,25 @@ export const usePDFDrawing = (options: UsePDFDrawingOptions = {}) => {
     const canvasX = relativeX * scaleX;
     const canvasY = relativeY * scaleY;
     
+    // VALIDATION: Ensure internal coordinates are within canvas bounds
+    if (canvasX < 0 || canvasX > drawCanvasRef.current.width || 
+        canvasY < 0 || canvasY > drawCanvasRef.current.height) {
+      console.warn('⚠️ usePDFDrawing: Calculated canvas position outside bounds', {
+        canvasX,
+        canvasY,
+        canvasSize: { width: drawCanvasRef.current.width, height: drawCanvasRef.current.height },
+        scale: { x: scaleX, y: scaleY }
+      });
+    }
+    
     console.log('🔍 usePDFDrawing: Mouse position (canvas mapping)', {
       clientPos: { x: e.clientX, y: e.clientY },
       rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
       relativePos: { x: relativeX, y: relativeY },
       canvasSize: { width: drawCanvasRef.current.width, height: drawCanvasRef.current.height },
       scale: { x: scaleX, y: scaleY },
-      canvasPos: { x: canvasX, y: canvasY }
+      canvasPos: { x: canvasX, y: canvasY },
+      scrollPosition: { x: window.scrollX, y: window.scrollY }
     });
     
     return { x: canvasX, y: canvasY };

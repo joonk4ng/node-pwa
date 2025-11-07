@@ -123,6 +123,37 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
             drawCanvasRef.current.style.transform = 'none';
             drawCanvasRef.current.style.transformOrigin = 'initial';
             
+            // VALIDATION: Check alignment between PDF canvas and drawing canvas
+            const drawRect = drawCanvasRef.current.getBoundingClientRect();
+            const pdfRectAfter = pdfCanvas.getBoundingClientRect();
+            
+            // Calculate alignment offsets (should be 0 if perfectly aligned)
+            const offsetX = Math.abs(drawRect.left - pdfRectAfter.left);
+            const offsetY = Math.abs(drawRect.top - pdfRectAfter.top);
+            const widthDiff = Math.abs(drawRect.width - pdfRectAfter.width);
+            const heightDiff = Math.abs(drawRect.height - pdfRectAfter.height);
+            
+            // Threshold for acceptable misalignment (1px tolerance for subpixel rendering)
+            const ALIGNMENT_THRESHOLD = 1;
+            const isAligned = offsetX <= ALIGNMENT_THRESHOLD && 
+                            offsetY <= ALIGNMENT_THRESHOLD && 
+                            widthDiff <= ALIGNMENT_THRESHOLD && 
+                            heightDiff <= ALIGNMENT_THRESHOLD;
+            
+            // Warn if misaligned
+            if (!isAligned) {
+              console.warn('⚠️ DrawingCanvas: Canvas misalignment detected!', {
+                offsetX,
+                offsetY,
+                widthDiff,
+                heightDiff,
+                pdfRect: { left: pdfRectAfter.left, top: pdfRectAfter.top, width: pdfRectAfter.width, height: pdfRectAfter.height },
+                drawRect: { left: drawRect.left, top: drawRect.top, width: drawRect.width, height: drawRect.height },
+                scrollPosition: { x: window.scrollX, y: window.scrollY },
+                containerScroll: container ? { scrollLeft: container.scrollLeft, scrollTop: container.scrollTop } : null
+              });
+            }
+            
             // Since both canvases are in the same container, they should align perfectly
             // The PDF canvas and drawing canvas will have the same position within their shared container
             
@@ -149,7 +180,14 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
                 top: '0px'
               },
               devicePixelRatio,
-              isAligned: drawCanvasRef.current.width === pdfCanvas.width && drawCanvasRef.current.height === pdfCanvas.height
+              isAligned: drawCanvasRef.current.width === pdfCanvas.width && drawCanvasRef.current.height === pdfCanvas.height,
+              alignmentCheck: {
+                isAligned,
+                offsetX,
+                offsetY,
+                widthDiff,
+                heightDiff
+              }
             });
           }
         }
@@ -163,10 +201,56 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
       }
       debounceTimer = window.setTimeout(syncCanvasSize, 100);
     };
+    
+    // VALIDATION: Re-check alignment on scroll and resize
+    const validateAlignment = () => {
+      if (drawCanvasRef.current && pdfCanvasRef?.current?.canvas) {
+        const pdfCanvas = pdfCanvasRef.current.canvas;
+        const drawRect = drawCanvasRef.current.getBoundingClientRect();
+        const pdfRect = pdfCanvas.getBoundingClientRect();
+        
+        const offsetX = Math.abs(drawRect.left - pdfRect.left);
+        const offsetY = Math.abs(drawRect.top - pdfRect.top);
+        const ALIGNMENT_THRESHOLD = 1;
+        
+        if (offsetX > ALIGNMENT_THRESHOLD || offsetY > ALIGNMENT_THRESHOLD) {
+          console.warn('⚠️ DrawingCanvas: Alignment check failed on scroll/resize', {
+            offsetX,
+            offsetY,
+            pdfRect: { left: pdfRect.left, top: pdfRect.top },
+            drawRect: { left: drawRect.left, top: drawRect.top },
+            scrollPosition: { x: window.scrollX, y: window.scrollY }
+          });
+          // Re-sync to fix alignment
+          debouncedSync();
+        }
+      }
+    };
 
     // Initial sync attempts (reduced from 6 to 2)
     const initialTimeout1 = setTimeout(syncCanvasSize, 100);
     const initialTimeout2 = setTimeout(syncCanvasSize, 500);
+    
+    // VALIDATION: Add scroll and resize listeners to check alignment
+    const handleScroll = () => {
+      validateAlignment();
+    };
+    
+    const handleResize = () => {
+      debouncedSync();
+      // Also validate after resize
+      setTimeout(validateAlignment, 150);
+    };
+    
+    // Listen to scroll events on window and container
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleResize, { passive: true });
+    
+    // Also listen to scroll on the container if it exists
+    const container = drawCanvasRef.current?.parentElement;
+    if (container) {
+      container.addEventListener('scroll', handleScroll, { passive: true });
+    }
     
     // Check for PDF canvas availability with polling
     let pdfCanvasCheckInterval: number | null = null;
@@ -215,6 +299,12 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
     return () => {
       clearTimeout(initialTimeout1);
       clearTimeout(initialTimeout2);
+      // Clean up scroll and resize listeners
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleResize);
+      if (container) {
+        container.removeEventListener('scroll', handleScroll);
+      }
       if (debounceTimer) {
         clearTimeout(debounceTimer);
       }

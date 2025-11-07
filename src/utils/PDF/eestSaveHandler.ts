@@ -181,8 +181,18 @@ export async function saveEESTPDFWithSignature(
         const sigHeight = maxY - minY;
         
         // Detect mobile devices and iPads for coordinate adjustment
-        const isMobile = window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        const isIPad = /iPad/.test(navigator.userAgent);
+        // Improved detection that handles modern iPads (iPadOS 13+ reports as Mac)
+        const userAgent = navigator.userAgent;
+        const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        const isIPadUA = /iPad/.test(userAgent);
+        // Modern iPads report as Mac but have touch support and specific screen characteristics
+        const isMacOS = /Macintosh|Mac OS X/.test(userAgent);
+        const isModernIPad = isMacOS && isTouchDevice && !(window as any).MSStream && 
+                            (window.screen.width >= 768 || window.screen.height >= 1024);
+        const isIPad = isIPadUA || isModernIPad;
+        const isMobile = window.innerWidth <= 768 || 
+                        /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent) ||
+                        isIPad;
         
         // EEST-specific signature position adjustments
         const EEST_SIGNATURE_ADJUSTMENTS = {
@@ -223,6 +233,11 @@ export async function saveEESTPDFWithSignature(
           
           console.log('🔍 EESTSaveHandler: EEST mobile device detected, applying signature adjustments:', {
             isIPad,
+            isModernIPad: isModernIPad,
+            isTouchDevice,
+            userAgent: userAgent.substring(0, 100),
+            screenSize: { width: window.screen.width, height: window.screen.height },
+            windowSize: { width: window.innerWidth, height: window.innerHeight },
             originalPosition: { minX, minY },
             adjustedPosition: { minX: adjustedMinX, minY: adjustedMinY },
             adjustments: { horizontal: horizontalAdjustment, vertical: verticalAdjustment }
@@ -236,6 +251,11 @@ export async function saveEESTPDFWithSignature(
           adjustedMinY = Math.max(0, minY - verticalAdjustment);
           
           console.log('🔍 EESTSaveHandler: EEST desktop device detected, applying signature adjustments:', {
+            isMobile: false,
+            isIPad: false,
+            userAgent: userAgent.substring(0, 100),
+            screenSize: { width: window.screen.width, height: window.screen.height },
+            windowSize: { width: window.innerWidth, height: window.innerHeight },
             originalPosition: { minX, minY },
             adjustedPosition: { minX: adjustedMinX, minY: adjustedMinY },
             adjustments: { horizontal: horizontalAdjustment, vertical: verticalAdjustment }

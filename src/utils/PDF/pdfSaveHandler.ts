@@ -97,15 +97,43 @@ export async function savePDFWithSignature(
         flattenedPdf: { width: flattenedPdfImage.width, height: flattenedPdfImage.height }
       });
       
-      // Check if the canvas dimensions match
+      // VALIDATION: Check if the canvas dimensions match
       const dimensionsMatch = baseCanvasInternalWidth === drawCanvasInternalWidth && 
                              baseCanvasInternalHeight === drawCanvasInternalHeight;
       console.log('🔍 PDFSaveHandler: Canvas dimensions match:', dimensionsMatch);
       
       if (!dimensionsMatch) {
-        console.warn('🔍 PDFSaveHandler: Canvas dimension mismatch detected!', {
+        console.warn('⚠️ PDFSaveHandler: Canvas dimension mismatch detected!', {
           baseCanvas: { width: baseCanvasInternalWidth, height: baseCanvasInternalHeight },
           drawCanvas: { width: drawCanvasInternalWidth, height: drawCanvasInternalHeight }
+        });
+      }
+      
+      // VALIDATION: Check canvas alignment (viewport position)
+      // Get bounding rects to check if canvases are aligned in viewport
+      const baseRect = baseCanvas.getBoundingClientRect();
+      const drawRect = drawCanvas.getBoundingClientRect();
+      const offsetX = Math.abs(baseRect.left - drawRect.left);
+      const offsetY = Math.abs(baseRect.top - drawRect.top);
+      const ALIGNMENT_THRESHOLD = 2; // 2px tolerance for subpixel rendering
+      const isAligned = offsetX <= ALIGNMENT_THRESHOLD && offsetY <= ALIGNMENT_THRESHOLD;
+      
+      console.log('🔍 PDFSaveHandler: Canvas alignment check:', {
+        isAligned,
+        offsetX,
+        offsetY,
+        baseRect: { left: baseRect.left, top: baseRect.top, width: baseRect.width, height: baseRect.height },
+        drawRect: { left: drawRect.left, top: drawRect.top, width: drawRect.width, height: drawRect.height },
+        scrollPosition: { x: window.scrollX, y: window.scrollY }
+      });
+      
+      if (!isAligned) {
+        console.warn('⚠️ PDFSaveHandler: Canvas alignment mismatch detected! Signature position may be incorrect.', {
+          offsetX,
+          offsetY,
+          baseRect: { left: baseRect.left, top: baseRect.top },
+          drawRect: { left: drawRect.left, top: drawRect.top },
+          scrollPosition: { x: window.scrollX, y: window.scrollY }
         });
       }
       
@@ -171,8 +199,18 @@ export async function savePDFWithSignature(
         const sigHeight = maxY - minY;
         
         // Detect mobile devices and iPads for coordinate adjustment
-        const isMobile = window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        const isIPad = /iPad/.test(navigator.userAgent);
+        // Improved detection that handles modern iPads (iPadOS 13+ reports as Mac)
+        const userAgent = navigator.userAgent;
+        const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        const isIPadUA = /iPad/.test(userAgent);
+        // Modern iPads report as Mac but have touch support and specific screen characteristics
+        const isMacOS = /Macintosh|Mac OS X/.test(userAgent);
+        const isModernIPad = isMacOS && isTouchDevice && !(window as any).MSStream && 
+                            (window.screen.width >= 768 || window.screen.height >= 1024);
+        const isIPad = isIPadUA || isModernIPad;
+        const isMobile = window.innerWidth <= 768 || 
+                        /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent) ||
+                        isIPad;
         
         // Signature position adjustments (easily modifiable constants)
         const SIGNATURE_ADJUSTMENTS = {
@@ -213,6 +251,11 @@ export async function savePDFWithSignature(
           
           console.log('🔍 PDFSaveHandler: Mobile device detected, applying signature adjustments:', {
             isIPad,
+            isModernIPad: isModernIPad,
+            isTouchDevice,
+            userAgent: userAgent.substring(0, 100), // Log first 100 chars
+            screenSize: { width: window.screen.width, height: window.screen.height },
+            windowSize: { width: window.innerWidth, height: window.innerHeight },
             originalPosition: { minX, minY },
             adjustedPosition: { minX: adjustedMinX, minY: adjustedMinY },
             adjustments: { horizontal: horizontalAdjustment, vertical: verticalAdjustment }
@@ -226,6 +269,11 @@ export async function savePDFWithSignature(
           adjustedMinY = Math.max(0, minY - verticalAdjustment);
           
           console.log('🔍 PDFSaveHandler: Desktop device detected, applying signature adjustments:', {
+            isMobile: false,
+            isIPad: false,
+            userAgent: userAgent.substring(0, 100),
+            screenSize: { width: window.screen.width, height: window.screen.height },
+            windowSize: { width: window.innerWidth, height: window.innerHeight },
             originalPosition: { minX, minY },
             adjustedPosition: { minX: adjustedMinX, minY: adjustedMinY },
             adjustments: { horizontal: horizontalAdjustment, vertical: verticalAdjustment }
