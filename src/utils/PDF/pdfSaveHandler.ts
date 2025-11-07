@@ -150,7 +150,7 @@ export async function savePDFWithSignature(
       // Base canvas display is at finalZoom × containerScale
       // Calculate scale factor from display dimensions
       // Apply size multiplier to make drawings larger (start with 10% = 1.1x)
-      const SIZE_MULTIPLIER = 1.8; // 10% larger - can be adjusted
+      const SIZE_MULTIPLIER = 1.9; // 10% larger - can be adjusted
       const scaleX = (flattenedPdfImage.width / baseCanvasDisplayWidth) * SIZE_MULTIPLIER;
       const scaleY = (flattenedPdfImage.height / baseCanvasDisplayHeight) * SIZE_MULTIPLIER;
       
