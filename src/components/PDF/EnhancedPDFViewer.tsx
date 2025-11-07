@@ -301,7 +301,7 @@ export const EnhancedPDFViewer = forwardRef<EnhancedPDFViewerRef, EnhancedPDFVie
             onPDFLoaded={handlePDFLoaded}
             onError={handlePDFError}
             onLoadingChange={handleLoadingChange}
-            zoomLevel={1.5}
+            zoomLevel={2.5}
             fitType="page"
           />
           
