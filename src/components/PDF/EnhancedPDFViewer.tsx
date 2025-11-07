@@ -52,7 +52,7 @@ export const EnhancedPDFViewer = forwardRef<EnhancedPDFViewerRef, EnhancedPDFVie
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
-  const [currentZoom, setCurrentZoom] = useState<number>(2.0); // Fixed at 200%
+  const [currentZoom, setCurrentZoom] = useState<number>(1.5); // Fixed at 150%
   const [isDrawingMode, setIsDrawingMode] = useState(false);
 
   // Handle PDF loading
@@ -301,7 +301,7 @@ export const EnhancedPDFViewer = forwardRef<EnhancedPDFViewerRef, EnhancedPDFVie
             onPDFLoaded={handlePDFLoaded}
             onError={handlePDFError}
             onLoadingChange={handleLoadingChange}
-            zoomLevel={2.0}
+            zoomLevel={1.5}
             fitType="page"
           />
           
@@ -311,7 +311,7 @@ export const EnhancedPDFViewer = forwardRef<EnhancedPDFViewerRef, EnhancedPDFVie
                 isDrawingMode={isDrawingMode}
                 className="draw-canvas"
                 pdfCanvasRef={pdfCanvasRef}
-                zoomLevel={2.0}
+                zoomLevel={1.5}
               />
           )}
         </div>
