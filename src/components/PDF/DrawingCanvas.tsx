@@ -242,12 +242,14 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
       setTimeout(validateAlignment, 150);
     };
     
+    // Get container reference once for reuse
+    const container = drawCanvasRef.current?.parentElement;
+    
     // Listen to scroll events on window and container
     window.addEventListener('scroll', handleScroll, { passive: true });
     window.addEventListener('resize', handleResize, { passive: true });
     
     // Also listen to scroll on the container if it exists
-    const container = drawCanvasRef.current?.parentElement;
     if (container) {
       container.addEventListener('scroll', handleScroll, { passive: true });
     }
@@ -285,7 +287,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
     }
 
     // Also observe the PDF canvas for changes
-    const container = drawCanvasRef.current?.parentElement;
+    // Reuse container variable declared above
     const pdfCanvas = pdfCanvasRef?.current?.canvas || container?.querySelector('.pdf-canvas');
     if (pdfCanvas) {
       resizeObserver.observe(pdfCanvas);
