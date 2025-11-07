@@ -3,7 +3,7 @@ import React, { useRef, useEffect, useCallback, forwardRef, useImperativeHandle 
 import * as pdfjsLib from 'pdfjs-dist';
 import { loadPDFDocument } from '../../utils/PDF/pdfRendering';
 import { getPDF } from '../../utils/pdfStorage';
-import { PDF_PAGE_SIZE, calculateFitZoom } from '../../utils/PDF/pdfConstants';
+// Note: PDF dimensions are now queried from the actual PDF instead of using hardcoded constants
 
 export interface PDFCanvasProps {
   pdfId?: string;
@@ -40,7 +40,7 @@ export const PDFCanvas = forwardRef<PDFCanvasRef, PDFCanvasProps>(({
   const pdfDocRef = useRef<pdfjsLib.PDFDocumentProxy | null>(null);
   const currentZoomRef = useRef<number>(zoomLevel);
 
-  // Render PDF to canvas with precise sizing using known page dimensions
+  // Render PDF to canvas with precise sizing using actual PDF dimensions
   const renderPDF = useCallback(async () => {
     if (!canvasRef.current || !pdfDocRef.current) return;
 
@@ -48,12 +48,6 @@ export const PDFCanvas = forwardRef<PDFCanvasRef, PDFCanvasProps>(({
       const canvas = canvasRef.current;
       const pdfDoc = pdfDocRef.current;
       const currentZoom = currentZoomRef.current;
-      
-      console.log('🔍 PDFCanvas: Rendering PDF with known page size', {
-        pageSize: { width: PDF_PAGE_SIZE.widthPixels, height: PDF_PAGE_SIZE.heightPixels },
-        zoomLevel: currentZoom,
-        fitType
-      });
 
       // Get the page
       const page = await pdfDoc.getPage(1);
@@ -66,39 +60,89 @@ export const PDFCanvas = forwardRef<PDFCanvasRef, PDFCanvasProps>(({
         throw new Error('Could not get canvas context');
       }
 
+      // Get the PDF's actual original dimensions (at 72 DPI)
+      const originalViewport = page.getViewport({ scale: 1.0 });
+      const baseWidth = originalViewport.width;
+      const baseHeight = originalViewport.height;
+      
+      console.log('🔍 PDFCanvas: Rendering PDF with actual page size', {
+        actualPageSize: { width: baseWidth, height: baseHeight },
+        zoomLevel: currentZoom,
+        fitType
+      });
+
       // Get container for responsive sizing
       const container = canvas.parentElement;
       if (!container) {
         throw new Error('Canvas must have a parent container for responsive sizing');
       }
 
+      // Get container padding to account for it in calculations
+      const containerStyles = window.getComputedStyle(container);
+      const paddingLeft = parseFloat(containerStyles.paddingLeft) || 0;
+      const paddingRight = parseFloat(containerStyles.paddingRight) || 0;
+      const paddingTop = parseFloat(containerStyles.paddingTop) || 0;
+      const paddingBottom = parseFloat(containerStyles.paddingBottom) || 0;
+      const horizontalPadding = paddingLeft + paddingRight;
+      const verticalPadding = paddingTop + paddingBottom;
+
       // Calculate final zoom level
       let finalZoom = currentZoom;
       if (currentZoom === 0) {
-        // Auto-fit mode - calculate zoom to fit container
-        finalZoom = calculateFitZoom(container.clientWidth, container.clientHeight, fitType);
+        // Auto-fit mode - calculate zoom to fit container using actual PDF dimensions
+        // Account for padding in available space
+        const containerWidth = container.clientWidth - horizontalPadding;
+        const containerHeight = container.clientHeight - verticalPadding;
+        
+        // Account for mobile viewport issues
+        const isMobile = window.innerWidth <= 768;
+        const effectiveWidth = isMobile ? Math.min(containerWidth, window.innerWidth - 40) : containerWidth;
+        const effectiveHeight = isMobile ? Math.min(containerHeight, window.innerHeight - 100) : containerHeight;
+        
+        let calculatedZoom: number;
+        switch (fitType) {
+          case 'width':
+            calculatedZoom = effectiveWidth / baseWidth;
+            break;
+          case 'height':
+            calculatedZoom = effectiveHeight / baseHeight;
+            break;
+          case 'page':
+          default:
+            const scaleX = effectiveWidth / baseWidth;
+            const scaleY = effectiveHeight / baseHeight;
+            calculatedZoom = Math.min(scaleX, scaleY);
+            break;
+        }
+        
+        finalZoom = calculatedZoom;
         console.log('🔍 PDFCanvas: Auto-fit zoom calculated:', finalZoom, {
           containerSize: { width: container.clientWidth, height: container.clientHeight },
+          effectiveSize: { width: effectiveWidth, height: effectiveHeight },
+          actualPageSize: { width: baseWidth, height: baseHeight },
+          horizontalPadding,
           fitType
         });
       } else {
         console.log('🔍 PDFCanvas: Using provided zoom level:', finalZoom);
       }
 
-       // Calculate responsive canvas dimensions
+       // Calculate responsive canvas dimensions using actual PDF dimensions
        const devicePixelRatio = window.devicePixelRatio || 1;
-       const baseWidth = PDF_PAGE_SIZE.widthPixels;
-       const baseHeight = PDF_PAGE_SIZE.heightPixels;
        
        // Calculate display dimensions that fit the container
-       // Use full container dimensions - the container already has padding
-       const maxDisplayWidth = container.clientWidth;
-       const maxDisplayHeight = container.clientHeight;
+       // Account for padding in available space
+       const maxDisplayWidth = container.clientWidth - horizontalPadding;
+       const maxDisplayHeight = container.clientHeight - verticalPadding;
        
        // Calculate scale to fit container while maintaining aspect ratio
+       // Scale down less aggressively - only scale if PDF is significantly larger than container
        const scaleX = maxDisplayWidth / (baseWidth * finalZoom);
        const scaleY = maxDisplayHeight / (baseHeight * finalZoom);
-       const containerScale = Math.min(scaleX, scaleY, 1.0); // Don't scale up beyond 100%
+       // Only apply scaling if it's less than 0.9 (10% reduction threshold)
+       // This prevents unnecessary scaling for small size differences
+       const rawContainerScale = Math.min(scaleX, scaleY, 1.0);
+       const containerScale = rawContainerScale < 0.9 ? rawContainerScale : 1.0;
        
        // Final display dimensions
        const displayWidth = Math.round(baseWidth * finalZoom * containerScale);
@@ -109,7 +153,7 @@ export const PDFCanvas = forwardRef<PDFCanvasRef, PDFCanvasProps>(({
       const canvasHeight = Math.round(displayHeight * devicePixelRatio);
       
       console.log('🔍 PDFCanvas: Responsive dimensions calculated', {
-        baseSize: { width: baseWidth, height: baseHeight },
+        actualPageSize: { width: baseWidth, height: baseHeight },
         zoom: finalZoom,
         containerSize: { width: container.clientWidth, height: container.clientHeight },
         maxDisplaySize: { width: maxDisplayWidth, height: maxDisplayHeight },
@@ -155,7 +199,7 @@ export const PDFCanvas = forwardRef<PDFCanvasRef, PDFCanvasProps>(({
         canvasSize: { width: canvas.width, height: canvas.height },
         displaySize: { width: canvas.style.width, height: canvas.style.height },
         viewport: { width: viewport.width, height: viewport.height },
-        pageSize: { width: PDF_PAGE_SIZE.widthPixels, height: PDF_PAGE_SIZE.heightPixels },
+        actualPageSize: { width: baseWidth, height: baseHeight },
         containerScale,
         devicePixelRatio
       });

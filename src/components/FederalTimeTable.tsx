@@ -1,5 +1,5 @@
 // Federal Time Table
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { FederalEquipmentEntry, FederalPersonnelEntry, FederalFormData } from '../utils/engineTimeDB';
 import {
@@ -30,6 +30,7 @@ const CalendarPicker: React.FC<{
   currentDate?: string;
 }> = ({ isOpen, onClose, onSelectDate, currentDate }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const calendarRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
     if (currentDate) {
@@ -39,6 +40,26 @@ const CalendarPicker: React.FC<{
       }
     }
   }, [currentDate]);
+
+  // Handle click outside to close calendar
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (calendarRef.current && !calendarRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    // Add event listeners for both mouse and touch events
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -101,19 +122,23 @@ const CalendarPicker: React.FC<{
   const days = getDaysInMonth(currentMonth);
 
   return (
-    <div style={{
-      position: 'absolute',
-      top: '100%',
-      left: 0,
-      right: 0,
-      backgroundColor: '#fff',
-      borderRadius: '8px',
-      padding: '12px',
-      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-      border: '1px solid #e9ecef',
-      zIndex: 1000,
-      marginTop: '4px'
-    }} onClick={(e) => e.stopPropagation()}>
+    <div 
+      ref={calendarRef}
+      style={{
+        position: 'absolute',
+        top: '100%',
+        left: 0,
+        right: 0,
+        backgroundColor: '#fff',
+        borderRadius: '8px',
+        padding: '12px',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+        border: '1px solid #e9ecef',
+        zIndex: 1000,
+        marginTop: '4px'
+      }} 
+      onClick={(e) => e.stopPropagation()}
+    >
       {/* Header */}
       <div style={{
         display: 'flex',
@@ -3779,18 +3804,23 @@ export const FederalTimeTable: React.FC = () => {
           bottom: 0,
           backgroundColor: 'rgba(0, 0, 0, 0.8)',
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+          alignItems: 'flex-start',
+          justifyContent: 'flex-end',
+          paddingTop: '2.5vh',
+          paddingRight: '2.5vw',
           zIndex: 2000
         }}>
           <div style={{
             backgroundColor: 'white',
             borderRadius: '8px',
-            padding: '20px',
-            maxWidth: '90vw',
+            padding: '20px 20px 20px 40px',
+            width: '85vw',
+            maxWidth: '85vw',
             maxHeight: '90vh',
             overflow: 'auto',
-            position: 'relative'
+            position: 'relative',
+            display: 'flex',
+            flexDirection: 'column'
           }}>
             <button
               onClick={handleClosePDFPreview}
@@ -3819,13 +3849,17 @@ export const FederalTimeTable: React.FC = () => {
             <div style={{
               border: '1px solid #dee2e6',
               borderRadius: '4px',
-              overflow: 'hidden'
+              overflow: 'auto',
+              flex: 1,
+              minHeight: '60vh',
+              maxHeight: '80vh'
             }}>
               <iframe
                 src={URL.createObjectURL(previewPDF.pdf)}
                 style={{
                   width: '100%',
-                  height: '70vh',
+                  height: '100%',
+                  minHeight: '60vh',
                   border: 'none'
                 }}
                 title="PDF Preview"

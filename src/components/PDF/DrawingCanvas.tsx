@@ -65,6 +65,9 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
 
   // Sync canvas size with PDF canvas
   useEffect(() => {
+    let debounceTimer: number | null = null;
+    let lastDimensions: { width: number; height: number; displayWidth: number; displayHeight: number } | null = null;
+    
     const syncCanvasSize = () => {
       if (drawCanvasRef.current) {
         // Use the provided PDF canvas ref or fall back to query selector
@@ -78,6 +81,25 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
           const containerRect = container?.getBoundingClientRect();
           
           if (containerRect && pdfRect.width > 0 && pdfRect.height > 0) {
+            // Check if dimensions have actually changed to avoid unnecessary updates
+            const currentDimensions = {
+              width: pdfCanvas.width,
+              height: pdfCanvas.height,
+              displayWidth: pdfRect.width,
+              displayHeight: pdfRect.height
+            };
+            
+            if (lastDimensions &&
+                lastDimensions.width === currentDimensions.width &&
+                lastDimensions.height === currentDimensions.height &&
+                lastDimensions.displayWidth === currentDimensions.displayWidth &&
+                lastDimensions.displayHeight === currentDimensions.displayHeight) {
+              // Dimensions haven't changed, skip update
+              return;
+            }
+            
+            lastDimensions = currentDimensions;
+            
             // Calculate device pixel ratio for high-DPI displays
             const devicePixelRatio = window.devicePixelRatio || 1;
             
@@ -134,22 +156,34 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
       }
     };
 
-    // Multiple sync attempts to handle different loading scenarios
-    const syncAttempts = [50, 100, 200, 500, 1000, 2000];
-    const timeoutIds = syncAttempts.map(delay => setTimeout(syncCanvasSize, delay));
+    // Debounced sync function
+    const debouncedSync = () => {
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+      debounceTimer = window.setTimeout(syncCanvasSize, 100);
+    };
+
+    // Initial sync attempts (reduced from 6 to 2)
+    const initialTimeout1 = setTimeout(syncCanvasSize, 100);
+    const initialTimeout2 = setTimeout(syncCanvasSize, 500);
     
-    // Also try to sync when the PDF canvas becomes available
+    // Check for PDF canvas availability with polling
     let pdfCanvasCheckInterval: number | null = null;
+    let checkCount = 0;
+    const maxChecks = 20; // Limit to 20 checks (2 seconds max)
+    
     const checkForPDFCanvas = () => {
       const pdfCanvas = pdfCanvasRef?.current?.canvas || 
         drawCanvasRef.current?.parentElement?.querySelector('.pdf-canvas') as HTMLCanvasElement;
       if (pdfCanvas && pdfCanvas.width > 0 && pdfCanvas.height > 0) {
         syncCanvasSize();
         if (pdfCanvasCheckInterval) {
-          clearInterval(pdfCanvasCheckInterval);
+          clearTimeout(pdfCanvasCheckInterval);
           pdfCanvasCheckInterval = null;
         }
-      } else {
+      } else if (checkCount < maxChecks) {
+        checkCount++;
         pdfCanvasCheckInterval = setTimeout(checkForPDFCanvas, 100);
       }
     };
@@ -157,10 +191,9 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
     // Start checking for PDF canvas availability
     setTimeout(checkForPDFCanvas, 0);
 
-    // Set up resize observer to sync canvas sizes
+    // Set up resize observer to sync canvas sizes (debounced)
     const resizeObserver = new ResizeObserver(() => {
-      // Debounce resize events
-      setTimeout(syncCanvasSize, 50);
+      debouncedSync();
     });
     
     if (drawCanvasRef.current) {
@@ -180,13 +213,17 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
     }
 
     return () => {
-      timeoutIds.forEach(id => clearTimeout(id));
+      clearTimeout(initialTimeout1);
+      clearTimeout(initialTimeout2);
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
       if (pdfCanvasCheckInterval) {
         clearTimeout(pdfCanvasCheckInterval);
       }
       resizeObserver.disconnect();
     };
-  }, []);
+  }, [pdfCanvasRef]);
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (isDrawingMode) {

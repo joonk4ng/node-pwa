@@ -271,9 +271,6 @@ export const EnhancedPDFViewer = forwardRef<EnhancedPDFViewerRef, EnhancedPDFVie
           width: '100%',
           height: 'auto',
           minHeight: '400px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
           position: 'relative',
         }}
         ref={containerRef}
@@ -281,7 +278,7 @@ export const EnhancedPDFViewer = forwardRef<EnhancedPDFViewerRef, EnhancedPDFVie
         <div 
           className="canvas-container"
           style={{
-            width: '100%',
+            width: 'max-content',
             height: 'auto',
             minHeight: '400px',
             display: 'flex',
@@ -289,8 +286,9 @@ export const EnhancedPDFViewer = forwardRef<EnhancedPDFViewerRef, EnhancedPDFVie
             alignItems: 'center',
             justifyContent: 'center',
             position: 'relative',
-            padding: '20px',
-            boxSizing: 'border-box'
+            padding: '20px 10px',
+            boxSizing: 'border-box',
+            margin: '0 auto'
           }}
         >
           {error && <div className="error-message">{error}</div>}

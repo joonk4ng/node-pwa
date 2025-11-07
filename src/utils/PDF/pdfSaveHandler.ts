@@ -139,11 +139,29 @@ export async function savePDFWithSignature(
         });
       }
       
-      // Calculate scale factors from base canvas internal size to flattened PDF size
-      const scaleX = flattenedPdfImage.width / baseCanvasInternalWidth;
-      const scaleY = flattenedPdfImage.height / baseCanvasInternalHeight;
+      // Calculate scale factors from base canvas DISPLAY size to flattened PDF size
+      // The base canvas internal size includes devicePixelRatio, but we need to scale
+      // based on the display dimensions to match the flattened PDF scale
+      const devicePixelRatio = window.devicePixelRatio || 1;
+      const baseCanvasDisplayWidth = baseCanvasInternalWidth / devicePixelRatio;
+      const baseCanvasDisplayHeight = baseCanvasInternalHeight / devicePixelRatio;
       
-      console.log('🔍 PDFSaveHandler: Signature scale factors:', { scaleX, scaleY });
+      // Flattened PDF is rendered at 3.0x scale (from pdfOptions.scale)
+      // Base canvas display is at finalZoom × containerScale
+      // Calculate scale factor from display dimensions
+      // Apply size multiplier to make drawings larger (start with 10% = 1.1x)
+      const SIZE_MULTIPLIER = 1.8; // 10% larger - can be adjusted
+      const scaleX = (flattenedPdfImage.width / baseCanvasDisplayWidth) * SIZE_MULTIPLIER;
+      const scaleY = (flattenedPdfImage.height / baseCanvasDisplayHeight) * SIZE_MULTIPLIER;
+      
+      console.log('🔍 PDFSaveHandler: Signature scale factors (corrected):', { 
+        scaleX, 
+        scaleY,
+        baseCanvasDisplay: { width: baseCanvasDisplayWidth, height: baseCanvasDisplayHeight },
+        baseCanvasInternal: { width: baseCanvasInternalWidth, height: baseCanvasInternalHeight },
+        flattenedPdf: { width: flattenedPdfImage.width, height: flattenedPdfImage.height },
+        devicePixelRatio
+      });
       
       // Draw the signature using its internal dimensions, scaled to match the flattened PDF
       // Instead of drawing the entire canvas, only draw the signature area
@@ -161,13 +179,13 @@ export async function savePDFWithSignature(
           // Horizontal adjustments (X-axis)
           horizontal: {
             ipad: 0,        // iPad horizontal adjustment
-            mobile: -275,      // General mobile horizontal adjustment
+            mobile: 720,      // General mobile horizontal adjustment
             desktop: 0      // Desktop horizontal adjustment
           },
           // Vertical adjustments (Y-axis) - NEW
           vertical: {
             ipad: 0,        // iPad vertical adjustment
-            mobile: 300,      // General mobile vertical adjustment
+            mobile: -470,      // General mobile vertical adjustment
             desktop: 0      // Desktop vertical adjustment
           }
         };
@@ -214,17 +232,21 @@ export async function savePDFWithSignature(
           });
         }
         
-        const scaledMinX = adjustedMinX * scaleX;
-        const scaledMinY = adjustedMinY * scaleY;
-        const scaledSigWidth = sigWidth * scaleX;
-        const scaledSigHeight = sigHeight * scaleY;
+        // Scale coordinates from drawing canvas internal space to flattened PDF space
+        // Drawing coordinates are in internal canvas space (includes devicePixelRatio)
+        // Need to convert to display space first, then scale to flattened PDF
+        const scaledMinX = (adjustedMinX / devicePixelRatio) * scaleX;
+        const scaledMinY = (adjustedMinY / devicePixelRatio) * scaleY;
+        const scaledSigWidth = (sigWidth / devicePixelRatio) * scaleX;
+        const scaledSigHeight = (sigHeight / devicePixelRatio) * scaleY;
         
         console.log('🔍 PDFSaveHandler: Drawing signature at scaled position:', {
           isIPad,
           originalBounds: { minX, minY, width: sigWidth, height: sigHeight },
           adjustedBounds: { minX: adjustedMinX, minY: adjustedMinY, width: sigWidth, height: sigHeight },
           scaledBounds: { x: scaledMinX, y: scaledMinY, width: scaledSigWidth, height: scaledSigHeight },
-          scaleFactors: { scaleX, scaleY }
+          scaleFactors: { scaleX, scaleY },
+          devicePixelRatio
         });
         
         // Draw the entire signature canvas to preserve internal spacing, then apply position adjustments
@@ -232,27 +254,35 @@ export async function savePDFWithSignature(
         highResCtx.save();
         
         // Apply position adjustments by translating the canvas
+        // Convert adjustment from internal coordinates to display, then scale
         highResCtx.translate(
-          (adjustedMinX - minX) * scaleX,  // X adjustment in high-res coordinates
-          (adjustedMinY - minY) * scaleY   // Y adjustment in high-res coordinates
+          ((adjustedMinX - minX) / devicePixelRatio) * scaleX,  // X adjustment in high-res coordinates
+          ((adjustedMinY - minY) / devicePixelRatio) * scaleY   // Y adjustment in high-res coordinates
         );
         
         // Draw the entire signature canvas scaled to high resolution
-        // This preserves all internal spacing and relationships
+        // Convert from internal canvas dimensions to display dimensions, then scale to flattened PDF
+        const drawCanvasDisplayWidth = drawCanvasInternalWidth / devicePixelRatio;
+        const drawCanvasDisplayHeight = drawCanvasInternalHeight / devicePixelRatio;
+        
         highResCtx.drawImage(
           drawCanvas,
-          0, 0, drawCanvasInternalWidth, drawCanvasInternalHeight,  // Source: full signature canvas
-          0, 0, flattenedPdfImage.width, flattenedPdfImage.height  // Destination: full high-res area
+          0, 0, drawCanvasInternalWidth, drawCanvasInternalHeight,  // Source: full signature canvas (internal)
+          0, 0, drawCanvasDisplayWidth * scaleX, drawCanvasDisplayHeight * scaleY  // Destination: scaled to flattened PDF size
         );
         
         highResCtx.restore();
       } else {
         // Fallback: draw the entire canvas if bounds detection failed
         console.warn('🔍 PDFSaveHandler: Signature bounds detection failed, drawing entire canvas');
+        // Convert from internal canvas dimensions to display dimensions, then scale to flattened PDF
+        const drawCanvasDisplayWidth = drawCanvasInternalWidth / devicePixelRatio;
+        const drawCanvasDisplayHeight = drawCanvasInternalHeight / devicePixelRatio;
+        
         highResCtx.drawImage(
           drawCanvas, 
           0, 0, drawCanvasInternalWidth, drawCanvasInternalHeight,  // Source: full internal canvas
-          0, 0, flattenedPdfImage.width, flattenedPdfImage.height  // Destination: full flattened PDF size
+          0, 0, drawCanvasDisplayWidth * scaleX, drawCanvasDisplayHeight * scaleY  // Destination: scaled to flattened PDF size
         );
       }
     }
